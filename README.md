@@ -16,6 +16,14 @@ A universal LM core optimized for low import/runtime overhead with provider plug
 - **Middleware pipeline** (`middleware.py`): retries/history/cache wrappers.
 - **Completeness harness** (`completeness/*`): fixture + live probes, score output.
 
+## Support matrix (current adapters)
+
+| Provider | complete | stream | embeddings | files | batches | images | audio | live |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| OpenAI | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Anthropic | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Gemini | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+
 ## Quick start
 
 ```python
