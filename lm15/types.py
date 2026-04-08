@@ -82,12 +82,102 @@ class Part:
         return Part(type="text", text=text)
 
     @staticmethod
+    def thinking(text: str, *, redacted: bool | None = None, summary: str | None = None) -> "Part":
+        return Part(type="thinking", text=text, redacted=redacted, summary=summary)
+
+    @staticmethod
+    def _cache_metadata(cache: bool | dict[str, Any] | None = None) -> dict[str, Any] | None:
+        if cache is None:
+            return None
+        if cache is True:
+            return {"cache": True}
+        if isinstance(cache, dict):
+            return {"cache": cache}
+        return {"cache": bool(cache)}
+
+    @staticmethod
+    def _media_part(
+        kind: Literal["image", "audio", "video", "document"],
+        *,
+        url: str | None = None,
+        data: bytes | str | None = None,
+        file_id: str | None = None,
+        media_type: str | None = None,
+        detail: Literal["low", "high", "auto"] | None = None,
+        cache: bool | dict[str, Any] | None = None,
+    ) -> "Part":
+        provided = sum(1 for x in (url, data, file_id) if x is not None)
+        if provided != 1:
+            raise ValueError(f"Part.{kind} requires exactly one of url, data, file_id")
+        if url is not None:
+            source = DataSource(type="url", url=url, media_type=media_type, detail=detail)
+        elif file_id is not None:
+            source = DataSource(type="file", file_id=file_id, media_type=media_type, detail=detail)
+        else:
+            if isinstance(data, bytes):
+                import base64
+
+                payload = base64.b64encode(data).decode("ascii")
+            else:
+                payload = data or ""
+            source = DataSource(type="base64", data=payload, media_type=media_type or "application/octet-stream", detail=detail)
+        return Part(type=kind, source=source, metadata=Part._cache_metadata(cache))
+
+    @staticmethod
+    def image(
+        *,
+        url: str | None = None,
+        data: bytes | str | None = None,
+        file_id: str | None = None,
+        media_type: str | None = None,
+        detail: Literal["low", "high", "auto"] | None = None,
+        cache: bool | dict[str, Any] | None = None,
+    ) -> "Part":
+        return Part._media_part("image", url=url, data=data, file_id=file_id, media_type=media_type or "image/png", detail=detail, cache=cache)
+
+    @staticmethod
+    def audio(
+        *,
+        url: str | None = None,
+        data: bytes | str | None = None,
+        file_id: str | None = None,
+        media_type: str | None = None,
+        detail: Literal["low", "high", "auto"] | None = None,
+        cache: bool | dict[str, Any] | None = None,
+    ) -> "Part":
+        return Part._media_part("audio", url=url, data=data, file_id=file_id, media_type=media_type or "audio/wav", detail=detail, cache=cache)
+
+    @staticmethod
+    def video(
+        *,
+        url: str | None = None,
+        data: bytes | str | None = None,
+        file_id: str | None = None,
+        media_type: str | None = None,
+        detail: Literal["low", "high", "auto"] | None = None,
+        cache: bool | dict[str, Any] | None = None,
+    ) -> "Part":
+        return Part._media_part("video", url=url, data=data, file_id=file_id, media_type=media_type or "video/mp4", detail=detail, cache=cache)
+
+    @staticmethod
+    def document(
+        *,
+        url: str | None = None,
+        data: bytes | str | None = None,
+        file_id: str | None = None,
+        media_type: str | None = None,
+        detail: Literal["low", "high", "auto"] | None = None,
+        cache: bool | dict[str, Any] | None = None,
+    ) -> "Part":
+        return Part._media_part("document", url=url, data=data, file_id=file_id, media_type=media_type or "application/pdf", detail=detail, cache=cache)
+
+    @staticmethod
     def tool_call(id: str, name: str, input: dict[str, Any]) -> "Part":
         return Part(type="tool_call", id=id, name=name, input=input)
 
     @staticmethod
-    def tool_result(id: str, content: list["Part"], is_error: bool | None = None) -> "Part":
-        return Part(type="tool_result", id=id, content=tuple(content), is_error=is_error)
+    def tool_result(id: str, content: list["Part"], is_error: bool | None = None, name: str | None = None) -> "Part":
+        return Part(type="tool_result", id=id, name=name, content=tuple(content), is_error=is_error)
 
     @staticmethod
     def refusal(text: str) -> "Part":
@@ -96,7 +186,6 @@ class Part:
     @staticmethod
     def citation(text: str | None = None, url: str | None = None, title: str | None = None) -> "Part":
         return Part(type="citation", text=text, url=url, title=title)
-
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "Part":
         source_value = value.get("source")
@@ -134,6 +223,10 @@ class Message:
     @staticmethod
     def user(text: str) -> "Message":
         return Message(role="user", parts=(Part.text_part(text),))
+
+    @staticmethod
+    def assistant(text: str) -> "Message":
+        return Message(role="assistant", parts=(Part.text_part(text),))
 
 
 @dataclass(slots=True, frozen=True)
@@ -218,6 +311,37 @@ class LMResponse:
         """Return concatenated text from all text parts, or None if no text parts."""
         texts = [p.text for p in self.message.parts if p.type == "text" and p.text is not None]
         return "\n".join(texts) if texts else None
+
+    @property
+    def image(self) -> Part | None:
+        for p in self.message.parts:
+            if p.type == "image":
+                return p
+        return None
+
+    @property
+    def images(self) -> list[Part]:
+        return [p for p in self.message.parts if p.type == "image"]
+
+    @property
+    def audio(self) -> Part | None:
+        for p in self.message.parts:
+            if p.type == "audio":
+                return p
+        return None
+
+    @property
+    def tool_calls(self) -> list[Part]:
+        return [p for p in self.message.parts if p.type == "tool_call"]
+
+    @property
+    def thinking(self) -> str | None:
+        texts = [p.text for p in self.message.parts if p.type == "thinking" and p.text is not None]
+        return "\n".join(texts) if texts else None
+
+    @property
+    def citations(self) -> list[Part]:
+        return [p for p in self.message.parts if p.type == "citation"]
 
 
 @dataclass(slots=True, frozen=True)

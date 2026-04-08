@@ -1,8 +1,16 @@
-__version__ = "0.1.0"
+from importlib.metadata import version as _v
 
+try:
+    __version__ = _v("lm15")
+except Exception:
+    __version__ = "0.0.0+dev"
+
+from .api import complete, model, stream, upload
 from .capabilities import hydrate_with_specs
 from .client import UniversalLM
 from .middleware import with_cache, with_history, with_retries
+from .model import HistoryEntry
+from .stream import Stream, StreamChunk
 from .model_catalog import build_provider_model_index, fetch_models_dev
 from .plugins import discover_provider_entry_points, load_plugins
 from .transports.base import TransportPolicy
@@ -55,6 +63,13 @@ __all__ = [
     "__version__",
     "UniversalLM",
     "build_default",
+    "complete",
+    "stream",
+    "model",
+    "upload",
+    "Stream",
+    "StreamChunk",
+    "HistoryEntry",
     "TransportPolicy",
     "with_cache",
     "with_history",

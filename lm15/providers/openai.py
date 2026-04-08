@@ -94,7 +94,8 @@ class OpenAIAdapter(BaseProviderAdapter):
         if request.config.response_format:
             payload.update(request.config.response_format)
         if request.config.provider:
-            payload.update(request.config.provider)
+            passthrough = {k: v for k, v in request.config.provider.items() if k != "prompt_caching"}
+            payload.update(passthrough)
         return payload
 
     def build_request(self, request: LMRequest, stream: bool) -> HttpRequest:

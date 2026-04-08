@@ -17,34 +17,20 @@ One interface for OpenAI, Anthropic, and Gemini. Zero dependencies.
 <sub>Median of 10 cold-start runs. Fresh venv, single completion against `gemini-3.1-flash-lite-preview`. [Benchmark source.](benchmarks/cold_start.sh)</sub>
 
 ```python
-from lm15 import LMRequest, Message, Part, build_default
+import lm15
 
-lm = build_default()
-resp = lm.complete(LMRequest(
-    model="claude-sonnet-4-5",
-    messages=(Message.user("Hello."),),
-))
+resp = lm15.complete("claude-sonnet-4-5", "Hello.")
 print(resp.text)
 ```
 
-Switch models by changing the string. Same types, same streaming protocol, same error hierarchy. That's it.
+Switch models by changing the string. Same types, same streaming, same tool calling. That's it.
 
 > Yes, [we know](https://xkcd.com/927/).
-
-## Why this exists
-
-Every LLM wrapper either (a) ships a massive SDK per provider or (b) papers over differences with a lossy abstraction. lm15 takes a different cut:
-
-- **Stdlib only.** No `requests`, no `httpx`, no `aiohttp`. Transport is `urllib` or optional `pycurl`.
-- **Frozen dataclasses all the way down.** `LMRequest` in, `LMResponse` out. No mutable builder chains, no hidden state.
-- **Nothing is hidden.** Provider-specific options pass through `Config.provider`. The normalized types cover the common surface; the escape hatch is always there.
-- **Plugin discovery via entry points.** Third-party providers install and register without touching lm15 core.
 
 ## Install
 
 ```bash
-pip install lm15            # stdlib transport (urllib)
-pip install lm15[speed]     # + pycurl transport
+pip install lm15
 ```
 
 Set at least one provider key:
@@ -60,63 +46,136 @@ export GEMINI_API_KEY=...         # or GOOGLE_API_KEY
 ### Streaming
 
 ```python
-req = LMRequest(model="gpt-4.1-mini", messages=(...))
-for event in lm.stream(req):
-    if event.delta_text is not None:
-        print(event.delta_text, end="")
+for text in lm15.stream("gpt-4.1-mini", "Write a haiku.").text:
+    print(text, end="")
 ```
 
-### Tool calling
+Full event access:
 
 ```python
-from lm15 import Tool, ToolConfig
-
-tools = (Tool(name="get_weather", description="...", parameters={...}),)  # type defaults to "function"
-req = LMRequest(model="gemini-2.5-flash", messages=(...), tools=tools)
-resp = lm.complete(req)
-# resp.message.parts may contain Part(type="tool_call", ...)
+for event in lm15.stream("gpt-4.1-mini", "Write a haiku."):
+    match event.type:
+        case "text":     print(event.text, end="")
+        case "thinking": print(f"💭 {event.text}", end="")
+        case "finished": print(f"\n📊 {event.response.usage}")
 ```
 
-### Embeddings, images, audio, files, batches
+### Tools (auto-execute)
+
+Pass Python functions — schema is inferred, execution is automatic:
 
 ```python
-lm.embeddings(EmbeddingRequest(model="text-embedding-3-small", input=["hello"]))
-lm.image_generate(ImageGenerationRequest(model="gpt-image-1", prompt="a cat"))
-lm.audio_generate(AudioGenerationRequest(model="gpt-4o-mini-tts", input="hi", voice="alloy"))
-lm.file_upload(FileUploadRequest(...), provider="openai")
-lm.batch_submit(BatchRequest(...))
+def get_weather(city: str) -> str:
+    """Get weather by city."""
+    return f"22°C in {city}"
+
+resp = lm15.complete("gpt-4.1-mini", "Weather in Montreal?", tools=[get_weather])
+print(resp.text)  # "It's 22°C in Montreal."
 ```
 
-### Middleware
+### Tools (manual)
 
 ```python
-from lm15 import with_retries, with_cache, with_history
+from lm15 import Tool
 
-lm.middleware.add(with_retries(max_retries=3))
-lm.middleware.add(with_cache({}))
-lm.middleware.add(with_history([]))
+weather = Tool(name="get_weather", description="Get weather", parameters={...})
+gpt = lm15.model("gpt-4.1-mini")
+
+resp = gpt("Weather in Montreal?", tools=[weather])
+results = {tc.id: "22°C, sunny" for tc in resp.tool_calls}
+resp = gpt.submit_tools(results)
+print(resp.text)
 ```
 
-### External plugins
-
-Any installed package can register a provider adapter:
-
-```toml
-# pyproject.toml of the plugin package
-[project.entry-points."lm15.providers"]
-myprovider = "lm15_x_myprovider:build_adapter"
-```
+### Images, audio, video, documents
 
 ```python
-lm = build_default(discover_plugins=True)
+from lm15 import Part
+
+# Image from URL
+resp = lm15.complete("gemini-2.5-flash", ["Describe this.", Part.image(url="https://example.com/cat.jpg")])
+
+# Image generation → vision (cross-model)
+resp = lm15.complete("gpt-4.1-mini", "Draw a cat.", output="image")
+resp2 = lm15.complete("claude-sonnet-4-5", ["What's this?", resp.image])
+
+# Document
+resp = lm15.complete("claude-sonnet-4-5", ["Summarize.", Part.document(url="https://example.com/paper.pdf")])
+
+# Upload via provider file API
+doc = lm15.upload("claude-sonnet-4-5", "contract.pdf")
+resp = lm15.complete("claude-sonnet-4-5", ["Find liability clauses.", doc])
 ```
 
-### models.dev catalog
-
-Hydrate model capabilities from the [models.dev](https://models.dev) catalog at startup:
+### Reasoning
 
 ```python
-lm = build_default(hydrate_models_dev_catalog=True)
+resp = lm15.complete("claude-sonnet-4-5", "Prove √2 is irrational.", reasoning=True)
+print(resp.thinking)  # chain of thought
+print(resp.text)      # final answer
+```
+
+### Conversation
+
+```python
+gpt = lm15.model("gpt-4.1-mini", system="You remember everything.")
+
+gpt("My name is Max.")
+gpt("I like chess.")
+resp = gpt("What do you know about me?")
+print(resp.text)  # knows both
+```
+
+### Prompt caching
+
+Reduces cost and latency for repeated prefixes — system prompts, long documents, agent loops:
+
+```python
+agent = lm15.model("claude-sonnet-4-5",
+    system="<long system prompt>",
+    tools=[read_file, write_file],
+    prompt_caching=True,
+)
+
+resp = agent("Add tests for auth.")
+while resp.finish_reason == "tool_call":
+    results = execute(resp.tool_calls)
+    resp = agent.submit_tools(results)
+    print(f"Cache hit: {resp.usage.cache_read_tokens} tokens")
+```
+
+### Prefill
+
+```python
+resp = lm15.complete("claude-sonnet-4-5", "Output JSON for a person.", prefill="{")
+```
+
+### Reusable model with config
+
+```python
+gpt = lm15.model("gpt-4.1-mini", system="You are terse.", retries=3, cache=True, temperature=0)
+resp = gpt("Hello.")
+
+# Override per call
+resp = gpt("Be creative.", temperature=1.5)
+
+# Derive new models
+claude = gpt.with_model("claude-sonnet-4-5")
+```
+
+### Config from dicts
+
+```python
+config = {"model": "gpt-4.1-mini", "system": "You are terse.", "temperature": 0}
+resp = lm15.complete(prompt="Summarize DNA.", **config)
+```
+
+### Built-in tools
+
+```python
+resp = lm15.complete("gpt-4.1-mini", "Latest AI news", tools=["web_search"])
+for c in resp.citations:
+    print(c.title, c.url)
 ```
 
 ## Provider support
@@ -130,11 +189,14 @@ lm = build_default(hydrate_models_dev_catalog=True)
 | batches | ✅ | ✅ | ✅ |
 | images | ✅ | — | ✅ |
 | audio | ✅ | — | ✅ |
-| live | — | — | — |
+| prompt caching | auto | ✅ | ✅ |
 
 ## Architecture
 
 ```
+lm15.complete / lm15.model       ← v2 surface (sugar)
+        │
+        ▼
 LMRequest ──▶ UniversalLM ──▶ MiddlewarePipeline ──▶ ProviderAdapter ──▶ Transport
                   │                                        │
                   │ resolve_provider(model)                 │ build_request / parse_response
@@ -142,18 +204,20 @@ LMRequest ──▶ UniversalLM ──▶ MiddlewarePipeline ──▶ ProviderA
             capabilities.py                         providers/{openai,anthropic,gemini}.py
 ```
 
-- **`types.py`** — all request/response/stream types as frozen dataclasses
-- **`protocols.py`** — `LMAdapter` and `LiveSession` protocols
-- **`providers/base.py`** — `BaseProviderAdapter` with default `complete`/`stream` implementations over raw HTTP
-- **`transports/`** — `urllib` and `pycurl` backends behind a `Transport` protocol
-- **`capabilities.py`** — model→provider resolution + optional models.dev hydration
-- **`middleware.py`** — composable retry / cache / history wrappers
-- **`plugins.py`** — entry-point discovery for third-party adapters
+The v2 surface (`lm15.complete`, `lm15.model`, `Model`, `Stream`) is a thin layer that constructs `LMRequest` objects and calls `UniversalLM`. The universal provider contract is unchanged — third parties can build their own surface on top of the same internals.
+
+## Why this exists
+
+- **Stdlib only.** No `requests`, no `httpx`, no `aiohttp`. Transport is `urllib` or optional `pycurl`.
+- **Frozen dataclasses all the way down.** `LMRequest` in, `LMResponse` out. No mutable builder chains.
+- **Nothing is hidden.** Every internal type is importable. Provider escape hatches are always there.
+- **Plugin discovery via entry points.** Third-party providers install and register without touching lm15 core.
 
 ## Docs
 
 | Topic | Path |
 |---|---|
+| **API v2 spec** | [`docs/API_SPEC_V2.md`](docs/API_SPEC_V2.md) |
 | Getting started | [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) |
 | Core concepts | [`docs/CONCEPTS.md`](docs/CONCEPTS.md) |
 | Architecture | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
@@ -165,7 +229,20 @@ LMRequest ──▶ UniversalLM ──▶ MiddlewarePipeline ──▶ ProviderA
 | Completeness testing | [`docs/COMPLETENESS.md`](docs/COMPLETENESS.md) |
 | Production checklist | [`docs/PRODUCTION_CHECKLIST.md`](docs/PRODUCTION_CHECKLIST.md) |
 
-**Cookbooks:** [`docs/COOKBOOKS/`](docs/COOKBOOKS/) — 8 progressive examples from basic text to plugin development.
+**Cookbooks v2:** [`docs/COOKBOOKS_V2/`](docs/COOKBOOKS_V2/) — 10 progressive examples:
+
+1. [Hello World](docs/COOKBOOKS_V2/01-hello-world.md)
+2. [Streaming](docs/COOKBOOKS_V2/02-streaming.md)
+3. [Tools (auto-execute)](docs/COOKBOOKS_V2/03-tools-auto.md)
+4. [Tools (manual loop)](docs/COOKBOOKS_V2/04-tools-manual.md)
+5. [Multimodal](docs/COOKBOOKS_V2/05-multimodal.md)
+6. [Reasoning](docs/COOKBOOKS_V2/06-reasoning.md)
+7. [Conversation](docs/COOKBOOKS_V2/07-conversation.md)
+8. [Prompt caching](docs/COOKBOOKS_V2/08-prompt-caching.md)
+9. [Model config](docs/COOKBOOKS_V2/09-model-config.md)
+10. [Building an agent](docs/COOKBOOKS_V2/10-agent.md)
+
+**Cookbooks v1 (low-level):** [`docs/COOKBOOKS/`](docs/COOKBOOKS/) — 8 examples using the internal `LMRequest`/`UniversalLM` API directly.
 
 ## License
 

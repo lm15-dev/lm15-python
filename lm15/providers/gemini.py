@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from ..features import EndpointSupport, ProviderManifest
@@ -39,6 +40,7 @@ class GeminiAdapter(BaseProviderAdapter):
     transport: Transport
     base_url: str = "https://generativelanguage.googleapis.com/v1beta"
     upload_base_url: str = "https://generativelanguage.googleapis.com/upload/v1beta"
+    _cached_content_ids: dict[str, str] = field(default_factory=dict, repr=False)
 
     provider: str = "gemini"
     capabilities: Capabilities = Capabilities(
@@ -81,6 +83,9 @@ class GeminiAdapter(BaseProviderAdapter):
         return {"text": p.text or ""}
 
     def _payload(self, request: LMRequest) -> dict[str, Any]:
+        provider_cfg = request.config.provider or {}
+        prompt_caching = bool(provider_cfg.get("prompt_caching"))
+
         payload: dict[str, Any] = {
             "contents": [
                 {
@@ -102,7 +107,6 @@ class GeminiAdapter(BaseProviderAdapter):
         if request.config.stop:
             cfg["stopSequences"] = list(request.config.stop)
         if request.config.response_format:
-            # passthrough support for responseMimeType / schema options
             cfg.update(request.config.response_format)
         if cfg:
             payload["generationConfig"] = cfg
@@ -122,9 +126,54 @@ class GeminiAdapter(BaseProviderAdapter):
                 }
             ]
 
-        if request.config.provider:
-            payload.update(request.config.provider)
+        if prompt_caching:
+            self._apply_prompt_cache(request, payload)
+
+        if provider_cfg:
+            passthrough = {k: v for k, v in provider_cfg.items() if k != "prompt_caching"}
+            payload.update(passthrough)
         return payload
+
+    def _apply_prompt_cache(self, request: LMRequest, payload: dict[str, Any]) -> None:
+        contents = payload.get("contents") or []
+        if len(contents) < 2:
+            return
+
+        prefix = contents[:-1]
+        key_payload = {
+            "model": self._model_path(request.model),
+            "systemInstruction": payload.get("systemInstruction"),
+            "contents": prefix,
+        }
+        key = hashlib.sha256(json.dumps(key_payload, sort_keys=True).encode("utf-8")).hexdigest()
+        cache_id = self._cached_content_ids.get(key)
+
+        if cache_id is None:
+            body: dict[str, Any] = {
+                "model": self._model_path(request.model),
+                "contents": prefix,
+            }
+            if payload.get("systemInstruction"):
+                body["systemInstruction"] = payload["systemInstruction"]
+            req = HttpRequest(
+                method="POST",
+                url=f"{self.base_url}/cachedContents",
+                headers={"Content-Type": "application/json"},
+                params={"key": self.api_key},
+                json_body=body,
+                timeout=60.0,
+            )
+            resp = self.transport.request(req)
+            if resp.status < 400:
+                data = resp.json()
+                cache_id = data.get("name")
+                if cache_id:
+                    self._cached_content_ids[key] = cache_id
+
+        if cache_id:
+            payload["cachedContent"] = cache_id
+            payload["contents"] = contents[-1:]
+            payload.pop("systemInstruction", None)
 
     def build_request(self, request: LMRequest, stream: bool) -> HttpRequest:
         endpoint = "streamGenerateContent" if stream else "generateContent"

@@ -51,29 +51,51 @@ class AnthropicAdapter(BaseProviderAdapter):
 
     def _part(self, p: Part) -> dict[str, Any]:
         if p.type == "text":
-            return {"type": "text", "text": p.text or ""}
-        if p.type == "image" and p.source:
-            return {"type": "image", "source": ds_to_anthropic_source(p.source)}
-        if p.type == "document" and p.source:
-            return {"type": "document", "source": ds_to_anthropic_source(p.source)}
-        if p.type == "tool_result":
-            return {
+            out = {"type": "text", "text": p.text or ""}
+        elif p.type == "image" and p.source:
+            out = {"type": "image", "source": ds_to_anthropic_source(p.source)}
+        elif p.type == "document" and p.source:
+            out = {"type": "document", "source": ds_to_anthropic_source(p.source)}
+        elif p.type == "tool_result":
+            out = {
                 "type": "tool_result",
                 "tool_use_id": p.id,
                 "is_error": bool(p.is_error),
                 "content": [{"type": "text", "text": parts_to_text(p.content)}],
             }
-        return {"type": "text", "text": p.text or ""}
+        else:
+            out = {"type": "text", "text": p.text or ""}
+
+        cache_meta = (p.metadata or {}).get("cache") if p.metadata else None
+        if cache_meta is True:
+            out["cache_control"] = {"type": "ephemeral"}
+        elif isinstance(cache_meta, dict):
+            out["cache_control"] = cache_meta
+        return out
 
     def _payload(self, request: LMRequest, stream: bool) -> dict:
+        provider_cfg = request.config.provider or {}
+        prompt_caching = bool(provider_cfg.get("prompt_caching"))
+
+        messages = [{"role": m.role, "content": [self._part(p) for p in m.parts]} for m in request.messages]
+        if prompt_caching and len(messages) >= 2 and messages[-2].get("content"):
+            prev_last = messages[-2]["content"][-1]
+            prev_last.setdefault("cache_control", {"type": "ephemeral"})
+
         payload = {
             "model": request.model,
-            "messages": [{"role": m.role, "content": [self._part(p) for p in m.parts]} for m in request.messages],
+            "messages": messages,
             "stream": stream,
             "max_tokens": request.config.max_tokens or 1024,
         }
         if request.system:
-            payload["system"] = request.system if isinstance(request.system, str) else parts_to_text(tuple(request.system))
+            if isinstance(request.system, str):
+                if prompt_caching:
+                    payload["system"] = [{"type": "text", "text": request.system, "cache_control": {"type": "ephemeral"}}]
+                else:
+                    payload["system"] = request.system
+            else:
+                payload["system"] = parts_to_text(tuple(request.system))
         if request.config.temperature is not None:
             payload["temperature"] = request.config.temperature
         if request.tools:
@@ -84,8 +106,9 @@ class AnthropicAdapter(BaseProviderAdapter):
             ]
         if request.config.reasoning and request.config.reasoning.get("enabled"):
             payload["thinking"] = {"type": "enabled", "budget_tokens": request.config.reasoning.get("budget", 1024)}
-        if request.config.provider:
-            payload.update(request.config.provider)
+        if provider_cfg:
+            passthrough = {k: v for k, v in provider_cfg.items() if k != "prompt_caching"}
+            payload.update(passthrough)
         return payload
 
     def build_request(self, request: LMRequest, stream: bool) -> HttpRequest:
