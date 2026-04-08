@@ -23,9 +23,9 @@ def main() -> None:
 
     history = []
     cache = {}
-    lm.middleware.complete_mw.append(with_cache(cache))
-    lm.middleware.complete_mw.append(with_history(history))
-    lm.middleware.complete_mw.append(with_retries(max_retries=2))
+    lm.middleware.add(with_cache(cache))
+    lm.middleware.add(with_history(history))
+    lm.middleware.add(with_retries(max_retries=2))
 
     req = LMRequest(model="gpt-4.1-mini", messages=(Message(role="user", parts=(Part.text_part("Reply with ok"),)),))
     _ = lm.complete(req, provider="openai")

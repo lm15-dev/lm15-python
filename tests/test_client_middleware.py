@@ -43,8 +43,8 @@ class MiddlewareTests(unittest.TestCase):
 
         hist: list[dict] = []
         cache: dict = {}
-        lm.middleware.complete_mw.append(with_cache(cache))
-        lm.middleware.complete_mw.append(with_history(hist))
+        lm.middleware.add(with_cache(cache))
+        lm.middleware.add(with_history(hist))
 
         req = LMRequest(model="echo-model", messages=(Message.user("hi"),))
         _ = lm.complete(req, provider="echo")

@@ -18,6 +18,7 @@ from ..types import (
     LMResponse,
     Message,
     Part,
+    PartDelta,
     StreamEvent,
     Usage,
 )
@@ -142,11 +143,11 @@ class AnthropicAdapter(BaseProviderAdapter):
         if et == "content_block_delta":
             delta = payload.get("delta", {})
             if delta.get("type") == "text_delta":
-                return StreamEvent(type="delta", part_index=payload.get("index", 0), delta={"type": "text", "text": delta.get("text", "")})
+                return StreamEvent(type="delta", part_index=payload.get("index", 0), delta=PartDelta(type="text", text=delta.get("text", "")))
             if delta.get("type") == "input_json_delta":
-                return StreamEvent(type="delta", part_index=payload.get("index", 0), delta={"type": "tool_call", "input": delta.get("partial_json", "")})
+                return StreamEvent(type="delta", part_index=payload.get("index", 0), delta=PartDelta(type="tool_call", input=delta.get("partial_json", "")))
             if delta.get("type") == "thinking_delta":
-                return StreamEvent(type="delta", part_index=payload.get("index", 0), delta={"type": "thinking", "text": delta.get("thinking", "")})
+                return StreamEvent(type="delta", part_index=payload.get("index", 0), delta=PartDelta(type="thinking", text=delta.get("thinking", "")))
             return None
         if et == "content_block_stop":
             return StreamEvent(type="part_end", part_index=payload.get("index", 0))

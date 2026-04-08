@@ -21,6 +21,7 @@ FinishReason = Literal["stop", "length", "tool_call", "content_filter", "error"]
 DataSourceType = Literal["base64", "url", "file"]
 ResponseFormatType = Literal["text", "json", "json_schema"]
 StreamEventType = Literal["start", "delta", "part_start", "part_end", "end", "error"]
+PartDeltaType = Literal["text", "tool_call", "thinking", "audio"]
 
 
 @dataclass(slots=True, frozen=True)
@@ -137,8 +138,8 @@ class Message:
 
 @dataclass(slots=True, frozen=True)
 class Tool:
-    type: Literal["function", "builtin"]
     name: str
+    type: Literal["function", "builtin"] = "function"
     description: str | None = None
     parameters: dict[str, Any] | None = None
     builtin_config: dict[str, Any] | None = None
@@ -165,7 +166,6 @@ class Config:
     response_format: dict[str, Any] | None = None
     tool_config: ToolConfig | None = None
     reasoning: dict[str, Any] | None = None
-    stream: bool = False
     provider: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
@@ -213,6 +213,30 @@ class LMResponse:
     usage: Usage
     provider: dict[str, Any] | None = None
 
+    @property
+    def text(self) -> str | None:
+        """Return concatenated text from all text parts, or None if no text parts."""
+        texts = [p.text for p in self.message.parts if p.type == "text" and p.text is not None]
+        return "\n".join(texts) if texts else None
+
+
+@dataclass(slots=True, frozen=True)
+class PartDelta:
+    type: PartDeltaType
+    text: str | None = None
+    data: str | None = None
+    input: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.type == "text" and self.text is None:
+            raise ValueError("PartDelta(type='text') requires text")
+        if self.type == "thinking" and self.text is None:
+            raise ValueError("PartDelta(type='thinking') requires text")
+        if self.type == "audio" and self.data is None:
+            raise ValueError("PartDelta(type='audio') requires data")
+        if self.type == "tool_call" and self.input is None:
+            raise ValueError("PartDelta(type='tool_call') requires input")
+
 
 @dataclass(slots=True, frozen=True)
 class StreamEvent:
@@ -220,7 +244,7 @@ class StreamEvent:
     id: str | None = None
     model: str | None = None
     part_index: int | None = None
-    delta: dict[str, Any] | None = None
+    delta: PartDelta | dict[str, Any] | None = None
     part_type: str | None = None
     finish_reason: FinishReason | None = None
     usage: Usage | None = None
@@ -231,6 +255,15 @@ class StreamEvent:
             raise ValueError("StreamEvent(type='delta') requires delta")
         if self.type == "error" and self.error is None:
             raise ValueError("StreamEvent(type='error') requires error")
+
+    @property
+    def delta_text(self) -> str | None:
+        """Extract text from a delta event, or None."""
+        if self.delta is None:
+            return None
+        if isinstance(self.delta, PartDelta):
+            return self.delta.text if self.delta.type == "text" else None
+        return self.delta.get("text") if self.delta.get("type") == "text" else None
 
 
 @dataclass(slots=True, frozen=True)

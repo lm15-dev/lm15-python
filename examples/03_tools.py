@@ -21,7 +21,6 @@ def main() -> None:
     lm = build_default(use_pycurl=True)
     tools = (
         Tool(
-            type="function",
             name="get_weather",
             description="Get weather by city",
             parameters={"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]},

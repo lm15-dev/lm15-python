@@ -18,6 +18,10 @@ class MiddlewarePipeline:
     complete_mw: list[CompleteMiddleware] = field(default_factory=list)
     stream_mw: list[StreamMiddleware] = field(default_factory=list)
 
+    def add(self, middleware: CompleteMiddleware) -> None:
+        """Add a completion middleware to the pipeline."""
+        self.complete_mw.append(middleware)
+
     def wrap_complete(self, fn: CompleteFn) -> CompleteFn:
         wrapped = fn
         for mw in reversed(self.complete_mw):

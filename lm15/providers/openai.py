@@ -25,6 +25,7 @@ from ..types import (
     LMResponse,
     Message,
     Part,
+    PartDelta,
     StreamEvent,
     Usage,
 )
@@ -161,11 +162,11 @@ class OpenAIAdapter(BaseProviderAdapter):
         if et == "response.created":
             return StreamEvent(type="start", id=payload.get("response", {}).get("id"), model=request.model)
         if et in {"response.output_text.delta", "response.refusal.delta"}:
-            return StreamEvent(type="delta", part_index=0, delta={"type": "text", "text": payload.get("delta", "")})
+            return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="text", text=payload.get("delta", "")))
         if et == "response.output_audio.delta":
-            return StreamEvent(type="delta", part_index=0, delta={"type": "audio", "data": payload.get("delta", "")})
+            return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="audio", data=payload.get("delta", "")))
         if et == "response.function_call_arguments.delta":
-            return StreamEvent(type="delta", part_index=0, delta={"type": "tool_call", "input": payload.get("delta", "")})
+            return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="tool_call", input=payload.get("delta", "")))
         if et == "response.completed":
             u = payload.get("response", {}).get("usage", {})
             usage = Usage(input_tokens=u.get("input_tokens", 0), output_tokens=u.get("output_tokens", 0), total_tokens=u.get("total_tokens", 0))

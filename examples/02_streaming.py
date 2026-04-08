@@ -21,8 +21,8 @@ def main() -> None:
     lm = build_default(use_pycurl=True)
     req = LMRequest(model="gpt-4.1-mini", messages=(Message(role="user", parts=(Part.text_part("Write 'ok' and stop."),)),))
     for event in lm.stream(req, provider="openai"):
-        if event.type == "delta" and event.delta and event.delta.get("type") == "text":
-            print(event.delta.get("text", ""), end="")
+        if event.delta_text is not None:
+            print(event.delta_text, end="")
     print()
 
 

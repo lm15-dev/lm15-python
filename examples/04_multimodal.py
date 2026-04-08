@@ -25,8 +25,7 @@ def main() -> None:
         messages=(Message(role="user", parts=(image, Part.text_part("Describe this image in one sentence."))),),
     )
     resp = lm.complete(req, provider="gemini")
-    text = "\n".join(p.text or "" for p in resp.message.parts if p.type == "text")
-    print(text)
+    print(resp.text or "")
 
 
 if __name__ == "__main__":

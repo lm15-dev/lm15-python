@@ -21,7 +21,7 @@ def main() -> None:
     lm = build_default(use_pycurl=True)
     req = LMRequest(model="gpt-4.1-mini", messages=(Message(role="user", parts=(Part.text_part("Reply with exactly: ok"),)),))
     resp = lm.complete(req)
-    print(resp.message.parts[0].text if resp.message.parts else "")
+    print(resp.text or "")
 
 
 if __name__ == "__main__":

@@ -22,9 +22,9 @@ from lm15 import LMRequest, Message, Part, build_default
 lm = build_default()
 resp = lm.complete(LMRequest(
     model="claude-sonnet-4-5",
-    messages=(Message(role="user", parts=(Part.text_part("Hello."),)),),
+    messages=(Message.user("Hello."),),
 ))
-print(resp.message.parts[0].text)
+print(resp.text)
 ```
 
 Switch models by changing the string. Same types, same streaming protocol, same error hierarchy. That's it.
@@ -62,8 +62,8 @@ export GEMINI_API_KEY=...         # or GOOGLE_API_KEY
 ```python
 req = LMRequest(model="gpt-4.1-mini", messages=(...))
 for event in lm.stream(req):
-    if event.type == "delta" and event.delta and event.delta.get("type") == "text":
-        print(event.delta["text"], end="")
+    if event.delta_text is not None:
+        print(event.delta_text, end="")
 ```
 
 ### Tool calling
@@ -71,7 +71,7 @@ for event in lm.stream(req):
 ```python
 from lm15 import Tool, ToolConfig
 
-tools = (Tool(name="get_weather", description="...", parameters={...}),)
+tools = (Tool(name="get_weather", description="...", parameters={...}),)  # type defaults to "function"
 req = LMRequest(model="gemini-2.5-flash", messages=(...), tools=tools)
 resp = lm.complete(req)
 # resp.message.parts may contain Part(type="tool_call", ...)
@@ -93,8 +93,8 @@ lm.batch_submit(BatchRequest(...))
 from lm15 import with_retries, with_cache, with_history
 
 lm.middleware.add(with_retries(max_retries=3))
-lm.middleware.add(with_cache())
-lm.middleware.add(with_history())
+lm.middleware.add(with_cache({}))
+lm.middleware.add(with_history([]))
 ```
 
 ### External plugins

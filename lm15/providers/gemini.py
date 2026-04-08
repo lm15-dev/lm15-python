@@ -26,6 +26,7 @@ from ..types import (
     LMResponse,
     Message,
     Part,
+    PartDelta,
     StreamEvent,
     Usage,
 )
@@ -205,15 +206,15 @@ class GeminiAdapter(BaseProviderAdapter):
             return None
         part = (cands[0].get("content", {}).get("parts") or [{}])[0]
         if "text" in part:
-            return StreamEvent(type="delta", part_index=0, delta={"type": "text", "text": part["text"]})
+            return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="text", text=part["text"]))
         if "functionCall" in part:
             fc = part["functionCall"]
-            return StreamEvent(type="delta", part_index=0, delta={"type": "tool_call", "input": json.dumps(fc.get("args", {}))})
+            return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="tool_call", input=json.dumps(fc.get("args", {}))))
         if "inlineData" in part:
             inline = part["inlineData"]
             mime = inline.get("mimeType", "application/octet-stream")
             if mime.startswith("audio/"):
-                return StreamEvent(type="delta", part_index=0, delta={"type": "audio", "data": inline.get("data", "")})
+                return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="audio", data=inline.get("data", "")))
         return None
 
     def embeddings(self, request: EmbeddingRequest) -> EmbeddingResponse:

@@ -78,7 +78,7 @@ class ProviderConformanceTests(unittest.TestCase):
         a = OpenAIAdapter(api_key="k", transport=t)
         events = list(a.stream(self._req("gpt-4.1-mini")))
         deltas = [e for e in events if e.type == "delta"]
-        self.assertEqual("".join(d.delta["text"] for d in deltas), "ok")
+        self.assertEqual("".join(d.delta.text for d in deltas), "ok")
 
     def test_anthropic_stream_replay(self):
         lines = [
