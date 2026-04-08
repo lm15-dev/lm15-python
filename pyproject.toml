@@ -9,9 +9,11 @@ description = "Universal LM core with pluggable provider adapters"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-  { name = "lm15 contributors" }
+  { name = "Maxime Rivest", email = "mrive052@gmail.com" }
 ]
 keywords = ["llm", "ai", "openai", "anthropic", "gemini", "adapters", "streaming"]
+license = "MIT"
+
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
@@ -33,9 +35,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/maxime/lm15"
-Documentation = "https://github.com/maxime/lm15"
-Issues = "https://github.com/maxime/lm15/issues"
+Homepage = "https://github.com/MaximeRivest/lm15"
+Documentation = "https://github.com/MaximeRivest/lm15"
+Issues = "https://github.com/MaximeRivest/lm15/issues"
 
 [project.entry-points."lm15.providers"]
 openai = "lm15.providers.openai:OpenAIAdapter"
