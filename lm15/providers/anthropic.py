@@ -40,7 +40,7 @@ class AnthropicAdapter(BaseProviderAdapter):
         features=frozenset({"streaming", "tools", "reasoning", "files", "batch"}),
     )
     supports: ClassVar[EndpointSupport] = EndpointSupport(complete=True, stream=True, files=True, batches=True)
-    manifest: ClassVar[ProviderManifest] = ProviderManifest(provider="anthropic", supports=supports, auth_modes=("x-api-key",))
+    manifest: ClassVar[ProviderManifest] = ProviderManifest(provider="anthropic", supports=supports, auth_modes=("x-api-key",), env_keys=("ANTHROPIC_API_KEY",))
 
     def _headers(self) -> dict[str, str]:
         return {

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .capabilities import resolve_provider
-from .factory import build_default
+from .factory import build_default, providers
 from .model import Model
 from .types import Part
 
@@ -19,8 +19,10 @@ def model(
     prompt_caching: bool = False,
     temperature: float | None = None,
     max_tokens: int | None = None,
+    api_key: str | dict[str, str] | None = None,
+    env: str | None = None,
 ) -> Model:
-    lm = build_default()
+    lm = build_default(api_key=api_key, provider_hint=provider, env=env)
     return Model(
         lm=lm,
         model=model_name,
@@ -51,8 +53,10 @@ def complete(
     top_p: float | None = None,
     stop=None,
     provider: str | None = None,
+    api_key: str | dict[str, str] | None = None,
+    env: str | None = None,
 ):
-    m = model(model_name, provider=provider, prompt_caching=prompt_caching, system=system)
+    m = model(model_name, provider=provider, prompt_caching=prompt_caching, system=system, api_key=api_key, env=env)
     return m(
         prompt,
         messages=messages,
@@ -85,8 +89,10 @@ def stream(
     top_p: float | None = None,
     stop=None,
     provider: str | None = None,
+    api_key: str | dict[str, str] | None = None,
+    env: str | None = None,
 ):
-    m = model(model_name, provider=provider, prompt_caching=prompt_caching, system=system)
+    m = model(model_name, provider=provider, prompt_caching=prompt_caching, system=system, api_key=api_key, env=env)
     return m.stream(
         prompt,
         messages=messages,
@@ -109,8 +115,10 @@ def upload(
     *,
     media_type: str | None = None,
     provider: str | None = None,
+    api_key: str | dict[str, str] | None = None,
+    env: str | None = None,
 ) -> Part:
     p = str(path) if isinstance(path, Path) else path
     resolved = provider or resolve_provider(model_name)
-    m = model(model_name, provider=resolved)
+    m = model(model_name, provider=resolved, api_key=api_key, env=env)
     return m.upload(p, media_type=media_type)

@@ -60,6 +60,7 @@ class OpenAIAdapter(BaseProviderAdapter):
         supports=supports,
         auth_modes=("bearer",),
         enterprise_variants=("azure-openai",),
+        env_keys=("OPENAI_API_KEY",),
     )
 
     def _headers(self, content_type: str = "application/json") -> dict[str, str]:

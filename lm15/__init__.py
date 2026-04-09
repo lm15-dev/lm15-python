@@ -5,7 +5,7 @@ try:
 except Exception:
     __version__ = "0.0.0+dev"
 
-from .api import complete, model, stream, upload
+from .api import complete, model, providers, stream, upload
 from .capabilities import hydrate_with_specs
 from .client import UniversalLM
 from .middleware import with_cache, with_history, with_retries
@@ -48,6 +48,9 @@ def build_default(
     policy: TransportPolicy | None = None,
     hydrate_models_dev_catalog: bool = False,
     discover_plugins: bool = True,
+    api_key: str | dict[str, str] | None = None,
+    provider_hint: str | None = None,
+    env: str | None = None,
 ):
     from .factory import build_default as _build_default
 
@@ -56,6 +59,9 @@ def build_default(
         policy=policy,
         hydrate_models_dev=hydrate_models_dev_catalog,
         discover_plugins=discover_plugins,
+        api_key=api_key,
+        provider_hint=provider_hint,
+        env=env,
     )
 
 
@@ -67,6 +73,7 @@ __all__ = [
     "stream",
     "model",
     "upload",
+    "providers",
     "Stream",
     "StreamChunk",
     "HistoryEntry",

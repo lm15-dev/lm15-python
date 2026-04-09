@@ -57,7 +57,7 @@ class GeminiAdapter(BaseProviderAdapter):
         images=True,
         audio=True,
     )
-    manifest: ClassVar[ProviderManifest] = ProviderManifest(provider="gemini", supports=supports, auth_modes=("query-api-key", "bearer"))
+    manifest: ClassVar[ProviderManifest] = ProviderManifest(provider="gemini", supports=supports, auth_modes=("query-api-key", "bearer"), env_keys=("GEMINI_API_KEY", "GOOGLE_API_KEY"))
 
     def _model_path(self, model: str) -> str:
         return model if model.startswith("models/") else f"models/{model}"

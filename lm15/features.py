@@ -22,3 +22,9 @@ class ProviderManifest:
     supports: EndpointSupport
     auth_modes: tuple[str, ...] = field(default_factory=tuple)
     enterprise_variants: tuple[str, ...] = field(default_factory=tuple)
+    env_keys: tuple[str, ...] = field(default_factory=tuple)
+    """Environment variable names this provider reads for API keys.
+
+    First match wins. Example: ``("OPENAI_API_KEY",)``.
+    Used by ``env=`` file loading and ``api_key=`` routing.
+    """

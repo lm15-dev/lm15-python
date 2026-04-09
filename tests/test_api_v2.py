@@ -57,7 +57,7 @@ class APIV2Tests(unittest.TestCase):
         import lm15.api as api
 
         self._old_build_default = api.build_default
-        api.build_default = lambda: self.lm
+        api.build_default = lambda **_kw: self.lm
 
     def tearDown(self) -> None:
         import lm15.api as api
