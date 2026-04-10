@@ -3,10 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from .types import (
+    AudioFormat,
     Config,
     DataSource,
     LMRequest,
     LMResponse,
+    LiveClientEvent,
+    LiveConfig,
+    LiveServerEvent,
     Message,
     Part,
     PartDelta,
@@ -130,6 +134,36 @@ def config_to_dict(value: Config) -> dict[str, Any]:
     )
 
 
+def audio_format_to_dict(value: AudioFormat) -> dict[str, Any]:
+    return _clean_mapping(
+        {
+            "encoding": value.encoding,
+            "sample_rate": value.sample_rate,
+            "channels": value.channels,
+        }
+    )
+
+
+def live_config_to_dict(value: LiveConfig) -> dict[str, Any]:
+    system: str | list[dict[str, Any]] | None
+    if isinstance(value.system, tuple):
+        system = [part_to_dict(x) for x in value.system]
+    else:
+        system = value.system
+
+    return _clean_mapping(
+        {
+            "model": value.model,
+            "system": system,
+            "tools": [tool_to_dict(x) for x in value.tools],
+            "voice": value.voice,
+            "input_format": audio_format_to_dict(value.input_format) if value.input_format is not None else None,
+            "output_format": audio_format_to_dict(value.output_format) if value.output_format is not None else None,
+            "provider": value.provider,
+        }
+    )
+
+
 def request_to_dict(value: LMRequest) -> dict[str, Any]:
     system: str | list[dict[str, Any]] | None
     if isinstance(value.system, tuple):
@@ -209,6 +243,33 @@ def stream_event_to_dict(value: StreamEvent) -> dict[str, Any]:
     )
 
 
+def live_client_event_to_dict(value: LiveClientEvent) -> dict[str, Any]:
+    return _clean_mapping(
+        {
+            "type": value.type,
+            "data": value.data,
+            "text": value.text,
+            "id": value.id,
+            "content": [part_to_dict(x) for x in value.content],
+        }
+    )
+
+
+def live_server_event_to_dict(value: LiveServerEvent) -> dict[str, Any]:
+    return _clean_mapping(
+        {
+            "type": value.type,
+            "data": value.data,
+            "text": value.text,
+            "id": value.id,
+            "name": value.name,
+            "input": value.input,
+            "usage": usage_to_dict(value.usage) if value.usage is not None else None,
+            "error": _clean_mapping(value.error) if value.error is not None else None,
+        }
+    )
+
+
 def data_source_from_dict(value: dict[str, Any]) -> DataSource:
     return DataSource(**value)
 
@@ -253,6 +314,33 @@ def config_from_dict(value: dict[str, Any]) -> Config:
         response_format=value.get("response_format"),
         tool_config=tool_config_from_dict(value["tool_config"]) if isinstance(value.get("tool_config"), dict) else None,
         reasoning=value.get("reasoning"),
+        provider=value.get("provider"),
+    )
+
+
+def audio_format_from_dict(value: dict[str, Any]) -> AudioFormat:
+    return AudioFormat(
+        encoding=value["encoding"],
+        sample_rate=value["sample_rate"],
+        channels=value.get("channels", 1),
+    )
+
+
+def live_config_from_dict(value: dict[str, Any]) -> LiveConfig:
+    raw_system = value.get("system")
+    system: str | tuple[Part, ...] | None
+    if isinstance(raw_system, list):
+        system = tuple(part_from_dict(x) for x in raw_system)
+    else:
+        system = raw_system
+
+    return LiveConfig(
+        model=value["model"],
+        system=system,
+        tools=tuple(tool_from_dict(x) for x in value.get("tools", [])),
+        voice=value.get("voice"),
+        input_format=audio_format_from_dict(value["input_format"]) if isinstance(value.get("input_format"), dict) else None,
+        output_format=audio_format_from_dict(value["output_format"]) if isinstance(value.get("output_format"), dict) else None,
         provider=value.get("provider"),
     )
 
@@ -326,11 +414,42 @@ def stream_event_from_dict(value: dict[str, Any]) -> StreamEvent:
     )
 
 
+def live_client_event_from_dict(value: dict[str, Any]) -> LiveClientEvent:
+    return LiveClientEvent(
+        type=value["type"],
+        data=value.get("data"),
+        text=value.get("text"),
+        id=value.get("id"),
+        content=tuple(part_from_dict(x) for x in value.get("content", [])),
+    )
+
+
+def live_server_event_from_dict(value: dict[str, Any]) -> LiveServerEvent:
+    return LiveServerEvent(
+        type=value["type"],
+        data=value.get("data"),
+        text=value.get("text"),
+        id=value.get("id"),
+        name=value.get("name"),
+        input=value.get("input"),
+        usage=usage_from_dict(value["usage"]) if isinstance(value.get("usage"), dict) else None,
+        error=value.get("error"),
+    )
+
+
 __all__ = [
+    "audio_format_from_dict",
+    "audio_format_to_dict",
     "config_from_dict",
     "config_to_dict",
     "data_source_from_dict",
     "data_source_to_dict",
+    "live_client_event_from_dict",
+    "live_client_event_to_dict",
+    "live_config_from_dict",
+    "live_config_to_dict",
+    "live_server_event_from_dict",
+    "live_server_event_to_dict",
     "message_from_dict",
     "message_to_dict",
     "part_delta_from_dict",

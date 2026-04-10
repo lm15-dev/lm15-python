@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import urllib.parse
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Iterator
 
 from ..features import EndpointSupport, ProviderManifest
+from ..live import WebSocketLiveSession, require_websocket_sync_connect
 from ..protocols import Capabilities
 from ..sse import SSEEvent
 from ..transports.base import HttpRequest, HttpResponse, Transport
@@ -25,6 +27,9 @@ from ..types import (
     Config,
     LMRequest,
     LMResponse,
+    LiveClientEvent,
+    LiveConfig,
+    LiveServerEvent,
     Message,
     Part,
     PartDelta,
@@ -63,6 +68,7 @@ class GeminiAdapter(BaseProviderAdapter):
     supports: ClassVar[EndpointSupport] = EndpointSupport(
         complete=True,
         stream=True,
+        live=True,
         embeddings=True,
         files=True,
         batches=True,
@@ -408,6 +414,297 @@ class GeminiAdapter(BaseProviderAdapter):
             if mime.startswith("audio/"):
                 return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="audio", data=inline.get("data", "")))
         return None
+
+    def stream(self, request: LMRequest) -> Iterator[StreamEvent]:
+        if self._should_use_live_completion(request):
+            yield from self._stream_via_live_completion(request)
+            return
+        yield from super(GeminiAdapter, self).stream(request)
+
+    def _should_use_live_completion(self, request: LMRequest) -> bool:
+        provider_cfg = request.config.provider or {}
+        transport_mode = str(provider_cfg.get("transport") or "").lower()
+        if transport_mode in {"live", "websocket", "ws"}:
+            return True
+        model_name = request.model.lower()
+        return "-live" in model_name or model_name.endswith("live")
+
+    def _stream_via_live_completion(self, request: LMRequest) -> Iterator[StreamEvent]:
+        ws = self._live_connect(self._live_url())
+        saw_tool_call = False
+
+        try:
+            ws.send(json.dumps(self._live_setup_payload_from_request(request)))
+            ws.send(json.dumps(self._live_client_content_payload_from_request(request)))
+
+            yield StreamEvent(type="start", model=request.model)
+
+            while True:
+                raw = ws.recv()
+                events, turn_complete, usage = self._decode_live_completion_stream_events(raw)
+                for evt in events:
+                    if evt.type == "delta":
+                        d = evt.delta
+                        if isinstance(d, dict) and d.get("type") == "tool_call":
+                            saw_tool_call = True
+                        elif isinstance(d, PartDelta) and d.type == "tool_call":
+                            saw_tool_call = True
+                        yield evt
+                    elif evt.type == "error":
+                        yield evt
+                        return
+
+                if turn_complete:
+                    yield StreamEvent(type="end", finish_reason="tool_call" if saw_tool_call else "stop", usage=usage)
+                    return
+        finally:
+            try:
+                ws.close()
+            except Exception:
+                pass
+
+    def _live_setup_payload_from_request(self, request: LMRequest) -> dict[str, Any]:
+        provider_cfg = dict(request.config.provider or {})
+        provider_cfg.pop("transport", None)
+        provider_cfg.pop("prompt_caching", None)
+        provider_cfg.pop("output", None)
+
+        cfg = LiveConfig(
+            model=request.model,
+            system=request.system,
+            tools=request.tools,
+            provider=provider_cfg or None,
+        )
+        payload = self._live_setup_payload(cfg)
+
+        output = (request.config.provider or {}).get("output")
+        if output == "audio":
+            setup = payload.setdefault("setup", {})
+            generation = setup.setdefault("generationConfig", {})
+            generation["responseModalities"] = ["AUDIO"]
+
+        return payload
+
+    def _live_client_content_payload_from_request(self, request: LMRequest) -> dict[str, Any]:
+        turns = [
+            {
+                "role": "model" if m.role == "assistant" else "user",
+                "parts": [self._part(p) for p in m.parts],
+            }
+            for m in request.messages
+        ]
+        return {"clientContent": {"turns": turns, "turnComplete": True}}
+
+    def _decode_live_completion_stream_events(self, raw: str | bytes) -> tuple[list[StreamEvent], bool, Usage]:
+        try:
+            payload = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+        except Exception:
+            return [], False, Usage()
+
+        if not isinstance(payload, dict):
+            return [], False, Usage()
+
+        if "error" in payload:
+            e = payload["error"]
+            provider_code = str(e.get("status") or e.get("code") or "provider") if isinstance(e, dict) else "provider"
+            message = str(e.get("message", "")) if isinstance(e, dict) else ""
+            return [StreamEvent(type="error", error=self._stream_error(provider_code, message))], False, Usage()
+
+        events: list[StreamEvent] = []
+        server = payload.get("serverContent")
+        if not isinstance(server, dict):
+            return events, False, Usage()
+
+        model_turn = server.get("modelTurn", {})
+        if isinstance(model_turn, dict):
+            for idx, part in enumerate(model_turn.get("parts", []) or []):
+                if "text" in part:
+                    events.append(StreamEvent(type="delta", part_index=idx, delta=PartDelta(type="text", text=str(part.get("text") or ""))))
+                elif "functionCall" in part and isinstance(part["functionCall"], dict):
+                    fc = part["functionCall"]
+                    events.append(
+                        StreamEvent(
+                            type="delta",
+                            part_index=idx,
+                            delta={
+                                "type": "tool_call",
+                                "id": fc.get("id", "fc_0"),
+                                "name": fc.get("name", "tool"),
+                                "input": json.dumps(fc.get("args", {})),
+                            },
+                        )
+                    )
+                elif "inlineData" in part and isinstance(part["inlineData"], dict):
+                    inline = part["inlineData"]
+                    mime = str(inline.get("mimeType") or "")
+                    if mime.startswith("audio/"):
+                        events.append(StreamEvent(type="delta", part_index=idx, delta=PartDelta(type="audio", data=str(inline.get("data") or ""))))
+
+        turn_complete = bool(server.get("turnComplete"))
+        usage_payload = payload.get("usageMetadata")
+        if not isinstance(usage_payload, dict):
+            usage_payload = server.get("usageMetadata") if isinstance(server.get("usageMetadata"), dict) else {}
+        usage_payload = usage_payload if isinstance(usage_payload, dict) else {}
+        usage = Usage(
+            input_tokens=int(usage_payload.get("promptTokenCount", 0) or 0),
+            output_tokens=int(usage_payload.get("candidatesTokenCount", 0) or 0),
+            total_tokens=int(usage_payload.get("totalTokenCount", 0) or 0),
+        )
+        return events, turn_complete, usage
+
+    def live(self, config: LiveConfig):
+        ws = self._live_connect(self._live_url())
+        ws.send(json.dumps(self._live_setup_payload(config)))
+
+        callable_registry = {
+            t.name: t.fn
+            for t in config.tools
+            if t.type == "function" and callable(t.fn)
+        }
+
+        return WebSocketLiveSession(
+            ws=ws,
+            encode_event=self._encode_live_client_event,
+            decode_event=self._decode_live_server_event,
+            callable_registry=callable_registry,
+        )
+
+    def _live_connect(self, url: str):
+        connect = require_websocket_sync_connect()
+        return connect(url)
+
+    def _live_url(self) -> str:
+        parsed = urllib.parse.urlparse(self.base_url)
+        scheme = "wss" if parsed.scheme == "https" else "ws"
+        path = "/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+        query = urllib.parse.urlencode({"key": self.api_key})
+        return urllib.parse.urlunparse((scheme, parsed.netloc, path, "", query, ""))
+
+    def _live_setup_payload(self, config: LiveConfig) -> dict[str, Any]:
+        setup: dict[str, Any] = {
+            "model": self._model_path(config.model),
+        }
+
+        if config.system:
+            if isinstance(config.system, str):
+                text = config.system
+            else:
+                text = "\n".join(p.text or "" for p in config.system if p.type in {"text", "thinking", "refusal"})
+            setup["systemInstruction"] = {"parts": [{"text": text}]}
+
+        function_tools = [
+            {
+                "name": t.name,
+                "description": t.description,
+                "parameters": t.parameters or {"type": "object", "properties": {}},
+            }
+            for t in config.tools
+            if t.type == "function"
+        ]
+        if function_tools:
+            setup["tools"] = [{"functionDeclarations": function_tools}]
+
+        generation_config: dict[str, Any] = {}
+        if config.output_format is not None:
+            generation_config["responseModalities"] = ["AUDIO"]
+        if generation_config:
+            setup["generationConfig"] = generation_config
+
+        if config.voice:
+            setup.setdefault("speechConfig", {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": config.voice}}})
+
+        if config.provider:
+            setup.update(config.provider)
+
+        return {"setup": setup}
+
+    def _encode_live_client_event(self, event: LiveClientEvent) -> list[dict[str, Any]]:
+        if event.type == "audio":
+            return [{"realtimeInput": {"mediaChunks": [{"mimeType": "audio/pcm", "data": event.data}]}}]
+
+        if event.type == "video":
+            return [{"realtimeInput": {"mediaChunks": [{"mimeType": "video/mp4", "data": event.data}]}}]
+
+        if event.type == "interrupt":
+            return [{"clientContent": {"turnComplete": True}}]
+
+        if event.type == "end_audio":
+            return [{"realtimeInput": {"audioStreamEnd": True}}]
+
+        if event.type == "text":
+            parts: list[dict[str, Any]] = [{"text": event.text or ""}]
+            parts.extend(self._part(p) for p in event.content)
+            return [{
+                "clientContent": {
+                    "turns": [{"role": "user", "parts": parts}],
+                    "turnComplete": True,
+                }
+            }]
+
+        if event.type == "tool_result":
+            part = self._part(Part.tool_result(event.id, list(event.content), name=None))
+            return [{
+                "clientContent": {
+                    "turns": [{"role": "user", "parts": [part]}],
+                    "turnComplete": True,
+                }
+            }]
+
+        return []
+
+    def _decode_live_server_event(self, raw: str | bytes) -> list[LiveServerEvent]:
+        try:
+            payload = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+        except Exception:
+            return []
+
+        if not isinstance(payload, dict):
+            return []
+
+        if "error" in payload:
+            err = payload.get("error")
+            provider_code = str(err.get("status") or err.get("code") or "provider") if isinstance(err, dict) else "provider"
+            message = str(err.get("message") or "") if isinstance(err, dict) else ""
+            return [LiveServerEvent(type="error", error=self._stream_error(provider_code, message))]
+
+        events: list[LiveServerEvent] = []
+        server = payload.get("serverContent")
+        if not isinstance(server, dict):
+            return events
+
+        model_turn = server.get("modelTurn", {})
+        if isinstance(model_turn, dict):
+            for part in model_turn.get("parts", []) or []:
+                if "text" in part:
+                    events.append(LiveServerEvent(type="text", text=str(part.get("text") or "")))
+                elif "inlineData" in part and isinstance(part["inlineData"], dict):
+                    inline = part["inlineData"]
+                    mime = str(inline.get("mimeType") or "")
+                    if mime.startswith("audio/"):
+                        events.append(LiveServerEvent(type="audio", data=str(inline.get("data") or "")))
+                elif "functionCall" in part and isinstance(part["functionCall"], dict):
+                    fc = part["functionCall"]
+                    call_id = str(fc.get("id") or "fc_0")
+                    name = str(fc.get("name") or "tool")
+                    args = fc.get("args") if isinstance(fc.get("args"), dict) else {}
+                    events.append(LiveServerEvent(type="tool_call", id=call_id, name=name, input=args))
+
+        if server.get("interrupted"):
+            events.append(LiveServerEvent(type="interrupted"))
+
+        if server.get("turnComplete"):
+            usage_payload = payload.get("usageMetadata")
+            if not isinstance(usage_payload, dict):
+                usage_payload = server.get("usageMetadata")
+            usage_payload = usage_payload if isinstance(usage_payload, dict) else {}
+            usage = Usage(
+                input_tokens=int(usage_payload.get("promptTokenCount", 0) or 0),
+                output_tokens=int(usage_payload.get("candidatesTokenCount", 0) or 0),
+                total_tokens=int(usage_payload.get("totalTokenCount", 0) or 0),
+            )
+            events.append(LiveServerEvent(type="turn_end", usage=usage))
+
+        return events
 
     def embeddings(self, request: EmbeddingRequest) -> EmbeddingResponse:
         model_path = self._model_path(request.model)

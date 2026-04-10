@@ -1,6 +1,7 @@
 # Completeness Harness
 
-The fixture probes are backed by the frozen portability bundle in `spec/fixtures/v1/`.
+The fixture probes are backed by the frozen portability bundle in `spec/fixtures/v2/`.
+That bundle now covers completion normalization, error mapping, and live/session contract fixtures.
 See `docs/PORTABILITY.md` for the contract + fixture layout.
 
 ## Matrices

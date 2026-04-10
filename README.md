@@ -280,6 +280,7 @@ The high-level surface (`lm15.call`, `lm15.acall`, `lm15.model`, `Result`) is a 
 | Architecture | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Provider contract | [`docs/CONTRACT.md`](docs/CONTRACT.md) |
 | Portability spec | [`docs/PORTABILITY.md`](docs/PORTABILITY.md) |
+| Transport design | [`docs/DESIGN_TRANSPORT.md`](docs/DESIGN_TRANSPORT.md) |
 | Error handling | [`docs/ERRORS.md`](docs/ERRORS.md) |
 | Streaming | [`docs/STREAMING.md`](docs/STREAMING.md) |
 | Writing an adapter | [`docs/ADAPTER_GUIDE.md`](docs/ADAPTER_GUIDE.md) |

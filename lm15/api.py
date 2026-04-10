@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .capabilities import resolve_provider
 from .client import UniversalLM
 from .discovery import models as _models, providers_info as _providers_info
 from .factory import build_default, providers as _providers
-from .model import Model
+from .live import AsyncLiveSession
+from .model import Model, callable_to_tool
 from .result import AsyncResult, Result
-from .types import LMRequest, Part, Tool
+from .types import AudioFormat, LMRequest, LiveConfig, Part, Tool
 
 
 _defaults: dict[str, Any] = {}
@@ -54,6 +56,29 @@ def _get_client(
     client = build_default(api_key=api_key, provider_hint=provider_hint, env=env)
     _client_cache[cache_key] = client
     return client
+
+
+def _normalize_runtime_tools(tools: list[Tool | Callable[..., Any] | str]) -> tuple[Tool, ...]:
+    out: list[Tool] = []
+    for t in tools:
+        if isinstance(t, Tool):
+            out.append(t)
+        elif isinstance(t, str):
+            out.append(Tool(name=t, type="builtin"))
+        elif callable(t):
+            inferred = callable_to_tool(t)
+            out.append(
+                Tool(
+                    name=inferred.name,
+                    type=inferred.type,
+                    description=inferred.description,
+                    parameters=inferred.parameters,
+                    fn=t,
+                )
+            )
+        else:
+            raise TypeError(f"unsupported tool type: {type(t)}")
+    return tuple(out)
 
 
 def model(
@@ -219,6 +244,46 @@ def call(
 
 def acall(*args, **kwargs) -> AsyncResult:
     return AsyncResult(call, *args, **kwargs)
+
+
+def live(
+    model: str,
+    *,
+    system: str | tuple[Part, ...] | None = None,
+    tools: list[Tool | Callable[..., Any] | str] | None = None,
+    on_tool_call: Callable[..., Any] | None = None,
+    voice: str | None = None,
+    input_format: AudioFormat | None = None,
+    output_format: AudioFormat | None = None,
+    provider: str | None = None,
+    api_key: str | dict[str, str] | None = None,
+    env: str | None = None,
+):
+    resolved_provider = provider or resolve_provider(model)
+    lm = _get_client(
+        api_key=_resolve("api_key", api_key),
+        provider_hint=resolved_provider,
+        env=_resolve("env", env),
+    )
+
+    config = LiveConfig(
+        model=model,
+        system=system,
+        tools=_normalize_runtime_tools(list(tools or [])),
+        voice=voice,
+        input_format=input_format,
+        output_format=output_format,
+    )
+    session = lm.live(config, provider=resolved_provider)
+
+    if hasattr(session, "set_on_tool_call"):
+        session.set_on_tool_call(on_tool_call)
+    return session
+
+
+async def alive(*args, **kwargs) -> AsyncLiveSession:
+    session = await asyncio.to_thread(live, *args, **kwargs)
+    return AsyncLiveSession(session)
 
 
 def stream(*args, **kwargs) -> Result:

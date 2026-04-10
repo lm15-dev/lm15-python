@@ -17,6 +17,7 @@
 
     {"id": "errors.mapping.fixture", "provider": "shared", "probe": "error_mapping", "required": true, "mode": "fixture"},
     {"id": "adapter.contract.fixture", "provider": "shared", "probe": "adapter_contract", "required": true, "mode": "fixture"},
+    {"id": "live.contract.fixture", "provider": "shared", "probe": "live_contract", "required": true, "mode": "fixture"},
     {"id": "transport.pycurl_stream.fixture", "provider": "shared", "probe": "transport_streaming", "required": true, "mode": "fixture"}
   ]
 }

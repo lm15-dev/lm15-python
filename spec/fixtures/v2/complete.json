@@ -1,0 +1,209 @@
+{
+  "fixture_version": "1.0.0",
+  "contract_version": "v2",
+  "kind": "complete",
+  "cases": [
+    {
+      "id": "openai.basic_text",
+      "provider": "openai",
+      "request": {
+        "model": "gpt-4.1-mini",
+        "messages": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "type": "text",
+                "text": "hi"
+              }
+            ]
+          }
+        ],
+        "tools": [
+          {
+            "name": "get_weather",
+            "type": "function",
+            "description": "Get weather by city.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "city": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "city"
+              ]
+            }
+          },
+          {
+            "name": "web_search",
+            "type": "builtin",
+            "builtin_config": {
+              "safe_search": true
+            }
+          }
+        ],
+        "config": {
+          "reasoning": {
+            "enabled": true,
+            "budget": 256,
+            "effort": "medium"
+          },
+          "provider": {
+            "prompt_caching": true,
+            "provider_pref": {
+              "region": "us"
+            }
+          }
+        }
+      },
+      "provider_response": {
+        "id": "resp_1",
+        "model": "gpt-4.1-mini",
+        "output": [
+          {
+            "type": "message",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "ok"
+              }
+            ]
+          }
+        ],
+        "usage": {
+          "input_tokens": 3,
+          "output_tokens": 1,
+          "total_tokens": 4
+        }
+      },
+      "expected_response": {
+        "id": "resp_1",
+        "model": "gpt-4.1-mini",
+        "message": {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "ok"
+            }
+          ]
+        },
+        "finish_reason": "stop",
+        "usage": {
+          "input_tokens": 3,
+          "output_tokens": 1,
+          "total_tokens": 4
+        }
+      }
+    },
+    {
+      "id": "anthropic.basic_text",
+      "provider": "anthropic",
+      "request": {
+        "model": "claude-sonnet-4-5",
+        "messages": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "type": "text",
+                "text": "hi"
+              }
+            ]
+          }
+        ]
+      },
+      "provider_response": {
+        "id": "msg_1",
+        "model": "claude-sonnet-4-5",
+        "content": [
+          {
+            "type": "text",
+            "text": "ok"
+          }
+        ],
+        "usage": {
+          "input_tokens": 5,
+          "output_tokens": 1
+        }
+      },
+      "expected_response": {
+        "id": "msg_1",
+        "model": "claude-sonnet-4-5",
+        "message": {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "ok"
+            }
+          ]
+        },
+        "finish_reason": "stop",
+        "usage": {
+          "input_tokens": 5,
+          "output_tokens": 1,
+          "total_tokens": 6
+        }
+      }
+    },
+    {
+      "id": "gemini.basic_text",
+      "provider": "gemini",
+      "request": {
+        "model": "gemini-2.0-flash-lite",
+        "messages": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "type": "text",
+                "text": "hi"
+              }
+            ]
+          }
+        ]
+      },
+      "provider_response": {
+        "responseId": "gr_1",
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {
+                  "text": "ok"
+                }
+              ]
+            }
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 2,
+          "candidatesTokenCount": 1,
+          "totalTokenCount": 3
+        }
+      },
+      "expected_response": {
+        "id": "gr_1",
+        "model": "gemini-2.0-flash-lite",
+        "message": {
+          "role": "assistant",
+          "parts": [
+            {
+              "type": "text",
+              "text": "ok"
+            }
+          ]
+        },
+        "finish_reason": "stop",
+        "usage": {
+          "input_tokens": 2,
+          "output_tokens": 1,
+          "total_tokens": 3
+        }
+      }
+    }
+  ]
+}

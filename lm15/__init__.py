@@ -5,10 +5,11 @@ try:
 except Exception:
     __version__ = "0.0.0+dev"
 
-from .api import acall, call, configure, model, models, prepare, providers, providers_info, send, stream, upload
+from .api import acall, alive, call, configure, live, model, models, prepare, providers, providers_info, send, stream, upload
 from .capabilities import hydrate_with_specs
 from .client import UniversalLM
 from .conversation import Conversation
+from .live import AsyncLiveSession
 from .middleware import with_cache, with_history, with_retries
 from .model import HistoryEntry, callable_to_tool
 from .result import AsyncResult, Result
@@ -78,6 +79,8 @@ __all__ = [
     "build_default",
     "call",
     "acall",
+    "live",
+    "alive",
     "configure",
     "prepare",
     "send",
@@ -92,6 +95,7 @@ __all__ = [
     "StreamChunk",
     "Result",
     "AsyncResult",
+    "AsyncLiveSession",
     "HistoryEntry",
     "callable_to_tool",
     "TransportPolicy",

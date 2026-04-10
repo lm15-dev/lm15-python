@@ -627,6 +627,12 @@ class AudioFormat:
     sample_rate: int
     channels: int = 1
 
+    def __post_init__(self) -> None:
+        if self.sample_rate <= 0:
+            raise ValueError("sample_rate must be > 0")
+        if self.channels <= 0:
+            raise ValueError("channels must be > 0")
+
 
 @dataclass(slots=True, frozen=True)
 class LiveConfig:
@@ -638,6 +644,12 @@ class LiveConfig:
     output_format: AudioFormat | None = None
     provider: dict[str, Any] | None = None
 
+    def __post_init__(self) -> None:
+        if not self.model:
+            raise ValueError("model is required")
+        if isinstance(self.system, tuple) and not self.system:
+            raise ValueError("system parts cannot be empty")
+
 
 @dataclass(slots=True, frozen=True)
 class LiveClientEvent:
@@ -646,6 +658,17 @@ class LiveClientEvent:
     text: str | None = None
     id: str | None = None
     content: tuple[Part, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.type in {"audio", "video"} and self.data is None:
+            raise ValueError(f"LiveClientEvent(type='{self.type}') requires data")
+        if self.type == "text" and self.text is None:
+            raise ValueError("LiveClientEvent(type='text') requires text")
+        if self.type == "tool_result":
+            if not self.id:
+                raise ValueError("LiveClientEvent(type='tool_result') requires id")
+            if not self.content:
+                raise ValueError("LiveClientEvent(type='tool_result') requires content")
 
 
 @dataclass(slots=True, frozen=True)
@@ -658,3 +681,16 @@ class LiveServerEvent:
     input: dict[str, Any] | None = None
     usage: Usage | None = None
     error: dict[str, str] | None = None
+
+    def __post_init__(self) -> None:
+        if self.type == "audio" and self.data is None:
+            raise ValueError("LiveServerEvent(type='audio') requires data")
+        if self.type == "text" and self.text is None:
+            raise ValueError("LiveServerEvent(type='text') requires text")
+        if self.type == "tool_call":
+            if not self.id or not self.name or self.input is None:
+                raise ValueError("LiveServerEvent(type='tool_call') requires id, name, input")
+        if self.type == "turn_end" and self.usage is None:
+            raise ValueError("LiveServerEvent(type='turn_end') requires usage")
+        if self.type == "error" and self.error is None:
+            raise ValueError("LiveServerEvent(type='error') requires error")

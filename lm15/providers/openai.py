@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import urllib.parse
 import uuid
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Iterator
 
 from ..features import EndpointSupport, ProviderManifest
+from ..live import WebSocketLiveSession, require_websocket_sync_connect
 from ..protocols import Capabilities
 from ..sse import SSEEvent
 from ..transports.base import HttpRequest, HttpResponse, Transport
@@ -23,6 +25,9 @@ from ..types import (
     ImageGenerationResponse,
     LMRequest,
     LMResponse,
+    LiveClientEvent,
+    LiveConfig,
+    LiveServerEvent,
     Message,
     Part,
     PartDelta,
@@ -42,7 +47,20 @@ from ..errors import (
     map_http_error,
 )
 from .base import BaseProviderAdapter
-from .common import message_to_openai_input
+from .common import message_to_openai_input, part_to_openai_input
+
+
+def _parse_json_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value:
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            return {"partial_json": value}
+    return {}
 
 
 @dataclass(slots=True)
@@ -60,6 +78,7 @@ class OpenAIAdapter(BaseProviderAdapter):
     supports: ClassVar[EndpointSupport] = EndpointSupport(
         complete=True,
         stream=True,
+        live=True,
         embeddings=True,
         files=True,
         batches=True,
@@ -306,6 +325,396 @@ class OpenAIAdapter(BaseProviderAdapter):
                 message = str(payload.get("message") or "")
             return StreamEvent(type="error", error=self._stream_error(provider_code, message))
         return None
+
+    def stream(self, request: LMRequest) -> Iterator[StreamEvent]:
+        if self._should_use_live_completion(request):
+            yield from self._stream_via_live_completion(request)
+            return
+        yield from super(OpenAIAdapter, self).stream(request)
+
+    def _should_use_live_completion(self, request: LMRequest) -> bool:
+        provider_cfg = request.config.provider or {}
+        transport_mode = str(provider_cfg.get("transport") or "").lower()
+        if transport_mode in {"live", "websocket", "ws"}:
+            return True
+        model_name = request.model.lower()
+        return "realtime" in model_name or "-live" in model_name
+
+    def _stream_via_live_completion(self, request: LMRequest) -> Iterator[StreamEvent]:
+        ws = self._live_connect(self._live_url(request.model), self._live_headers())
+        saw_tool_call = False
+        usage = Usage()
+
+        try:
+            ws.send(json.dumps(self._live_session_update_from_request(request)))
+            for frame in self._live_message_frames_for_request(request):
+                ws.send(json.dumps(frame))
+
+            yield StreamEvent(type="start", model=request.model)
+
+            while True:
+                raw = ws.recv()
+                for evt in self._decode_live_completion_stream_events(request, raw):
+                    if evt.type == "delta":
+                        d = evt.delta
+                        if isinstance(d, dict) and d.get("type") == "tool_call":
+                            saw_tool_call = True
+                        elif isinstance(d, PartDelta) and d.type == "tool_call":
+                            saw_tool_call = True
+                        yield evt
+                        continue
+
+                    if evt.type == "error":
+                        yield evt
+                        return
+
+                    if evt.type == "end":
+                        if evt.usage is not None:
+                            usage = evt.usage
+                        finish_reason = "tool_call" if saw_tool_call else (evt.finish_reason or "stop")
+                        yield StreamEvent(type="end", finish_reason=finish_reason, usage=usage)
+                        return
+        finally:
+            try:
+                ws.close()
+            except Exception:
+                pass
+
+    def _live_session_update_from_request(self, request: LMRequest) -> dict[str, Any]:
+        provider_cfg = dict(request.config.provider or {})
+        provider_cfg.pop("transport", None)
+        provider_cfg.pop("prompt_caching", None)
+        provider_cfg.pop("output", None)
+
+        cfg = LiveConfig(
+            model=request.model,
+            system=request.system,
+            tools=request.tools,
+            provider=provider_cfg or None,
+        )
+        return self._live_session_update_payload(cfg)
+
+    def _live_message_frames_for_request(self, request: LMRequest) -> list[dict[str, Any]]:
+        frames: list[dict[str, Any]] = []
+
+        for message in request.messages:
+            if message.role == "tool":
+                for part in message.parts:
+                    if part.type != "tool_result" or not part.id:
+                        continue
+                    output = "\n".join(p.text or "" for p in part.content if p.type in {"text", "thinking", "refusal"} and p.text)
+                    if not output:
+                        output = json.dumps([{"type": p.type} for p in part.content])
+                    frames.append(
+                        {
+                            "type": "conversation.item.create",
+                            "item": {
+                                "type": "function_call_output",
+                                "call_id": part.id,
+                                "output": output,
+                            },
+                        }
+                    )
+                continue
+
+            content = [part_to_openai_input(p) for p in message.parts if p.type not in {"tool_call", "tool_result"}]
+            if content:
+                frames.append(
+                    {
+                        "type": "conversation.item.create",
+                        "item": {
+                            "type": "message",
+                            "role": message.role,
+                            "content": content,
+                        },
+                    }
+                )
+
+            for part in message.parts:
+                if part.type != "tool_call" or not part.id or not part.name:
+                    continue
+                frames.append(
+                    {
+                        "type": "conversation.item.create",
+                        "item": {
+                            "type": "function_call",
+                            "call_id": part.id,
+                            "name": part.name,
+                            "arguments": json.dumps(part.input or {}),
+                        },
+                    }
+                )
+
+        response_create: dict[str, Any] = {"type": "response.create"}
+        provider_cfg = request.config.provider or {}
+        output = provider_cfg.get("output")
+        if output == "audio":
+            response_create["response"] = {"modalities": ["text", "audio"]}
+        frames.append(response_create)
+        return frames
+
+    def _decode_live_completion_stream_events(self, request: LMRequest, raw: str | bytes) -> list[StreamEvent]:
+        try:
+            payload = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+        except Exception:
+            return []
+
+        if not isinstance(payload, dict):
+            return []
+
+        et = str(payload.get("type") or "")
+
+        if et in {"response.output_text.delta", "response.text.delta", "response.audio_transcript.delta"}:
+            delta = str(payload.get("delta") or payload.get("text") or "")
+            return [StreamEvent(type="delta", part_index=0, delta=PartDelta(type="text", text=delta))] if delta else []
+
+        if et == "response.output_audio.delta":
+            delta = str(payload.get("delta") or "")
+            return [StreamEvent(type="delta", part_index=0, delta=PartDelta(type="audio", data=delta))] if delta else []
+
+        if et in {"response.output_item.added", "response.function_call_arguments.delta", "response.function_call_arguments.done", "response.output_item.done"}:
+            if et in {"response.output_item.added", "response.output_item.done"}:
+                item = payload.get("item", {})
+                if not isinstance(item, dict) or item.get("type") != "function_call":
+                    return []
+                call_id = str(item.get("call_id") or item.get("id") or "")
+                name = str(item.get("name") or "tool")
+                arguments = item.get("arguments") or ""
+            else:
+                call_id = str(payload.get("call_id") or payload.get("id") or "")
+                name = str(payload.get("name") or "tool")
+                arguments = payload.get("delta") if et.endswith("delta") else payload.get("arguments")
+
+            return [
+                StreamEvent(
+                    type="delta",
+                    part_index=int(payload.get("output_index", 0) or 0),
+                    delta={
+                        "type": "tool_call",
+                        "id": call_id or None,
+                        "name": name,
+                        "input": arguments if isinstance(arguments, str) else json.dumps(arguments or {}),
+                    },
+                )
+            ]
+
+        if et in {"response.done", "response.completed"}:
+            response = payload.get("response", {})
+            usage_data = response.get("usage", {}) if isinstance(response, dict) else {}
+            usage = Usage(
+                input_tokens=int(usage_data.get("input_tokens", 0) or 0),
+                output_tokens=int(usage_data.get("output_tokens", 0) or 0),
+                total_tokens=int(usage_data.get("total_tokens", 0) or 0),
+            )
+            return [StreamEvent(type="end", finish_reason="stop", usage=usage)]
+
+        if et in {"error", "response.error"}:
+            err = payload.get("error")
+            if isinstance(err, dict):
+                provider_code = str(err.get("code") or err.get("type") or payload.get("code") or "provider")
+                message = str(err.get("message") or payload.get("message") or "")
+            else:
+                provider_code = str(payload.get("code") or payload.get("error_type") or "provider")
+                message = str(payload.get("message") or "")
+            return [StreamEvent(type="error", error=self._stream_error(provider_code, message))]
+
+        return []
+
+    def live(self, config: LiveConfig):
+        ws = self._live_connect(self._live_url(config.model), self._live_headers())
+        ws.send(json.dumps(self._live_session_update_payload(config)))
+
+        callable_registry = {
+            t.name: t.fn
+            for t in config.tools
+            if t.type == "function" and callable(t.fn)
+        }
+
+        return WebSocketLiveSession(
+            ws=ws,
+            encode_event=self._encode_live_client_event,
+            decode_event=self._decode_live_server_event,
+            callable_registry=callable_registry,
+        )
+
+    def _live_connect(self, url: str, headers: dict[str, str]):
+        connect = require_websocket_sync_connect()
+        return connect(url, additional_headers=headers)
+
+    def _live_url(self, model: str) -> str:
+        parsed = urllib.parse.urlparse(self.base_url)
+        scheme = "wss" if parsed.scheme == "https" else "ws"
+        base_path = parsed.path.rstrip("/")
+        path = f"{base_path}/realtime" if base_path else "/realtime"
+        query = urllib.parse.urlencode({"model": model})
+        return urllib.parse.urlunparse((scheme, parsed.netloc, path, "", query, ""))
+
+    def _live_headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "OpenAI-Beta": "realtime=v1",
+        }
+
+    def _live_session_update_payload(self, config: LiveConfig) -> dict[str, Any]:
+        session: dict[str, Any] = {}
+
+        if config.system:
+            if isinstance(config.system, str):
+                session["instructions"] = config.system
+            else:
+                session["instructions"] = "\n".join(p.text or "" for p in config.system if p.type in {"text", "thinking", "refusal"})
+
+        if config.voice:
+            session["voice"] = config.voice
+
+        if config.output_format is not None:
+            session["modalities"] = ["text", "audio"]
+            session["output_audio_format"] = config.output_format.encoding
+        else:
+            session["modalities"] = ["text"]
+
+        if config.input_format is not None:
+            session["input_audio_format"] = config.input_format.encoding
+
+        if config.tools:
+            session["tools"] = [
+                {
+                    "type": "function",
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.parameters or {"type": "object", "properties": {}},
+                }
+                for t in config.tools
+                if t.type == "function"
+            ]
+
+        if config.provider:
+            session.update(config.provider)
+
+        return {"type": "session.update", "session": session}
+
+    def _encode_live_client_event(self, event: LiveClientEvent) -> list[dict[str, Any]]:
+        if event.type == "audio":
+            return [{"type": "input_audio_buffer.append", "audio": event.data}]
+
+        if event.type == "end_audio":
+            return [
+                {"type": "input_audio_buffer.commit"},
+                {"type": "response.create"},
+            ]
+
+        if event.type == "interrupt":
+            return [{"type": "response.cancel"}]
+
+        if event.type == "text":
+            content: list[dict[str, Any]] = [{"type": "input_text", "text": event.text or ""}]
+            content.extend(part_to_openai_input(p) for p in event.content)
+            return [
+                {
+                    "type": "conversation.item.create",
+                    "item": {
+                        "type": "message",
+                        "role": "user",
+                        "content": content,
+                    },
+                },
+                {"type": "response.create"},
+            ]
+
+        if event.type == "video":
+            return [
+                {
+                    "type": "conversation.item.create",
+                    "item": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_image", "image_url": f"data:image/jpeg;base64,{event.data}"}],
+                    },
+                },
+                {"type": "response.create"},
+            ]
+
+        if event.type == "tool_result":
+            output = "\n".join(p.text or "" for p in event.content if p.type in {"text", "thinking", "refusal"} and p.text)
+            if not output:
+                output = json.dumps([{"type": p.type} for p in event.content])
+            return [
+                {
+                    "type": "conversation.item.create",
+                    "item": {
+                        "type": "function_call_output",
+                        "call_id": event.id,
+                        "output": output,
+                    },
+                },
+                {"type": "response.create"},
+            ]
+
+        return []
+
+    def _decode_live_server_event(self, raw: str | bytes) -> list[LiveServerEvent]:
+        try:
+            payload = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+        except Exception:
+            return []
+
+        if not isinstance(payload, dict):
+            return []
+
+        et = str(payload.get("type") or "")
+        events: list[LiveServerEvent] = []
+
+        if et in {"response.output_text.delta", "response.text.delta", "response.audio_transcript.delta"}:
+            delta = str(payload.get("delta") or payload.get("text") or "")
+            if delta:
+                events.append(LiveServerEvent(type="text", text=delta))
+
+        elif et == "response.output_audio.delta":
+            delta = str(payload.get("delta") or "")
+            if delta:
+                events.append(LiveServerEvent(type="audio", data=delta))
+
+        elif et in {"response.function_call_arguments.done", "response.output_item.done"}:
+            if et == "response.output_item.done":
+                item = payload.get("item", {})
+                if item.get("type") != "function_call":
+                    item = {}
+                call_id = str(item.get("call_id") or item.get("id") or "")
+                name = str(item.get("name") or "tool")
+                arguments = item.get("arguments")
+            else:
+                call_id = str(payload.get("call_id") or payload.get("id") or "")
+                name = str(payload.get("name") or "tool")
+                arguments = payload.get("arguments")
+
+            parsed_args = _parse_json_dict(arguments)
+            if call_id:
+                events.append(LiveServerEvent(type="tool_call", id=call_id, name=name, input=parsed_args))
+
+        elif et in {"response.done", "response.completed"}:
+            response = payload.get("response", {})
+            usage_data = response.get("usage", {}) if isinstance(response, dict) else {}
+            usage = Usage(
+                input_tokens=int(usage_data.get("input_tokens", 0) or 0),
+                output_tokens=int(usage_data.get("output_tokens", 0) or 0),
+                total_tokens=int(usage_data.get("total_tokens", 0) or 0),
+            )
+            events.append(LiveServerEvent(type="turn_end", usage=usage))
+
+        elif et in {"response.cancelled", "response.canceled"}:
+            events.append(LiveServerEvent(type="interrupted"))
+
+        elif et in {"error", "response.error"}:
+            err = payload.get("error")
+            if isinstance(err, dict):
+                provider_code = str(err.get("code") or err.get("type") or payload.get("code") or "provider")
+                message = str(err.get("message") or payload.get("message") or "")
+            else:
+                provider_code = str(payload.get("code") or payload.get("error_type") or "provider")
+                message = str(payload.get("message") or "")
+            events.append(LiveServerEvent(type="error", error=self._stream_error(provider_code, message)))
+
+        return events
 
     def embeddings(self, request: EmbeddingRequest) -> EmbeddingResponse:
         req = HttpRequest(

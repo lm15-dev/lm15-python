@@ -1,0 +1,199 @@
+{
+  "fixture_version": "1.0.0",
+  "contract_version": "v1",
+  "kind": "live",
+  "config_cases": [
+    {
+      "id": "gemini.voice_assistant",
+      "config": {
+        "model": "gemini-2.0-flash-live",
+        "system": "You are a concise voice assistant.",
+        "tools": [
+          {
+            "name": "get_weather",
+            "type": "function",
+            "description": "Get weather by city.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "city": {"type": "string"}
+              },
+              "required": ["city"]
+            }
+          }
+        ],
+        "voice": "alloy",
+        "input_format": {
+          "encoding": "pcm16",
+          "sample_rate": 16000,
+          "channels": 1
+        },
+        "output_format": {
+          "encoding": "pcm16",
+          "sample_rate": 24000,
+          "channels": 1
+        },
+        "provider": {
+          "transport": "websocket"
+        }
+      }
+    }
+  ],
+  "client_event_cases": [
+    {
+      "id": "client.text",
+      "event": {
+        "type": "text",
+        "text": "What's the weather in Montreal?"
+      }
+    },
+    {
+      "id": "client.audio",
+      "event": {
+        "type": "audio",
+        "data": "UklGRg=="
+      }
+    },
+    {
+      "id": "client.video",
+      "event": {
+        "type": "video",
+        "data": "AAAAIGZ0eXBpc29t"
+      }
+    },
+    {
+      "id": "client.tool_result",
+      "event": {
+        "type": "tool_result",
+        "id": "call_1",
+        "content": [
+          {"type": "text", "text": "22°C, sunny"}
+        ]
+      }
+    },
+    {
+      "id": "client.interrupt",
+      "event": {
+        "type": "interrupt"
+      }
+    },
+    {
+      "id": "client.end_audio",
+      "event": {
+        "type": "end_audio"
+      }
+    }
+  ],
+  "server_event_cases": [
+    {
+      "id": "server.text",
+      "event": {
+        "type": "text",
+        "text": "It's 22°C and sunny in Montreal."
+      }
+    },
+    {
+      "id": "server.audio",
+      "event": {
+        "type": "audio",
+        "data": "UklGRg=="
+      }
+    },
+    {
+      "id": "server.tool_call",
+      "event": {
+        "type": "tool_call",
+        "id": "call_1",
+        "name": "get_weather",
+        "input": {"city": "Montreal"}
+      }
+    },
+    {
+      "id": "server.interrupted",
+      "event": {
+        "type": "interrupted"
+      }
+    },
+    {
+      "id": "server.turn_end",
+      "event": {
+        "type": "turn_end",
+        "usage": {
+          "input_tokens": 18,
+          "output_tokens": 7,
+          "total_tokens": 25
+        }
+      }
+    },
+    {
+      "id": "server.error",
+      "event": {
+        "type": "error",
+        "error": {
+          "code": "rate_limit",
+          "provider_code": "RESOURCE_EXHAUSTED",
+          "message": "quota hit"
+        }
+      }
+    }
+  ],
+  "session_cases": [
+    {
+      "id": "voice_weather_roundtrip",
+      "config": {
+        "model": "gemini-2.0-flash-live",
+        "system": "You are a concise voice assistant.",
+        "tools": [
+          {
+            "name": "get_weather",
+            "type": "function",
+            "description": "Get weather by city.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "city": {"type": "string"}
+              },
+              "required": ["city"]
+            }
+          }
+        ],
+        "voice": "alloy"
+      },
+      "client_events": [
+        {"type": "audio", "data": "UklGRg=="},
+        {"type": "end_audio"},
+        {
+          "type": "tool_result",
+          "id": "call_1",
+          "content": [
+            {"type": "text", "text": "22°C, sunny"}
+          ]
+        }
+      ],
+      "server_events": [
+        {
+          "type": "tool_call",
+          "id": "call_1",
+          "name": "get_weather",
+          "input": {"city": "Montreal"}
+        },
+        {
+          "type": "text",
+          "text": "It's 22°C and sunny in Montreal."
+        },
+        {
+          "type": "audio",
+          "data": "UklGRg=="
+        },
+        {
+          "type": "turn_end",
+          "usage": {
+            "input_tokens": 18,
+            "output_tokens": 7,
+            "total_tokens": 25
+          }
+        }
+      ]
+    }
+  ]
+}

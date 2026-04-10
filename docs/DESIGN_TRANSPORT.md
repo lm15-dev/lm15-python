@@ -10,6 +10,12 @@ LLM providers use different protocols to serve completions:
 
 Users shouldn't know or care which protocol a model uses. `lm15.call("model-name", "prompt")` should work regardless. The transport is the adapter's problem.
 
+The frozen portability bundle reflects this split:
+
+- completion transports normalize to the existing `LMRequest` / `LMResponse` / `StreamEvent` contract in `spec/contract/v2.json`
+- persistent live sessions use `AudioFormat`, `LiveConfig`, `LiveClientEvent`, and `LiveServerEvent`
+- frozen fixtures live in `spec/fixtures/v2/`
+
 ---
 
 ## Design Principle

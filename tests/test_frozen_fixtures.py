@@ -11,12 +11,24 @@ from lm15.errors import ProviderError, canonical_error_code, map_http_error
 from lm15.providers.anthropic import AnthropicAdapter
 from lm15.providers.gemini import GeminiAdapter
 from lm15.providers.openai import OpenAIAdapter
-from lm15.serde import request_from_dict, request_to_dict, response_to_dict, stream_event_to_dict
+from lm15.serde import (
+    live_client_event_from_dict,
+    live_client_event_to_dict,
+    live_config_from_dict,
+    live_config_to_dict,
+    live_server_event_from_dict,
+    live_server_event_to_dict,
+    request_from_dict,
+    request_to_dict,
+    response_to_dict,
+    stream_event_to_dict,
+)
 from lm15.sse import SSEEvent
 from lm15.transports.base import HttpRequest, HttpResponse
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURES = ROOT / "spec" / "fixtures" / "v1"
+PORTABILITY_SPEC_VERSION = "v2"
+FIXTURES = ROOT / "spec" / "fixtures" / PORTABILITY_SPEC_VERSION
 
 
 class FakeTransport:
@@ -88,6 +100,33 @@ class FrozenFixtureTests(unittest.TestCase):
                 adapter = make_adapter(case["provider"], stream_lines=case["raw_sse_lines"])
                 events = [stream_event_to_dict(e) for e in adapter.stream(req)]
                 self.assertEqual(events, case["expected_events"])
+
+    def test_live_fixtures_roundtrip_through_serde(self):
+        bundle = load_bundle("live.json")
+
+        for case in bundle["config_cases"]:
+            with self.subTest(case=case["id"]):
+                cfg = live_config_from_dict(case["config"])
+                self.assertEqual(live_config_to_dict(cfg), case["config"])
+
+        for case in bundle["client_event_cases"]:
+            with self.subTest(case=case["id"]):
+                event = live_client_event_from_dict(case["event"])
+                self.assertEqual(live_client_event_to_dict(event), case["event"])
+
+        for case in bundle["server_event_cases"]:
+            with self.subTest(case=case["id"]):
+                event = live_server_event_from_dict(case["event"])
+                self.assertEqual(live_server_event_to_dict(event), case["event"])
+
+        for case in bundle["session_cases"]:
+            with self.subTest(case=case["id"]):
+                cfg = live_config_from_dict(case["config"])
+                self.assertEqual(live_config_to_dict(cfg), case["config"])
+                client_events = [live_client_event_to_dict(live_client_event_from_dict(e)) for e in case["client_events"]]
+                server_events = [live_server_event_to_dict(live_server_event_from_dict(e)) for e in case["server_events"]]
+                self.assertEqual(client_events, case["client_events"])
+                self.assertEqual(server_events, case["server_events"])
 
     def test_http_error_fixtures_match_runtime(self):
         bundle = load_bundle("errors.json")

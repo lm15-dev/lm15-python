@@ -4,29 +4,35 @@ LM15 now ships a frozen, language-neutral contract + fixture bundle for ports.
 
 ## Files
 
-- Universal contract: `spec/contract/v1.json`
-- Complete fixtures: `spec/fixtures/v1/complete.json`
-- Tool-call fixtures: `spec/fixtures/v1/tool_call.json`
-- Stream fixtures: `spec/fixtures/v1/stream.json`
-- Error fixtures: `spec/fixtures/v1/errors.json`
+- Universal contract: `spec/contract/v2.json`
+- Complete fixtures: `spec/fixtures/v2/complete.json`
+- Tool-call fixtures: `spec/fixtures/v2/tool_call.json`
+- Stream fixtures: `spec/fixtures/v2/stream.json`
+- Error fixtures: `spec/fixtures/v2/errors.json`
+- Live/session fixtures: `spec/fixtures/v2/live.json`
 
 ## What is frozen
 
 ### 1. Universal contract
 
-`spec/contract/v1.json` defines the portable shape of:
+`spec/contract/v2.json` defines the portable shape of:
 
 - `DataSource`
 - `Part`
 - `Message`
-- `Tool`
+- `Tool` as a tagged union of function and builtin tools
 - `ToolConfig`
+- `ReasoningConfig`
 - `Config`
 - `LMRequest`
 - `Usage`
 - `LMResponse`
 - `PartDelta`
 - `StreamEvent`
+- `AudioFormat`
+- `LiveConfig`
+- `LiveClientEvent`
+- `LiveServerEvent`
 
 It also freezes discriminator values:
 
@@ -53,6 +59,9 @@ The fixture bundle captures:
 - provider wire response -> normalized `LMResponse`
 - provider stream wire events -> normalized `StreamEvent`
 - provider and HTTP error inputs -> canonical lm15 errors
+- live/session config and event shapes -> canonical live transport types
+
+For completions, transport is intentionally abstracted away: REST+SSE, blocking REST, and WebSocket completion adapters all normalize to the same `StreamEvent` surface. That means the completion fixtures stay transport-agnostic. The separate live fixture bundle covers the persistent session pattern. See `docs/DESIGN_TRANSPORT.md` for the transport model behind this split.
 
 ## Versioning rule
 
@@ -64,10 +73,20 @@ The portability spec is additive-only:
 
 Ports should ignore unknown optional fields for forward compatibility.
 
+## v2 design shifts
+
+Compared to the earlier draft contract, v2 is more portability-first:
+
+- `Part` stays a true discriminated union in the spec
+- `Tool` is now a discriminated union of function and builtin variants
+- open extension bags use recursive JSON value types instead of implicit `Any`
+- `reasoning` is a typed config object, not an unstructured bag
+- shared error payloads use a named `ErrorInfo` type
+
 ## Recommended port workflow
 
-1. Implement the universal types from `spec/contract/v1.json`
-2. Make the port pass all fixture bundles under `spec/fixtures/v1/`
+1. Implement the universal types from `spec/contract/v2.json`
+2. Make the port pass all fixture bundles under `spec/fixtures/v2/`
 3. Only then add runtime sugar for that language
 4. Keep provider-specific wire types out of the portable surface
 

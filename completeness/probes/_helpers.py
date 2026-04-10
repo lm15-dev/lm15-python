@@ -8,6 +8,9 @@ from typing import Iterable
 from lm15.transports.base import HttpRequest, HttpResponse
 
 
+PORTABILITY_SPEC_VERSION = "v2"
+
+
 @dataclass(slots=True)
 class ProbeResult:
     status: str  # pass | fail | skip
@@ -41,7 +44,7 @@ def load_json_fixture(root: Path, name: str) -> dict:
 
 
 def portability_fixture_path(root: Path, name: str) -> Path:
-    return root / "spec" / "fixtures" / "v1" / name
+    return root / "spec" / "fixtures" / PORTABILITY_SPEC_VERSION / name
 
 
 def load_portability_fixture(root: Path, name: str) -> dict:

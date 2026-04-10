@@ -28,8 +28,10 @@ dependencies = []
 
 [project.optional-dependencies]
 speed = ["pycurl>=7.45.0"]
+live = ["websockets>=13.0"]
 dev = [
   "pycurl>=7.45.0",
+  "websockets>=13.0",
   "build>=1.2.2",
   "twine>=5.1.1"
 ]

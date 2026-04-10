@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -7,8 +8,9 @@ from typing import Any, Callable
 from .capabilities import resolve_provider
 from .client import UniversalLM
 from .errors import RateLimitError, ServerError, TimeoutError, TransportError
+from .live import AsyncLiveSession
 from .result import AsyncResult, Result, response_to_events
-from .types import Config, FileUploadRequest, LMRequest, LMResponse, Message, Part, Tool
+from .types import AudioFormat, Config, FileUploadRequest, LMRequest, LMResponse, LiveConfig, Message, Part, Tool
 
 
 class _Unset:
@@ -296,6 +298,37 @@ class Model:
 
     def acall(self, prompt: str | list[str | Part] | None = None, **kwargs) -> AsyncResult:
         return AsyncResult(self.call, prompt, **kwargs)
+
+    def live(
+        self,
+        *,
+        tools: list[Tool | Callable[..., Any] | str] | None = None,
+        on_tool_call: Callable[..., Any] | None = None,
+        voice: str | None = None,
+        input_format: AudioFormat | None = None,
+        output_format: AudioFormat | None = None,
+        provider: str | None = None,
+    ):
+        resolved_provider = provider or self.provider
+        tool_defs, _ = self._normalize_tools(tools if tools is not None else self._bound_tools)
+
+        config = LiveConfig(
+            model=self.model,
+            system=self.system,
+            tools=tool_defs,
+            voice=voice,
+            input_format=input_format,
+            output_format=output_format,
+        )
+        session = self._lm.live(config, provider=resolved_provider)
+        callback = on_tool_call if on_tool_call is not None else self.on_tool_call
+        if hasattr(session, "set_on_tool_call"):
+            session.set_on_tool_call(callback)
+        return session
+
+    async def alive(self, **kwargs) -> AsyncLiveSession:
+        session = await asyncio.to_thread(self.live, **kwargs)
+        return AsyncLiveSession(session)
 
     def submit_tools(self, results: dict[str, Any], *, provider: str | None = None) -> Result:
         if not self._pending_tool_calls:
