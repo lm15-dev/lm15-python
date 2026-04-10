@@ -1,0 +1,91 @@
+{
+  "fixture_version": "1.0.0",
+  "contract_version": "v1",
+  "kind": "stream",
+  "cases": [
+    {
+      "id": "openai.basic_text_stream",
+      "provider": "openai",
+      "request": {
+        "model": "gpt-4.1-mini",
+        "messages": [
+          {
+            "role": "user",
+            "parts": [
+              {"type": "text", "text": "hi"}
+            ]
+          }
+        ]
+      },
+      "raw_sse_lines": [
+        "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\"}}\n",
+        "\n",
+        "data: {\"type\":\"response.output_text.delta\",\"delta\":\"ok\"}\n",
+        "\n",
+        "data: [DONE]\n",
+        "\n"
+      ],
+      "expected_events": [
+        {"type": "start", "id": "resp_1", "model": "gpt-4.1-mini"},
+        {"type": "delta", "part_index": 0, "delta": {"type": "text", "text": "ok"}},
+        {"type": "end", "finish_reason": "stop"}
+      ]
+    },
+    {
+      "id": "anthropic.basic_text_stream",
+      "provider": "anthropic",
+      "request": {
+        "model": "claude-sonnet-4-5",
+        "messages": [
+          {
+            "role": "user",
+            "parts": [
+              {"type": "text", "text": "hi"}
+            ]
+          }
+        ]
+      },
+      "raw_sse_lines": [
+        "data: {\"type\":\"message_start\",\"message\":{\"id\":\"m1\",\"model\":\"claude-sonnet-4-5\"}}\n",
+        "\n",
+        "data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\"}}\n",
+        "\n",
+        "data: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n",
+        "\n",
+        "data: {\"type\":\"content_block_stop\",\"index\":0}\n",
+        "\n",
+        "data: {\"type\":\"message_stop\"}\n",
+        "\n"
+      ],
+      "expected_events": [
+        {"type": "start", "id": "m1", "model": "claude-sonnet-4-5"},
+        {"type": "part_start", "part_index": 0, "part_type": "text"},
+        {"type": "delta", "part_index": 0, "delta": {"type": "text", "text": "ok"}},
+        {"type": "part_end", "part_index": 0},
+        {"type": "end", "finish_reason": "stop"}
+      ]
+    },
+    {
+      "id": "gemini.basic_text_stream",
+      "provider": "gemini",
+      "request": {
+        "model": "gemini-2.0-flash-lite",
+        "messages": [
+          {
+            "role": "user",
+            "parts": [
+              {"type": "text", "text": "hi"}
+            ]
+          }
+        ]
+      },
+      "raw_sse_lines": [
+        "data: {\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"ok\"}]}}]}\n",
+        "\n"
+      ],
+      "expected_events": [
+        {"type": "delta", "part_index": 0, "delta": {"type": "text", "text": "ok"}}
+      ]
+    }
+  ]
+}

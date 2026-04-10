@@ -90,6 +90,6 @@ Upload on a model object:
 ```python
 claude = lm15.model("claude-sonnet-4-5")
 doc = claude.upload("contract.pdf")
-resp = claude(["Summarize section 3.", doc])
+resp = claude.call(["Summarize section 3.", doc])
 print(resp.text)
 ```

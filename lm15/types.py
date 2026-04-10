@@ -261,6 +261,26 @@ class Message:
     def assistant(text: str) -> "Message":
         return Message(role="assistant", parts=(Part.text_part(text),))
 
+    @staticmethod
+    def tool_results(results: dict[str, str | Part | list[Part]]) -> "Message":
+        parts: list[Part] = []
+        for call_id, value in results.items():
+            if isinstance(value, Part):
+                content = [value]
+            elif isinstance(value, list) and all(isinstance(x, Part) for x in value):
+                content = value
+            else:
+                content = [Part.text_part(str(value))]
+            parts.append(Part.tool_result(call_id, content))
+        return Message(role="tool", parts=tuple(parts))
+
+
+@dataclass(slots=True, frozen=True)
+class ToolCallInfo:
+    id: str
+    name: str
+    input: dict[str, Any]
+
 
 @dataclass(slots=True, frozen=True)
 class Tool:
@@ -269,10 +289,61 @@ class Tool:
     description: str | None = None
     parameters: dict[str, Any] | None = None
     builtin_config: dict[str, Any] | None = None
+    fn: Any = None  # optional callable for auto-execution
 
     def __post_init__(self) -> None:
         if self.type == "function" and self.parameters is None:
             object.__setattr__(self, "parameters", {"type": "object", "properties": {}})
+
+    @staticmethod
+    def from_fn(fn: Any) -> "Tool":
+        """Create a Tool with schema inferred from a callable, without auto-execution.
+
+        Use this when you want the convenience of schema inference but
+        the control of manual execution via ``submit_tools()``.
+
+        >>> tool = Tool.from_fn(write_file)
+        >>> print(tool.name, tool.parameters)  # inspect the inferred schema
+        """
+        import inspect
+
+        sig = inspect.signature(fn)
+        hints = inspect.get_annotations(fn, eval_str=True)
+        properties: dict[str, Any] = {}
+        required: list[str] = []
+        for name, param in sig.parameters.items():
+            if param.kind not in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY):
+                continue
+            ann = hints.get(name, str)
+            # Inline type mapping to avoid importing from model.py
+            origin = getattr(ann, "__origin__", None)
+            if origin in (list, tuple, set):
+                json_type = {"type": "array"}
+            elif origin is dict:
+                json_type = {"type": "object"}
+            elif ann in (int,):
+                json_type = {"type": "integer"}
+            elif ann in (float,):
+                json_type = {"type": "number"}
+            elif ann in (bool,):
+                json_type = {"type": "boolean"}
+            else:
+                json_type = {"type": "string"}
+            properties[name] = json_type
+            if param.default is inspect.Parameter.empty:
+                required.append(name)
+
+        schema = {"type": "object", "properties": properties}
+        if required:
+            schema["required"] = required
+
+        return Tool(
+            name=fn.__name__,
+            type="function",
+            description=(inspect.getdoc(fn) or "").strip() or None,
+            parameters=schema,
+            # fn is NOT set — this is the point: inferred schema, manual execution
+        )
 
 
 @dataclass(slots=True, frozen=True)

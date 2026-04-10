@@ -1,0 +1,455 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lm15.dev/spec/contract/v1.json",
+  "title": "lm15 universal contract v1",
+  "description": "Frozen, language-neutral contract for lm15 universal request/response/stream types.",
+  "contract_version": "v1",
+  "frozen_on": "2026-04-10",
+  "versioning": {
+    "policy": "additive-only",
+    "rules": [
+      "Never repurpose an existing discriminator value.",
+      "New optional fields may be added.",
+      "New Part.type values may be added.",
+      "Ports should ignore unknown optional fields for forward compatibility."
+    ]
+  },
+  "canonical_json": {
+    "rules": [
+      "Use snake_case field names matching the universal dataclasses.",
+      "Serialize tuples as arrays.",
+      "Omit null, empty-string, and empty-container optional fields in frozen fixtures.",
+      "Do not include provider passthrough bags in normalized fixture outputs unless explicitly testing passthrough behavior."
+    ]
+  },
+  "discriminators": {
+    "role": ["user", "assistant", "tool"],
+    "part_type": [
+      "text",
+      "image",
+      "audio",
+      "video",
+      "document",
+      "tool_call",
+      "tool_result",
+      "thinking",
+      "refusal",
+      "citation"
+    ],
+    "data_source_type": ["base64", "url", "file"],
+    "finish_reason": ["stop", "length", "tool_call", "content_filter", "error"],
+    "stream_event_type": ["start", "delta", "part_start", "part_end", "end", "error"],
+    "part_delta_type": ["text", "tool_call", "thinking", "audio"]
+  },
+  "root_types": [
+    "DataSource",
+    "Part",
+    "Message",
+    "Tool",
+    "ToolConfig",
+    "Config",
+    "LMRequest",
+    "Usage",
+    "LMResponse",
+    "PartDelta",
+    "StreamEvent"
+  ],
+  "$defs": {
+    "JsonObject": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "DataSource": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["base64", "url", "file"]},
+        "media_type": {"type": "string"},
+        "data": {"type": "string"},
+        "url": {"type": "string"},
+        "file_id": {"type": "string"},
+        "detail": {"enum": ["low", "high", "auto"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "base64"}}},
+          "then": {"required": ["type", "data", "media_type"]}
+        },
+        {
+          "if": {"properties": {"type": {"const": "url"}}},
+          "then": {"required": ["type", "url"]}
+        },
+        {
+          "if": {"properties": {"type": {"const": "file"}}},
+          "then": {"required": ["type", "file_id"]}
+        }
+      ]
+    },
+    "TextPart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "text"],
+      "properties": {
+        "type": {"const": "text"},
+        "text": {"type": "string"},
+        "metadata": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "ThinkingPart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "text"],
+      "properties": {
+        "type": {"const": "thinking"},
+        "text": {"type": "string"},
+        "redacted": {"type": "boolean"},
+        "summary": {"type": "string"},
+        "metadata": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "RefusalPart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "text"],
+      "properties": {
+        "type": {"const": "refusal"},
+        "text": {"type": "string"}
+      }
+    },
+    "CitationPart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type"],
+      "properties": {
+        "type": {"const": "citation"},
+        "text": {"type": "string"},
+        "url": {"type": "string"},
+        "title": {"type": "string"}
+      }
+    },
+    "ImagePart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "source"],
+      "properties": {
+        "type": {"const": "image"},
+        "source": {"$ref": "#/$defs/DataSource"},
+        "metadata": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "AudioPart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "source"],
+      "properties": {
+        "type": {"const": "audio"},
+        "source": {"$ref": "#/$defs/DataSource"},
+        "metadata": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "VideoPart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "source"],
+      "properties": {
+        "type": {"const": "video"},
+        "source": {"$ref": "#/$defs/DataSource"},
+        "metadata": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "DocumentPart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "source"],
+      "properties": {
+        "type": {"const": "document"},
+        "source": {"$ref": "#/$defs/DataSource"},
+        "metadata": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "ToolCallPart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "id", "name", "input"],
+      "properties": {
+        "type": {"const": "tool_call"},
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "input": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "ToolResultPart": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "id"],
+      "properties": {
+        "type": {"const": "tool_result"},
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "content": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/Part"}
+        },
+        "is_error": {"type": "boolean"}
+      }
+    },
+    "Part": {
+      "oneOf": [
+        {"$ref": "#/$defs/TextPart"},
+        {"$ref": "#/$defs/ThinkingPart"},
+        {"$ref": "#/$defs/RefusalPart"},
+        {"$ref": "#/$defs/CitationPart"},
+        {"$ref": "#/$defs/ImagePart"},
+        {"$ref": "#/$defs/AudioPart"},
+        {"$ref": "#/$defs/VideoPart"},
+        {"$ref": "#/$defs/DocumentPart"},
+        {"$ref": "#/$defs/ToolCallPart"},
+        {"$ref": "#/$defs/ToolResultPart"}
+      ]
+    },
+    "Message": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["role", "parts"],
+      "properties": {
+        "role": {"enum": ["user", "assistant", "tool"]},
+        "parts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/Part"}
+        },
+        "name": {"type": "string"}
+      }
+    },
+    "Tool": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"enum": ["function", "builtin"]},
+        "description": {"type": "string"},
+        "parameters": {"$ref": "#/$defs/JsonObject"},
+        "builtin_config": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "ToolConfig": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "mode": {"enum": ["auto", "required", "none"]},
+        "allowed": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "parallel": {"type": "boolean"}
+      }
+    },
+    "Config": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "max_tokens": {"type": "integer", "minimum": 1},
+        "temperature": {"type": "number", "minimum": 0},
+        "top_p": {"type": "number", "minimum": 0, "maximum": 1},
+        "top_k": {"type": "integer"},
+        "stop": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "response_format": {"$ref": "#/$defs/JsonObject"},
+        "tool_config": {"$ref": "#/$defs/ToolConfig"},
+        "reasoning": {"$ref": "#/$defs/JsonObject"},
+        "provider": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "LMRequest": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["model", "messages"],
+      "properties": {
+        "model": {"type": "string"},
+        "messages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/Message"}
+        },
+        "system": {
+          "oneOf": [
+            {"type": "string"},
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {"$ref": "#/$defs/Part"}
+            }
+          ]
+        },
+        "tools": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/Tool"}
+        },
+        "config": {"$ref": "#/$defs/Config"}
+      }
+    },
+    "Usage": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["input_tokens", "output_tokens", "total_tokens"],
+      "properties": {
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0},
+        "total_tokens": {"type": "integer", "minimum": 0},
+        "cache_read_tokens": {"type": "integer", "minimum": 0},
+        "cache_write_tokens": {"type": "integer", "minimum": 0},
+        "reasoning_tokens": {"type": "integer", "minimum": 0}
+      }
+    },
+    "LMResponse": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "model", "message", "finish_reason", "usage"],
+      "properties": {
+        "id": {"type": "string"},
+        "model": {"type": "string"},
+        "message": {"$ref": "#/$defs/Message"},
+        "finish_reason": {"enum": ["stop", "length", "tool_call", "content_filter", "error"]},
+        "usage": {"$ref": "#/$defs/Usage"},
+        "provider": {"$ref": "#/$defs/JsonObject"}
+      }
+    },
+    "PartDelta": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["type", "text"],
+          "properties": {
+            "type": {"const": "text"},
+            "text": {"type": "string"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["type", "text"],
+          "properties": {
+            "type": {"const": "thinking"},
+            "text": {"type": "string"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["type", "input"],
+          "properties": {
+            "type": {"const": "tool_call"},
+            "input": {"type": "string"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["type", "data"],
+          "properties": {
+            "type": {"const": "audio"},
+            "data": {"type": "string"}
+          }
+        }
+      ]
+    },
+    "StartEvent": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type"],
+      "properties": {
+        "type": {"const": "start"},
+        "id": {"type": "string"},
+        "model": {"type": "string"}
+      }
+    },
+    "DeltaEvent": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "delta"],
+      "properties": {
+        "type": {"const": "delta"},
+        "part_index": {"type": "integer", "minimum": 0},
+        "delta": {
+          "oneOf": [
+            {"$ref": "#/$defs/PartDelta"},
+            {"$ref": "#/$defs/JsonObject"}
+          ]
+        }
+      }
+    },
+    "PartStartEvent": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "part_index"],
+      "properties": {
+        "type": {"const": "part_start"},
+        "part_index": {"type": "integer", "minimum": 0},
+        "part_type": {"type": "string"}
+      }
+    },
+    "PartEndEvent": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "part_index"],
+      "properties": {
+        "type": {"const": "part_end"},
+        "part_index": {"type": "integer", "minimum": 0}
+      }
+    },
+    "EndEvent": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type"],
+      "properties": {
+        "type": {"const": "end"},
+        "finish_reason": {"enum": ["stop", "length", "tool_call", "content_filter", "error"]},
+        "usage": {"$ref": "#/$defs/Usage"}
+      }
+    },
+    "ErrorEvent": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["type", "error"],
+      "properties": {
+        "type": {"const": "error"},
+        "error": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {
+              "enum": [
+                "auth",
+                "billing",
+                "rate_limit",
+                "invalid_request",
+                "context_length",
+                "timeout",
+                "server",
+                "provider"
+              ]
+            },
+            "provider_code": {"type": "string"},
+            "message": {"type": "string"}
+          }
+        }
+      }
+    },
+    "StreamEvent": {
+      "oneOf": [
+        {"$ref": "#/$defs/StartEvent"},
+        {"$ref": "#/$defs/DeltaEvent"},
+        {"$ref": "#/$defs/PartStartEvent"},
+        {"$ref": "#/$defs/PartEndEvent"},
+        {"$ref": "#/$defs/EndEvent"},
+        {"$ref": "#/$defs/ErrorEvent"}
+      ]
+    }
+  }
+}

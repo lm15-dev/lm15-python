@@ -66,14 +66,14 @@ for m in lm15.models(provider="openai")[:5]:
 ### Streaming
 
 ```python
-for text in lm15.stream("gpt-4.1-mini", "Write a haiku.").text:
+for text in lm15.call("gpt-4.1-mini", "Write a haiku."):
     print(text, end="")
 ```
 
 Full event access:
 
 ```python
-for event in lm15.stream("gpt-4.1-mini", "Write a haiku."):
+for event in lm15.call("gpt-4.1-mini", "Write a haiku.").events():
     match event.type:
         case "text":     print(event.text, end="")
         case "thinking": print(f"💭 {event.text}", end="")
@@ -101,7 +101,7 @@ from lm15 import Tool
 weather = Tool(name="get_weather", description="Get weather", parameters={...})
 gpt = lm15.model("gpt-4.1-mini")
 
-resp = gpt("Weather in Montreal?", tools=[weather])
+resp = gpt.call("Weather in Montreal?", tools=[weather])
 results = {tc.id: "22°C, sunny" for tc in resp.tool_calls}
 resp = gpt.submit_tools(results)
 print(resp.text)
@@ -174,9 +174,9 @@ print(resp.text)      # final answer
 ```python
 gpt = lm15.model("gpt-4.1-mini", system="You remember everything.")
 
-gpt("My name is Max.")
-gpt("I like chess.")
-resp = gpt("What do you know about me?")
+gpt.call("My name is Max.")
+gpt.call("I like chess.")
+resp = gpt.call("What do you know about me?")
 print(resp.text)  # knows both
 ```
 
@@ -191,7 +191,7 @@ agent = lm15.model("claude-sonnet-4-5",
     prompt_caching=True,
 )
 
-resp = agent("Add tests for auth.")
+resp = agent.call("Add tests for auth.")
 while resp.finish_reason == "tool_call":
     results = execute(resp.tool_calls)
     resp = agent.submit_tools(results)
@@ -208,13 +208,13 @@ resp = lm15.call("claude-sonnet-4-5", "Output JSON for a person.", prefill="{")
 
 ```python
 gpt = lm15.model("gpt-4.1-mini", system="You are terse.", retries=3, cache=True, temperature=0)
-resp = gpt("Hello.")
+resp = gpt.call("Hello.")
 
 # Override per call
-resp = gpt("Be creative.", temperature=1.5)
+resp = gpt.call("Be creative.", temperature=1.5)
 
 # Derive new models
-claude = gpt.with_model("claude-sonnet-4-5")
+claude = gpt.copy(model="claude-sonnet-4-5")
 ```
 
 ### Config from dicts
@@ -248,22 +248,25 @@ for c in resp.citations:
 ## Architecture
 
 ```
-lm15.call / lm15.model       ← v2 surface (sugar)
-        │
-        ▼
+lm15.call / lm15.acall / lm15.model   ← high-level surface
+                │
+                ▼
+          Result / AsyncResult
+                │
+                ▼
 LMRequest ──▶ UniversalLM ──▶ MiddlewarePipeline ──▶ ProviderAdapter ──▶ Transport
                   │                                        │
-                  │ resolve_provider(model)                 │ build_request / parse_response
+                  │ resolve_provider(model)                 │ build_request / parse_stream_event
                   ▼                                        ▼
             capabilities.py                         providers/{openai,anthropic,gemini}.py
 ```
 
-The v2 surface (`lm15.call`, `lm15.model`, `Model`, `Stream`) is a thin layer that constructs `LMRequest` objects and calls `UniversalLM`. The universal provider contract is unchanged — third parties can build their own surface on top of the same internals.
+The high-level surface (`lm15.call`, `lm15.acall`, `lm15.model`, `Result`) is a thin layer over `LMRequest`, `UniversalLM`, and provider adapters. Third parties can still build their own surface on top of the same internals.
 
 ## Why this exists
 
 - **Stdlib only.** No `requests`, no `httpx`, no `aiohttp`. Transport is `urllib` or optional `pycurl`.
-- **Frozen dataclasses all the way down.** `LMRequest` in, `LMResponse` out. No mutable builder chains.
+- **Frozen dataclasses all the way down.** High level: `Result` out. Low level: `LMRequest` / `LMResponse` stay fully accessible. No mutable builder chains.
 - **Nothing is hidden.** Every internal type is importable. Provider escape hatches are always there.
 - **Plugin discovery via entry points.** Third-party providers install and register without touching lm15 core.
 
@@ -271,11 +274,12 @@ The v2 surface (`lm15.call`, `lm15.model`, `Model`, `Stream`) is a thin layer th
 
 | Topic | Path |
 |---|---|
-| **API v2 spec** | [`docs/API_SPEC_V2.md`](docs/API_SPEC_V2.md) |
+| **API v2 spec (legacy)** | [`docs/API_SPEC_V2.md`](docs/API_SPEC_V2.md) |
 | Getting started | [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) |
 | Core concepts | [`docs/CONCEPTS.md`](docs/CONCEPTS.md) |
 | Architecture | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Provider contract | [`docs/CONTRACT.md`](docs/CONTRACT.md) |
+| Portability spec | [`docs/PORTABILITY.md`](docs/PORTABILITY.md) |
 | Error handling | [`docs/ERRORS.md`](docs/ERRORS.md) |
 | Streaming | [`docs/STREAMING.md`](docs/STREAMING.md) |
 | Writing an adapter | [`docs/ADAPTER_GUIDE.md`](docs/ADAPTER_GUIDE.md) |
@@ -295,7 +299,7 @@ The v2 surface (`lm15.call`, `lm15.model`, `Model`, `Stream`) is a thin layer th
 8. [Prompt caching](docs/COOKBOOKS_V2/08-prompt-caching.md)
 9. [Model config](docs/COOKBOOKS_V2/09-model-config.md)
 10. [Building an agent](docs/COOKBOOKS_V2/10-agent.md)
-11. [call()/stream() reference](docs/COOKBOOKS_V2/11-complete-reference.md)
+11. [call()/acall()/Result reference](docs/COOKBOOKS_V2/11-complete-reference.md)
 12. [Model discovery and provider status](docs/COOKBOOKS_V2/12-model-discovery.md)
 
 **Cookbooks v1 (low-level):** [`docs/COOKBOOKS/`](docs/COOKBOOKS/) — 8 examples using the internal `LMRequest`/`UniversalLM` API directly.

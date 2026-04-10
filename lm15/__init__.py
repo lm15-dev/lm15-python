@@ -5,11 +5,13 @@ try:
 except Exception:
     __version__ = "0.0.0+dev"
 
-from .api import call, configure, model, models, prepare, providers, providers_info, send, stream, upload
+from .api import acall, call, configure, model, models, prepare, providers, providers_info, send, stream, upload
 from .capabilities import hydrate_with_specs
 from .client import UniversalLM
+from .conversation import Conversation
 from .middleware import with_cache, with_history, with_retries
-from .model import HistoryEntry
+from .model import HistoryEntry, callable_to_tool
+from .result import AsyncResult, Result
 from .stream import Stream, StreamChunk
 from .model_catalog import build_provider_model_index, fetch_models_dev
 from .plugins import discover_provider_entry_points, load_plugins
@@ -39,6 +41,7 @@ from .types import (
     PartDelta,
     StreamEvent,
     Tool,
+    ToolCallInfo,
     ToolConfig,
     Usage,
 )
@@ -74,18 +77,23 @@ __all__ = [
     "UniversalLM",
     "build_default",
     "call",
+    "acall",
     "configure",
     "prepare",
     "send",
     "stream",
     "model",
+    "Conversation",
     "upload",
     "providers",
     "providers_info",
     "models",
     "Stream",
     "StreamChunk",
+    "Result",
+    "AsyncResult",
     "HistoryEntry",
+    "callable_to_tool",
     "TransportPolicy",
     "with_cache",
     "with_history",
@@ -120,6 +128,7 @@ __all__ = [
     "LiveServerEvent",
     "AudioFormat",
     "Tool",
+    "ToolCallInfo",
     "ToolConfig",
     "Usage",
 ]

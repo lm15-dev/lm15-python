@@ -247,7 +247,18 @@ class AnthropicAdapter(BaseProviderAdapter):
             return StreamEvent(type="start", id=msg.get("id"), model=msg.get("model"))
         if et == "content_block_start":
             block = payload.get("content_block", {})
-            pt = "tool_call" if block.get("type") == "tool_use" else block.get("type")
+            if block.get("type") == "tool_use":
+                return StreamEvent(
+                    type="delta",
+                    part_index=payload.get("index", 0),
+                    delta={
+                        "type": "tool_call",
+                        "id": block.get("id"),
+                        "name": block.get("name"),
+                        "input": json.dumps(block.get("input", {})) if isinstance(block.get("input"), dict) else (block.get("input") or ""),
+                    },
+                )
+            pt = block.get("type")
             return StreamEvent(type="part_start", part_index=payload.get("index", 0), part_type=pt)
         if et == "content_block_delta":
             delta = payload.get("delta", {})

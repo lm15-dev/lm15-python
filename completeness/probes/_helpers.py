@@ -38,3 +38,15 @@ def fixture_path(root: Path, name: str) -> Path:
 
 def load_json_fixture(root: Path, name: str) -> dict:
     return json.loads(fixture_path(root, name).read_text())
+
+
+def portability_fixture_path(root: Path, name: str) -> Path:
+    return root / "spec" / "fixtures" / "v1" / name
+
+
+def load_portability_fixture(root: Path, name: str) -> dict:
+    return json.loads(portability_fixture_path(root, name).read_text())
+
+
+def to_bytes_lines(lines: Iterable[str]) -> list[bytes]:
+    return [line.encode("utf-8") for line in lines]

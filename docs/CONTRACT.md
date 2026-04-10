@@ -1,5 +1,9 @@
 # LM15 Contract
 
+Machine-readable contract: `spec/contract/v1.json`
+
+Portability guide: `docs/PORTABILITY.md`
+
 ## Primary Types
 
 - `LMRequest(model, messages, system?, tools?, config?)`
@@ -22,3 +26,5 @@
   - Add new `Part.type` values.
   - Add optional fields.
 - Never repurpose existing discriminators.
+
+The frozen, language-neutral bundle lives in `spec/contract/v1.json`.

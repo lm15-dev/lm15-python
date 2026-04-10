@@ -1,0 +1,183 @@
+{
+  "fixture_version": "1.0.0",
+  "contract_version": "v1",
+  "kind": "errors",
+  "http_status_cases": [
+    {"id": "http.401", "status": 401, "message": "bad key", "expected": {"class": "AuthError", "canonical_code": "auth"}},
+    {"id": "http.403", "status": 403, "message": "forbidden", "expected": {"class": "AuthError", "canonical_code": "auth"}},
+    {"id": "http.402", "status": 402, "message": "billing", "expected": {"class": "BillingError", "canonical_code": "billing"}},
+    {"id": "http.408", "status": 408, "message": "timeout", "expected": {"class": "TimeoutError", "canonical_code": "timeout"}},
+    {"id": "http.504", "status": 504, "message": "gateway timeout", "expected": {"class": "TimeoutError", "canonical_code": "timeout"}},
+    {"id": "http.429", "status": 429, "message": "slow down", "expected": {"class": "RateLimitError", "canonical_code": "rate_limit"}},
+    {"id": "http.400", "status": 400, "message": "bad request", "expected": {"class": "InvalidRequestError", "canonical_code": "invalid_request"}},
+    {"id": "http.422", "status": 422, "message": "unprocessable", "expected": {"class": "InvalidRequestError", "canonical_code": "invalid_request"}},
+    {"id": "http.500", "status": 500, "message": "boom", "expected": {"class": "ServerError", "canonical_code": "server"}},
+    {"id": "http.503", "status": 503, "message": "unavailable", "expected": {"class": "ServerError", "canonical_code": "server"}}
+  ],
+  "normalize_error_cases": [
+    {
+      "id": "openai.invalid_api_key",
+      "provider": "openai",
+      "status": 401,
+      "body": {"error": {"message": "bad key", "code": "invalid_api_key", "type": "authentication_error"}},
+      "expected": {"class": "AuthError", "canonical_code": "auth", "message_contains": ["bad key"]}
+    },
+    {
+      "id": "openai.insufficient_quota",
+      "provider": "openai",
+      "status": 429,
+      "body": {"error": {"message": "quota hit", "code": "insufficient_quota", "type": "insufficient_quota"}},
+      "expected": {"class": "BillingError", "canonical_code": "billing", "message_contains": ["quota hit"]}
+    },
+    {
+      "id": "openai.context_length",
+      "provider": "openai",
+      "status": 400,
+      "body": {"error": {"message": "too many tokens", "code": "context_length_exceeded"}},
+      "expected": {"class": "ContextLengthError", "canonical_code": "context_length", "message_contains": ["too many tokens"]}
+    },
+    {
+      "id": "anthropic.context_length",
+      "provider": "anthropic",
+      "status": 400,
+      "body": {
+        "type": "error",
+        "error": {"type": "invalid_request_error", "message": "Input context length exceeded token limit."},
+        "request_id": "req_123"
+      },
+      "expected": {"class": "ContextLengthError", "canonical_code": "context_length", "message_contains": ["req_123"]}
+    },
+    {
+      "id": "anthropic.rate_limit",
+      "provider": "anthropic",
+      "status": 429,
+      "body": {"type": "error", "error": {"type": "rate_limit_error", "message": "Too many requests"}},
+      "expected": {"class": "RateLimitError", "canonical_code": "rate_limit", "message_contains": ["Too many requests"]}
+    },
+    {
+      "id": "gemini.rate_limit",
+      "provider": "gemini",
+      "status": 429,
+      "body": {"error": {"message": "quota hit", "status": "RESOURCE_EXHAUSTED", "code": 429}},
+      "expected": {"class": "RateLimitError", "canonical_code": "rate_limit", "message_contains": ["quota hit"]}
+    },
+    {
+      "id": "gemini.context_length",
+      "provider": "gemini",
+      "status": 429,
+      "body": {"error": {"message": "Input token limit exceeded.", "status": "RESOURCE_EXHAUSTED", "code": 429}},
+      "expected": {"class": "ContextLengthError", "canonical_code": "context_length", "message_contains": ["Input token limit exceeded."]}
+    },
+    {
+      "id": "gemini.invalid_argument",
+      "provider": "gemini",
+      "status": 400,
+      "body": {"error": {"message": "bad request", "status": "INVALID_ARGUMENT", "code": 400}},
+      "expected": {"class": "InvalidRequestError", "canonical_code": "invalid_request", "message_contains": ["bad request"]}
+    }
+  ],
+  "stream_error_cases": [
+    {
+      "id": "openai.stream.rate_limit",
+      "provider": "openai",
+      "request": {
+        "model": "gpt-4.1-mini",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "raw_event": {"data": "{\"type\":\"response.error\",\"code\":\"rate_limit_exceeded\",\"message\":\"slow down\"}"},
+      "expected_event": {"type": "error", "error": {"code": "rate_limit", "provider_code": "rate_limit_exceeded", "message": "slow down"}}
+    },
+    {
+      "id": "openai.stream.server",
+      "provider": "openai",
+      "request": {
+        "model": "gpt-4.1-mini",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "raw_event": {"data": "{\"type\":\"error\",\"error\":{\"code\":\"server_error\",\"message\":\"boom\"}}"},
+      "expected_event": {"type": "error", "error": {"code": "server", "provider_code": "server_error", "message": "boom"}}
+    },
+    {
+      "id": "anthropic.stream.server_nested",
+      "provider": "anthropic",
+      "request": {
+        "model": "claude-sonnet-4-5",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "raw_event": {"data": "{\"type\":\"error\",\"error\":{\"type\":\"overloaded_error\",\"message\":\"busy\"}}"},
+      "expected_event": {"type": "error", "error": {"code": "server", "provider_code": "overloaded_error", "message": "busy"}}
+    },
+    {
+      "id": "anthropic.stream.server_top_level",
+      "provider": "anthropic",
+      "request": {
+        "model": "claude-sonnet-4-5",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "raw_event": {"data": "{\"type\":\"error\",\"code\":\"api_error\",\"message\":\"boom\"}"},
+      "expected_event": {"type": "error", "error": {"code": "server", "provider_code": "api_error", "message": "boom"}}
+    },
+    {
+      "id": "gemini.stream.rate_limit",
+      "provider": "gemini",
+      "request": {
+        "model": "gemini-2.0-flash-lite",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "raw_event": {"data": "{\"error\":{\"status\":\"RESOURCE_EXHAUSTED\",\"message\":\"quota hit\"}}"},
+      "expected_event": {"type": "error", "error": {"code": "rate_limit", "provider_code": "RESOURCE_EXHAUSTED", "message": "quota hit"}}
+    },
+    {
+      "id": "gemini.stream.blocked_prompt",
+      "provider": "gemini",
+      "request": {
+        "model": "gemini-2.0-flash-lite",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "raw_event": {"data": "{\"promptFeedback\":{\"blockReason\":\"BLOCKLIST\"}}"},
+      "expected_event": {"type": "error", "error": {"code": "invalid_request", "provider_code": "inband_finish_reason", "message": "Prompt blocked: BLOCKLIST"}}
+    }
+  ],
+  "inband_response_error_cases": [
+    {
+      "id": "openai.response.invalid_image",
+      "provider": "openai",
+      "request": {
+        "model": "gpt-4.1-mini",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "response": {"error": {"code": "invalid_image", "message": "bad image"}},
+      "expected": {"class": "InvalidRequestError", "canonical_code": "invalid_request", "message_contains": ["bad image"]}
+    },
+    {
+      "id": "openai.response.vector_store_timeout",
+      "provider": "openai",
+      "request": {
+        "model": "gpt-4.1-mini",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "response": {"error": {"code": "vector_store_timeout", "message": "timed out"}},
+      "expected": {"class": "TimeoutError", "canonical_code": "timeout", "message_contains": ["timed out"]}
+    },
+    {
+      "id": "gemini.response.prompt_feedback_blocked",
+      "provider": "gemini",
+      "request": {
+        "model": "gemini-2.0-flash-lite",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "response": {"promptFeedback": {"blockReason": "SAFETY"}},
+      "expected": {"class": "InvalidRequestError", "canonical_code": "invalid_request", "message_contains": ["Prompt blocked: SAFETY"]}
+    },
+    {
+      "id": "gemini.response.finish_reason_blocked",
+      "provider": "gemini",
+      "request": {
+        "model": "gemini-2.0-flash-lite",
+        "messages": [{"role": "user", "parts": [{"type": "text", "text": "hi"}]}]
+      },
+      "response": {"candidates": [{"finishReason": "RECITATION", "finishMessage": "recitation detected"}]},
+      "expected": {"class": "InvalidRequestError", "canonical_code": "invalid_request", "message_contains": ["recitation detected"]}
+    }
+  ]
+}

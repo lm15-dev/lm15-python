@@ -265,12 +265,37 @@ class OpenAIAdapter(BaseProviderAdapter):
             return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="text", text=payload.get("delta", "")))
         if et == "response.output_audio.delta":
             return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="audio", data=payload.get("delta", "")))
+        if et == "response.output_item.added":
+            item = payload.get("item", {})
+            if item.get("type") == "function_call":
+                return StreamEvent(
+                    type="delta",
+                    part_index=int(payload.get("output_index", 0)),
+                    delta={
+                        "type": "tool_call",
+                        "id": item.get("call_id"),
+                        "name": item.get("name"),
+                        "input": item.get("arguments") or "",
+                    },
+                )
+            return None
         if et == "response.function_call_arguments.delta":
-            return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="tool_call", input=payload.get("delta", "")))
+            return StreamEvent(
+                type="delta",
+                part_index=int(payload.get("output_index", 0)),
+                delta={
+                    "type": "tool_call",
+                    "id": payload.get("call_id"),
+                    "name": payload.get("name"),
+                    "input": payload.get("delta", ""),
+                },
+            )
         if et == "response.completed":
-            u = payload.get("response", {}).get("usage", {})
+            response = payload.get("response", {})
+            u = response.get("usage", {})
             usage = Usage(input_tokens=u.get("input_tokens", 0), output_tokens=u.get("output_tokens", 0), total_tokens=u.get("total_tokens", 0))
-            return StreamEvent(type="end", finish_reason="stop", usage=usage)
+            finish_reason = "tool_call" if any(item.get("type") == "function_call" for item in response.get("output", [])) else "stop"
+            return StreamEvent(type="end", finish_reason=finish_reason, usage=usage)
         if et in {"response.error", "error"}:
             err = payload.get("error")
             if isinstance(err, dict):

@@ -19,6 +19,44 @@ Set one or more:
 ## 3) First request
 
 ```python
+import lm15
+
+resp = lm15.call("gpt-4.1-mini", "Reply with exactly: ok")
+print(resp.text)
+```
+
+## 4) Stream text or events
+
+```python
+import lm15
+
+for text in lm15.call("gpt-4.1-mini", "Write 'ok' and stop."):
+    print(text, end="")
+```
+
+```python
+import lm15
+
+for event in lm15.call("gpt-4.1-mini", "Write 'ok' and stop.").events():
+    if event.type == "text":
+        print(event.text, end="")
+```
+
+## 5) Reuse config with a model object
+
+```python
+import lm15
+
+agent = lm15.model("gpt-4.1-mini", system="You are terse.")
+print(agent.call("Hello.").text)
+print(agent.call("Write a haiku.").text)
+```
+
+## 6) Low-level client (advanced)
+
+If you want manual adapter wiring and raw `LMRequest` objects:
+
+```python
 from lm15 import Message, LMRequest, Part, build_default
 
 lm = build_default(use_pycurl=True)
@@ -30,28 +68,7 @@ resp = lm.complete(req)
 print(resp.message.parts[0].text)
 ```
 
-## 4) Stream request
-
-```python
-for event in lm.stream(req):
-    if event.type == "delta" and event.delta and event.delta.get("type") == "text":
-        print(event.delta["text"], end="")
-```
-
-## 5) Add middleware
-
-```python
-from lm15 import with_cache, with_history, with_retries
-
-history = []
-cache = {}
-
-lm.middleware.complete_mw.append(with_cache(cache))
-lm.middleware.complete_mw.append(with_history(history))
-lm.middleware.complete_mw.append(with_retries(max_retries=2))
-```
-
-## 6) Run cookbook examples
+## 7) Run cookbook examples
 
 ```bash
 python examples/01_basic_text.py

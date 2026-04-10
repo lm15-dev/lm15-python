@@ -1,5 +1,9 @@
 # lm15 API v2
 
+> Legacy spec. The current high-level API is described by `docs/DESIGN_V3.md` and the updated cookbooks in `docs/COOKBOOKS_V2/`.
+>
+> This file is kept for historical reference and may show older compat aliases like `lm15.stream()` or `model.with_*()`.
+
 ## Principles
 
 1. Parts are the universal currency. They come out of responses, they go into prompts.

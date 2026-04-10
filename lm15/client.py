@@ -7,6 +7,7 @@ from .capabilities import resolve_provider
 from .errors import ProviderError, UnsupportedFeatureError
 from .middleware import MiddlewarePipeline
 from .protocols import LMAdapter, LiveSession
+from .result import response_to_events
 from .types import (
     AudioGenerationRequest,
     AudioGenerationResponse,
@@ -58,10 +59,15 @@ class UniversalLM:
 
     def stream(self, request: LMRequest, provider: str | None = None) -> Iterator[StreamEvent]:
         adapter = self._adapter(request.model, provider)
-        if not adapter.supports.stream:
-            raise UnsupportedFeatureError(f"{adapter.provider}: stream not supported")
-        run = self.middleware.wrap_stream(adapter.stream)
-        yield from run(request)
+        if adapter.supports.stream and hasattr(adapter, "stream"):
+            run = self.middleware.wrap_stream(adapter.stream)
+            yield from run(request)
+            return
+        if hasattr(adapter, "complete"):
+            response = adapter.complete(request)
+            yield from response_to_events(response, request)
+            return
+        raise UnsupportedFeatureError(f"{adapter.provider}: stream not supported")
 
     def live(self, config: LiveConfig, provider: str | None = None) -> LiveSession:
         adapter = self._adapter(config.model, provider)

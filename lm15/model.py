@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import inspect
-import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
 from .capabilities import resolve_provider
 from .client import UniversalLM
 from .errors import RateLimitError, ServerError, TimeoutError, TransportError
-from .stream import Stream
+from .result import AsyncResult, Result, response_to_events
 from .types import Config, FileUploadRequest, LMRequest, LMResponse, Message, Part, Tool
+
+
+class _Unset:
+    pass
+
+
+UNSET = _Unset()
 
 
 def _py_type_to_json_schema(t: Any) -> dict[str, Any]:
@@ -78,12 +84,14 @@ class Model:
         model: str,
         system: str | None = None,
         tools: list[Tool | Callable[..., Any] | str] | None = None,
+        on_tool_call: Callable[..., Any] | None = None,
         provider: str | None = None,
         retries: int = 0,
         cache: bool | dict = False,
         prompt_caching: bool = False,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        max_tool_rounds: int = 8,
     ) -> None:
         self._lm = lm
         self.model = model
@@ -94,72 +102,78 @@ class Model:
         self.prompt_caching = prompt_caching
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.max_tool_rounds = max_tool_rounds
+        self.on_tool_call = on_tool_call
         self._bound_tools = list(tools or [])
         self._conversation: list[Message] = []
         self.history = _History(self._reset_conversation)
-        self._local_cache: dict[str, LMResponse] | None = {} if cache is True else (cache if isinstance(cache, dict) else None)
+        self._local_cache: dict[str, LMResponse] | None = {} if cache is True else (dict(cache) if isinstance(cache, dict) else None)
         self._pending_tool_calls: list[Part] = []
 
     def _reset_conversation(self) -> None:
         self._conversation = []
         self._pending_tool_calls = []
 
-    def with_model(self, name: str) -> "Model":
-        return Model(
+    def copy(
+        self,
+        *,
+        model: str | _Unset = UNSET,
+        system: str | None | _Unset = UNSET,
+        tools: list[Tool | Callable[..., Any] | str] | _Unset = UNSET,
+        on_tool_call: Callable[..., Any] | None | _Unset = UNSET,
+        provider: str | None | _Unset = UNSET,
+        retries: int | _Unset = UNSET,
+        cache: bool | dict | _Unset = UNSET,
+        prompt_caching: bool | _Unset = UNSET,
+        temperature: float | None | _Unset = UNSET,
+        max_tokens: int | None | _Unset = UNSET,
+        max_tool_rounds: int | _Unset = UNSET,
+        history: bool = True,
+    ) -> "Model":
+        cache_value: bool | dict
+        if cache is UNSET:
+            if self._local_cache is not None:
+                cache_value = dict(self._local_cache)
+            else:
+                cache_value = self.cache
+        elif isinstance(cache, dict):
+            cache_value = dict(cache)
+        else:
+            cache_value = cache
+
+        out = Model(
             lm=self._lm,
-            model=name,
-            system=self.system,
-            tools=self._bound_tools,
-            provider=self.provider,
-            retries=self.retries,
-            cache=self._local_cache if self._local_cache is not None else self.cache,
-            prompt_caching=self.prompt_caching,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
+            model=self.model if model is UNSET else model,
+            system=self.system if system is UNSET else system,
+            tools=list(self._bound_tools) if tools is UNSET else list(tools),
+            on_tool_call=self.on_tool_call if on_tool_call is UNSET else on_tool_call,
+            provider=self.provider if provider is UNSET else provider,
+            retries=self.retries if retries is UNSET else retries,
+            cache=cache_value,
+            prompt_caching=self.prompt_caching if prompt_caching is UNSET else prompt_caching,
+            temperature=self.temperature if temperature is UNSET else temperature,
+            max_tokens=self.max_tokens if max_tokens is UNSET else max_tokens,
+            max_tool_rounds=self.max_tool_rounds if max_tool_rounds is UNSET else max_tool_rounds,
         )
+        if history:
+            out._conversation = list(self._conversation)
+            out.history.extend(self.history)
+            out._pending_tool_calls = list(self._pending_tool_calls)
+        return out
+
+    # Compatibility shims
+    def with_model(self, name: str) -> "Model":
+        return self.copy(model=name)
 
     def with_system(self, system: str) -> "Model":
-        return Model(
-            lm=self._lm,
-            model=self.model,
-            system=system,
-            tools=self._bound_tools,
-            provider=self.provider,
-            retries=self.retries,
-            cache=self._local_cache if self._local_cache is not None else self.cache,
-            prompt_caching=self.prompt_caching,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-        )
+        return self.copy(system=system)
 
     def with_tools(self, tools: list[Tool | Callable[..., Any] | str]) -> "Model":
-        return Model(
-            lm=self._lm,
-            model=self.model,
-            system=self.system,
-            tools=tools,
-            provider=self.provider,
-            retries=self.retries,
-            cache=self._local_cache if self._local_cache is not None else self.cache,
-            prompt_caching=self.prompt_caching,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-        )
+        return self.copy(tools=tools)
 
     def with_provider(self, provider: str, base_url: str | None = None) -> "Model":
-        _ = base_url  # reserved for future use
-        return Model(
-            lm=self._lm,
-            model=self.model,
-            system=self.system,
-            tools=self._bound_tools,
-            provider=provider,
-            retries=self.retries,
-            cache=self._local_cache if self._local_cache is not None else self.cache,
-            prompt_caching=self.prompt_caching,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-        )
+        _ = base_url
+        return self.copy(provider=provider)
 
     def upload(self, path: str | bytes, *, media_type: str | None = None) -> Part:
         if isinstance(path, bytes):
@@ -202,9 +216,7 @@ class Model:
         top_p: float | None = None,
         stop: list[str] | None = None,
     ) -> LMRequest:
-        """Build the LMRequest without sending it. Useful for inspecting
-        the request that would be sent — tool schemas, messages, config."""
-        request, _, _, _ = self._build_request(
+        request, _, _ = self._build_request(
             prompt=prompt,
             messages=messages,
             tools=tools,
@@ -219,12 +231,13 @@ class Model:
         )
         return request
 
-    def __call__(
+    def call(
         self,
         prompt: str | list[str | Part] | None = None,
         *,
         messages: list[Message] | None = None,
         tools: list[Tool | Callable[..., Any] | str] | None = None,
+        on_tool_call: Callable[..., Any] | None = None,
         reasoning: bool | dict[str, Any] | None = None,
         prefill: str | None = None,
         output: str | None = None,
@@ -233,9 +246,10 @@ class Model:
         max_tokens: int | None = None,
         top_p: float | None = None,
         stop: list[str] | None = None,
+        max_tool_rounds: int | None = None,
         provider: str | None = None,
-    ) -> LMResponse:
-        request, callable_registry, turn_messages, update_conversation = self._build_request(
+    ) -> Result:
+        request, callable_registry, update_conversation = self._build_request(
             prompt=prompt,
             messages=messages,
             tools=tools,
@@ -249,97 +263,49 @@ class Model:
             stop=stop,
         )
 
-        resp = self._complete_with_cache(request, provider=provider or self.provider)
-        final_request = request
-        max_tool_hops = 8
-        hops = 0
-        while callable_registry and resp.tool_calls and hops < max_tool_hops:
-            hops += 1
-            tool_parts: list[Part] = []
-            handled = False
-            for tc in resp.tool_calls:
-                fn = callable_registry.get(tc.name or "")
-                if fn is None:
-                    continue
-                handled = True
-                out = self._invoke_tool(fn, tc.input or {})
-                if isinstance(out, Part):
-                    content = [out]
-                elif isinstance(out, list) and all(isinstance(x, Part) for x in out):
-                    content = out
-                else:
-                    content = [Part.text_part(str(out))]
-                tool_parts.append(Part.tool_result(tc.id or "", content, name=tc.name))
+        resolved_provider = provider or self.provider
 
-            if not handled:
-                break
+        def start_stream(req: LMRequest):
+            cached = self._cache_lookup(req, resolved_provider)
+            if cached is not None:
+                return response_to_events(cached, req)
+            return self._lm.stream(req, provider=resolved_provider)
 
-            tool_msg = Message(role="tool", parts=tuple(tool_parts))
-            follow_messages = final_request.messages + (resp.message, tool_msg)
-            final_request = LMRequest(
-                model=final_request.model,
-                messages=follow_messages,
-                system=final_request.system,
-                tools=final_request.tools,
-                config=final_request.config,
-            )
-            resp = self._complete_with_cache(final_request, provider=provider or self.provider)
-
-        self._pending_tool_calls = resp.tool_calls
-        self.history.append(HistoryEntry(request=final_request, response=resp))
-
-        if update_conversation:
-            self._conversation = list(final_request.messages) + [resp.message]
-
-        return resp
-
-    def stream(
-        self,
-        prompt: str | list[str | Part] | None = None,
-        *,
-        messages: list[Message] | None = None,
-        tools: list[Tool | Callable[..., Any] | str] | None = None,
-        reasoning: bool | dict[str, Any] | None = None,
-        prefill: str | None = None,
-        output: str | None = None,
-        prompt_caching: bool | None = None,
-        temperature: float | None = None,
-        max_tokens: int | None = None,
-        top_p: float | None = None,
-        stop: list[str] | None = None,
-        provider: str | None = None,
-    ) -> Stream:
-        request, _, _, update_conversation = self._build_request(
-            prompt=prompt,
-            messages=messages,
-            tools=tools,
-            reasoning=reasoning,
-            prefill=prefill,
-            output=output,
-            prompt_caching=prompt_caching,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-            stop=stop,
-        )
-
-        def on_finished(req: LMRequest, resp: LMResponse) -> None:
-            self.history.append(HistoryEntry(request=req, response=resp))
-            if update_conversation:
-                self._conversation = list(req.messages) + [resp.message]
+        def on_finished(final_request: LMRequest, resp: LMResponse) -> None:
+            self._cache_store(final_request, resp, resolved_provider)
+            self.history.append(HistoryEntry(request=final_request, response=resp))
             self._pending_tool_calls = resp.tool_calls
+            if update_conversation:
+                self._conversation = list(final_request.messages) + [resp.message]
 
-        events = self._lm.stream(request, provider=provider or self.provider)
-        return Stream(events=events, request=request, on_finished=on_finished)
+        return Result(
+            request=request,
+            start_stream=start_stream,
+            on_finished=on_finished,
+            callable_registry=callable_registry,
+            on_tool_call=on_tool_call if on_tool_call is not None else self.on_tool_call,
+            max_tool_rounds=max_tool_rounds if max_tool_rounds is not None else self.max_tool_rounds,
+            retries=self.retries,
+        )
 
-    def submit_tools(self, results: dict[str, Any], *, provider: str | None = None) -> LMResponse:
+    def __call__(self, prompt: str | list[str | Part] | None = None, **kwargs) -> Result:
+        return self.call(prompt, **kwargs)
+
+    def stream(self, prompt: str | list[str | Part] | None = None, **kwargs) -> Result:
+        return self.call(prompt, **kwargs)
+
+    def acall(self, prompt: str | list[str | Part] | None = None, **kwargs) -> AsyncResult:
+        return AsyncResult(self.call, prompt, **kwargs)
+
+    def submit_tools(self, results: dict[str, Any], *, provider: str | None = None) -> Result:
         if not self._pending_tool_calls:
             raise ValueError(
                 "no pending tool calls\n\n"
                 "  submit_tools() continues a tool-call conversation.\n"
                 "  It requires a prior call that returned finish_reason='tool_call'.\n\n"
                 "  Common causes:\n"
-                "    - The previous call didn't include tools= (no tools for the model to call)\n"
+                "    - The previous call wasn't consumed yet (access resp.finish_reason, resp.text, or resp.response first)\n"
+                "    - The previous call didn't include tools=\n"
                 "    - The model chose to answer directly instead of calling a tool\n"
                 "    - history.clear() was called between the tool call and submit_tools()\n"
             )
@@ -370,7 +336,7 @@ class Model:
 
         tool_message = Message(role="tool", parts=tuple(parts))
         follow_messages = tuple(self._conversation) + (tool_message,)
-        request, _, _, _ = self._build_request(
+        request, callable_registry, _ = self._build_request(
             prompt=None,
             messages=list(follow_messages),
             tools=None,
@@ -383,11 +349,30 @@ class Model:
             top_p=None,
             stop=None,
         )
-        resp = self._complete_with_cache(request, provider=provider or self.provider)
-        self._pending_tool_calls = resp.tool_calls
-        self.history.append(HistoryEntry(request=request, response=resp))
-        self._conversation = list(request.messages) + [resp.message]
-        return resp
+
+        resolved_provider = provider or self.provider
+
+        def start_stream(req: LMRequest):
+            cached = self._cache_lookup(req, resolved_provider)
+            if cached is not None:
+                return response_to_events(cached, req)
+            return self._lm.stream(req, provider=resolved_provider)
+
+        def on_finished(final_request: LMRequest, resp: LMResponse) -> None:
+            self._cache_store(final_request, resp, resolved_provider)
+            self.history.append(HistoryEntry(request=final_request, response=resp))
+            self._pending_tool_calls = resp.tool_calls
+            self._conversation = list(final_request.messages) + [resp.message]
+
+        return Result(
+            request=request,
+            start_stream=start_stream,
+            on_finished=on_finished,
+            callable_registry=callable_registry,
+            on_tool_call=self.on_tool_call,
+            max_tool_rounds=self.max_tool_rounds,
+            retries=self.retries,
+        )
 
     def _build_request(
         self,
@@ -403,7 +388,7 @@ class Model:
         max_tokens: int | None,
         top_p: float | None,
         stop: list[str] | None,
-    ) -> tuple[LMRequest, dict[str, Callable[..., Any]], tuple[Message, ...], bool]:
+    ) -> tuple[LMRequest, dict[str, Callable[..., Any]], bool]:
         if prompt is not None and messages is not None:
             raise ValueError(
                 "prompt and messages are mutually exclusive\n\n"
@@ -413,7 +398,6 @@ class Model:
                 "    lm15.call(model, messages=[Message.user('Hi'), ...])\n"
             )
 
-        turn_messages: tuple[Message, ...]
         update_conversation = False
         if messages is not None:
             turn_messages = tuple(messages)
@@ -422,23 +406,20 @@ class Model:
                 raise ValueError(
                     "either prompt or messages is required\n\n"
                     "  Provide a prompt string:\n"
-                    "    model('What is TCP?')\n\n"
+                    "    model.call('What is TCP?')\n\n"
                     "  Or a messages list:\n"
-                    "    model(messages=[Message.user('What is TCP?')])\n"
+                    "    model.call(messages=[Message.user('What is TCP?')])\n"
                 )
             if isinstance(prompt, str):
                 turn_messages = (Message.user(prompt),)
             else:
-                parts: list[Part] = []
-                for item in prompt:
-                    parts.append(Part.text_part(item) if isinstance(item, str) else item)
+                parts = [Part.text_part(item) if isinstance(item, str) else item for item in prompt]
                 turn_messages = (Message(role="user", parts=tuple(parts)),)
             if prefill:
                 turn_messages = turn_messages + (Message.assistant(prefill),)
             update_conversation = True
 
         final_messages = tuple(self._conversation) + turn_messages if update_conversation else turn_messages
-
         tool_defs, callable_registry = self._normalize_tools(tools if tools is not None else self._bound_tools)
 
         provider_cfg: dict[str, Any] = {}
@@ -471,7 +452,7 @@ class Model:
             tools=tool_defs,
             config=cfg,
         )
-        return request, callable_registry, turn_messages, update_conversation
+        return request, callable_registry, update_conversation
 
     def _normalize_tools(self, tools: list[Tool | Callable[..., Any] | str]) -> tuple[tuple[Tool, ...], dict[str, Callable[..., Any]]]:
         out: list[Tool] = []
@@ -479,6 +460,8 @@ class Model:
         for t in tools:
             if isinstance(t, Tool):
                 out.append(t)
+                if t.fn is not None and callable(t.fn):
+                    registry[t.name] = t.fn
             elif isinstance(t, str):
                 out.append(Tool(name=t, type="builtin"))
             elif callable(t):
@@ -489,37 +472,19 @@ class Model:
                 raise TypeError(f"unsupported tool type: {type(t)}")
         return tuple(out), registry
 
-    def _complete_with_cache(self, request: LMRequest, *, provider: str | None) -> LMResponse:
-        cache_key: str | None = None
-        if self._local_cache is not None:
-            cache_key = str((provider, request))
-            cached = self._local_cache.get(cache_key)
-            if cached is not None:
-                return cached
+    def _cache_lookup(self, request: LMRequest, provider: str | None) -> LMResponse | None:
+        if self._local_cache is None:
+            return None
+        return self._local_cache.get(self._cache_key(request, provider))
 
-        attempts = max(int(self.retries), 0) + 1
-        last: Exception | None = None
-        for i in range(attempts):
-            try:
-                resp = self._lm.complete(request, provider=provider)
-                if self._local_cache is not None and cache_key is not None:
-                    self._local_cache[cache_key] = resp
-                return resp
-            except Exception as exc:
-                last = exc
-                if not self._is_retryable_error(exc) or i >= attempts - 1:
-                    raise
-                time.sleep(0.2 * (2**i))
+    def _cache_store(self, request: LMRequest, response: LMResponse, provider: str | None) -> None:
+        if self._local_cache is None:
+            return
+        self._local_cache[self._cache_key(request, provider)] = response
 
-        raise RuntimeError("unreachable") from last
+    def _cache_key(self, request: LMRequest, provider: str | None) -> str:
+        return str((provider or resolve_provider(request.model), request))
 
     @staticmethod
     def _is_retryable_error(exc: Exception) -> bool:
         return isinstance(exc, (RateLimitError, TimeoutError, ServerError, TransportError))
-
-    @staticmethod
-    def _invoke_tool(fn: Callable[..., Any], payload: dict[str, Any]) -> Any:
-        try:
-            return fn(**payload)
-        except TypeError:
-            return fn(payload)

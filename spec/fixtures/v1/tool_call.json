@@ -1,0 +1,126 @@
+{
+  "fixture_version": "1.0.0",
+  "contract_version": "v1",
+  "kind": "tool_call",
+  "cases": [
+    {
+      "id": "openai.basic_tool_call",
+      "provider": "openai",
+      "request": {
+        "model": "gpt-4.1-mini",
+        "messages": [
+          {
+            "role": "user",
+            "parts": [
+              {"type": "text", "text": "hi"}
+            ]
+          }
+        ]
+      },
+      "provider_response": {
+        "id": "resp_tool_1",
+        "model": "gpt-4.1-mini",
+        "output": [
+          {
+            "type": "function_call",
+            "call_id": "call_1",
+            "name": "search",
+            "arguments": "{\"q\":\"hi\"}"
+          }
+        ],
+        "usage": {"input_tokens": 3, "output_tokens": 4, "total_tokens": 7}
+      },
+      "expected_response": {
+        "id": "resp_tool_1",
+        "model": "gpt-4.1-mini",
+        "message": {
+          "role": "assistant",
+          "parts": [
+            {"type": "tool_call", "id": "call_1", "name": "search", "input": {"q": "hi"}}
+          ]
+        },
+        "finish_reason": "tool_call",
+        "usage": {"input_tokens": 3, "output_tokens": 4, "total_tokens": 7}
+      }
+    },
+    {
+      "id": "anthropic.basic_tool_call",
+      "provider": "anthropic",
+      "request": {
+        "model": "claude-sonnet-4-5",
+        "messages": [
+          {
+            "role": "user",
+            "parts": [
+              {"type": "text", "text": "hi"}
+            ]
+          }
+        ]
+      },
+      "provider_response": {
+        "id": "msg_tool_1",
+        "model": "claude-sonnet-4-5",
+        "content": [
+          {"type": "tool_use", "id": "toolu_1", "name": "search", "input": {"q": "hi"}}
+        ],
+        "usage": {"input_tokens": 4, "output_tokens": 3}
+      },
+      "expected_response": {
+        "id": "msg_tool_1",
+        "model": "claude-sonnet-4-5",
+        "message": {
+          "role": "assistant",
+          "parts": [
+            {"type": "tool_call", "id": "toolu_1", "name": "search", "input": {"q": "hi"}}
+          ]
+        },
+        "finish_reason": "tool_call",
+        "usage": {"input_tokens": 4, "output_tokens": 3, "total_tokens": 7}
+      }
+    },
+    {
+      "id": "gemini.basic_tool_call",
+      "provider": "gemini",
+      "request": {
+        "model": "gemini-2.0-flash-lite",
+        "messages": [
+          {
+            "role": "user",
+            "parts": [
+              {"type": "text", "text": "hi"}
+            ]
+          }
+        ]
+      },
+      "provider_response": {
+        "responseId": "gr_tool_1",
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {"functionCall": {"id": "fc_1", "name": "search", "args": {"q": "hi"}}}
+              ]
+            }
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 2,
+          "candidatesTokenCount": 2,
+          "totalTokenCount": 4
+        }
+      },
+      "expected_response": {
+        "id": "gr_tool_1",
+        "model": "gemini-2.0-flash-lite",
+        "message": {
+          "role": "assistant",
+          "parts": [
+            {"type": "tool_call", "id": "fc_1", "name": "search", "input": {"q": "hi"}}
+          ]
+        },
+        "finish_reason": "tool_call",
+        "usage": {"input_tokens": 2, "output_tokens": 2, "total_tokens": 4}
+      }
+    }
+  ]
+}

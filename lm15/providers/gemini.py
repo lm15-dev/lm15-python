@@ -392,7 +392,16 @@ class GeminiAdapter(BaseProviderAdapter):
             return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="text", text=part["text"]))
         if "functionCall" in part:
             fc = part["functionCall"]
-            return StreamEvent(type="delta", part_index=0, delta=PartDelta(type="tool_call", input=json.dumps(fc.get("args", {}))))
+            return StreamEvent(
+                type="delta",
+                part_index=0,
+                delta={
+                    "type": "tool_call",
+                    "id": fc.get("id", "fc_0"),
+                    "name": fc.get("name", ""),
+                    "input": json.dumps(fc.get("args", {})),
+                },
+            )
         if "inlineData" in part:
             inline = part["inlineData"]
             mime = inline.get("mimeType", "application/octet-stream")

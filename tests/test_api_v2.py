@@ -12,6 +12,7 @@ from lm15.errors import RateLimitError
 from lm15.features import EndpointSupport, ProviderManifest
 from lm15.model import Model
 from lm15.protocols import Capabilities
+from lm15.result import response_to_events
 from lm15.types import DataSource, FileUploadRequest, FileUploadResponse, LMRequest, LMResponse, Message, Part, PartDelta, StreamEvent, Tool, Usage
 
 
@@ -21,7 +22,7 @@ class FakeAdapter:
     supports = EndpointSupport(complete=True, stream=True, files=True)
     manifest = ProviderManifest(provider="openai", supports=supports)
 
-    def complete(self, request: LMRequest) -> LMResponse:
+    def _response(self, request: LMRequest) -> LMResponse:
         last = request.messages[-1]
         text = " ".join(p.text or "" for p in last.parts if p.type == "text")
 
@@ -42,10 +43,11 @@ class FakeAdapter:
 
         return LMResponse(id="r0", model=request.model, message=Message.assistant(f"Echo: {text}"), finish_reason="stop", usage=Usage())
 
+    def complete(self, request: LMRequest) -> LMResponse:
+        return self._response(request)
+
     def stream(self, request: LMRequest):
-        yield StreamEvent(type="start", id="s1", model=request.model)
-        yield StreamEvent(type="delta", part_index=0, delta={"type": "text", "text": "ok"})
-        yield StreamEvent(type="end", finish_reason="stop", usage=Usage(total_tokens=3))
+        yield from response_to_events(self._response(request), request)
 
     def file_upload(self, request: FileUploadRequest) -> FileUploadResponse:
         return FileUploadResponse(id="file_123")
@@ -86,8 +88,8 @@ class APIV2Tests(unittest.TestCase):
     def test_model_history_and_stream_response(self):
         gpt = model("gpt-4.1-mini")
         stream_obj = gpt.stream("hi")
-        self.assertEqual("".join(stream_obj.text), "ok")
-        self.assertEqual(stream_obj.response.usage.total_tokens, 3)
+        self.assertEqual("".join(stream_obj.text), "Echo: hi")
+        self.assertEqual(stream_obj.response.finish_reason, "stop")
         self.assertEqual(len(gpt.history), 1)
 
     def test_callable_tool_auto_execute(self):
@@ -450,6 +452,166 @@ class TestInstructionalErrors(unittest.TestCase):
         self.assertIn("mutually exclusive", msg)
         self.assertIn("prompt=", msg.lower() or msg)
         self.assertIn("messages=", msg.lower() or msg)
+
+
+class TestCallRetries(unittest.TestCase):
+    """Tests that call() and stream() accept retries=."""
+
+    def setUp(self) -> None:
+        import lm15.api as api
+        self._old_build_default = api.build_default
+        api.build_default = lambda **kw: self._make_lm()
+        api._client_cache.clear()
+
+    def tearDown(self) -> None:
+        import lm15.api as api
+        api.build_default = self._old_build_default
+        api._client_cache.clear()
+        configure()
+
+    def _make_lm(self):
+        lm = UniversalLM()
+        lm.register(FakeAdapter())
+        return lm
+
+    def test_call_accepts_retries(self):
+        """call() passes retries through to the internal model."""
+        resp = call("gpt-4.1-mini", "hello", retries=3)
+        self.assertEqual(resp.text, "Echo: hello")
+
+    def test_call_with_tools_and_retries(self):
+        """call() with tools and retries works."""
+        def get_weather(city: str) -> str:
+            return f"22C in {city}"
+
+        resp = call("gpt-4.1-mini", "what is the weather", tools=[get_weather], retries=2)
+        self.assertIn("22C", resp.text or "")
+
+
+class TestClientCaching(unittest.TestCase):
+    """Tests that build_default is cached for repeated calls."""
+
+    def setUp(self) -> None:
+        import lm15.api as api
+        self.build_count = 0
+        self._old_build_default = api.build_default
+
+        def counting_build(**kw):
+            self.build_count += 1
+            lm = UniversalLM()
+            lm.register(FakeAdapter())
+            return lm
+
+        api.build_default = counting_build
+        api._client_cache.clear()
+
+    def tearDown(self) -> None:
+        import lm15.api as api
+        api.build_default = self._old_build_default
+        api._client_cache.clear()
+        configure()
+
+    def test_repeated_calls_reuse_client(self):
+        """Multiple call() invocations with same args reuse the client."""
+        call("gpt-4.1-mini", "first")
+        call("gpt-4.1-mini", "second")
+        call("gpt-4.1-mini", "third")
+        self.assertEqual(self.build_count, 1)  # built once, reused
+
+    def test_configure_clears_cache(self):
+        """configure() clears the client cache."""
+        call("gpt-4.1-mini", "first")
+        self.assertEqual(self.build_count, 1)
+        configure()  # clears cache
+        call("gpt-4.1-mini", "second")
+        self.assertEqual(self.build_count, 2)  # rebuilt
+
+
+class TestToolControlSeparation(unittest.TestCase):
+    """Tests that tool format (inferred vs explicit) is independent of control (auto vs manual)."""
+
+    def setUp(self) -> None:
+        self.lm = UniversalLM()
+        self.lm.register(FakeAdapter())
+
+    def test_bare_callable_auto_executes(self):
+        """Bare callable: inferred schema + auto-execute (existing behavior)."""
+        def get_weather(city: str) -> str:
+            return f"22C in {city}"
+
+        gpt = Model(lm=self.lm, model="gpt-4.1-mini")
+        resp = gpt("what is the weather", tools=[get_weather])
+        self.assertIn("22C", resp.text or "")
+
+    def test_tool_from_fn_manual(self):
+        """Tool.from_fn(): inferred schema + manual (no auto-execute)."""
+        def get_weather(city: str) -> str:
+            return f"22C in {city}"
+
+        tool = Tool.from_fn(get_weather)
+        self.assertEqual(tool.name, "get_weather")
+        self.assertIn("city", tool.parameters["properties"])
+        self.assertIsNone(tool.fn)  # no fn = manual
+
+        gpt = Model(lm=self.lm, model="gpt-4.1-mini")
+        resp = gpt("what is the weather", tools=[tool])
+        # Manual: model requested tool_call but it wasn't auto-executed
+        self.assertEqual(resp.finish_reason, "tool_call")
+        self.assertTrue(len(resp.tool_calls) > 0)
+
+    def test_tool_with_fn_auto_executes(self):
+        """Tool(fn=callable): explicit schema + auto-execute."""
+        def weather_impl(city: str) -> str:
+            return f"22C in {city}"
+
+        tool = Tool(
+            name="get_weather",
+            description="Get weather",
+            parameters={"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]},
+            fn=weather_impl,
+        )
+        gpt = Model(lm=self.lm, model="gpt-4.1-mini")
+        resp = gpt("what is the weather", tools=[tool])
+        # Auto-executed because fn is set
+        self.assertIn("22C", resp.text or "")
+
+    def test_tool_without_fn_manual(self):
+        """Tool(no fn): explicit schema + manual (existing behavior)."""
+        tool = Tool(
+            name="get_weather",
+            description="Get weather",
+            parameters={"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]},
+        )
+        gpt = Model(lm=self.lm, model="gpt-4.1-mini")
+        resp = gpt("what is the weather", tools=[tool])
+        self.assertEqual(resp.finish_reason, "tool_call")
+
+    def test_from_fn_inspect_schema(self):
+        """Tool.from_fn() allows inspecting the inferred schema."""
+        def search(query: str, max_results: int = 5) -> str:
+            """Search for documents matching the query."""
+            return "results"
+
+        tool = Tool.from_fn(search)
+        self.assertEqual(tool.name, "search")
+        self.assertEqual(tool.description, "Search for documents matching the query.")
+        self.assertIn("query", tool.parameters["properties"])
+        self.assertIn("max_results", tool.parameters["properties"])
+        self.assertEqual(tool.parameters["properties"]["query"], {"type": "string"})
+        self.assertEqual(tool.parameters["properties"]["max_results"], {"type": "integer"})
+        self.assertEqual(tool.parameters["required"], ["query"])
+
+    def test_callable_to_tool_public_export(self):
+        """callable_to_tool is publicly importable."""
+        from lm15 import callable_to_tool
+
+        def greet(name: str) -> str:
+            """Greet someone."""
+            return f"Hello {name}"
+
+        tool = callable_to_tool(greet)
+        self.assertEqual(tool.name, "greet")
+        self.assertEqual(tool.description, "Greet someone.")
 
 
 if __name__ == "__main__":
