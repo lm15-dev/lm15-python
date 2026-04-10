@@ -132,7 +132,7 @@ import lm15
 from lm15.errors import AuthError, BillingError, RateLimitError, InvalidRequestError, ContextLengthError, ServerError
 
 try:
-    resp = lm15.complete("gpt-4.1-mini", "Hello.", env=".env")
+    resp = lm15.call("gpt-4.1-mini", "Hello.", env=".env")
 except ContextLengthError as e:
     print(f"Input too long: {e}")
 except AuthError as e:
@@ -155,7 +155,7 @@ except ServerError as e:
 from lm15.errors import ProviderError
 
 try:
-    resp = lm15.complete("gpt-4.1-mini", "Hello.", env=".env")
+    resp = lm15.call("gpt-4.1-mini", "Hello.", env=".env")
 except ProviderError as e:
     print(f"Provider error: {e}")
 ```
@@ -166,7 +166,7 @@ except ProviderError as e:
 from lm15.errors import ULMError
 
 try:
-    resp = lm15.complete("gpt-4.1-mini", "Hello.", env=".env")
+    resp = lm15.call("gpt-4.1-mini", "Hello.", env=".env")
 except ULMError as e:
     print(f"Something went wrong: {e}")
 ```

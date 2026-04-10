@@ -5,7 +5,7 @@
 ```python
 import lm15
 
-resp = lm15.complete("claude-sonnet-4-5", "Prove that √2 is irrational.", reasoning=True)
+resp = lm15.call("claude-sonnet-4-5", "Prove that √2 is irrational.", reasoning=True)
 
 # Chain of thought
 print("Thinking:")
@@ -20,11 +20,11 @@ print(resp.text)
 
 ```python
 # Anthropic: budget in tokens
-resp = lm15.complete("claude-sonnet-4-5", "Hard math problem.",
+resp = lm15.call("claude-sonnet-4-5", "Hard math problem.",
     reasoning={"effort": "high", "budget": 10000})
 
 # OpenAI: effort level
-resp = lm15.complete("gpt-4.1-mini", "Hard math problem.",
+resp = lm15.call("gpt-4.1-mini", "Hard math problem.",
     reasoning={"effort": "high"})
 ```
 

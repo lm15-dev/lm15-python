@@ -39,7 +39,7 @@ print(resp.text)
 ```python
 import lm15
 
-resp = lm15.complete("gpt-4.1-mini", "Latest AI news", tools=["web_search"])
+resp = lm15.call("gpt-4.1-mini", "Latest AI news", tools=["web_search"])
 print(resp.text)
 
 for c in resp.citations:

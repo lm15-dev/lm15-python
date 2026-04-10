@@ -187,6 +187,38 @@ class Model:
             return Part.video(file_id=f.id, media_type=media_type)
         return Part.document(file_id=f.id, media_type=media_type)
 
+    def prepare(
+        self,
+        prompt: str | list[str | Part] | None = None,
+        *,
+        messages: list[Message] | None = None,
+        tools: list[Tool | Callable[..., Any] | str] | None = None,
+        reasoning: bool | dict[str, Any] | None = None,
+        prefill: str | None = None,
+        output: str | None = None,
+        prompt_caching: bool | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
+        stop: list[str] | None = None,
+    ) -> LMRequest:
+        """Build the LMRequest without sending it. Useful for inspecting
+        the request that would be sent — tool schemas, messages, config."""
+        request, _, _, _ = self._build_request(
+            prompt=prompt,
+            messages=messages,
+            tools=tools,
+            reasoning=reasoning,
+            prefill=prefill,
+            output=output,
+            prompt_caching=prompt_caching,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
+            stop=stop,
+        )
+        return request
+
     def __call__(
         self,
         prompt: str | list[str | Part] | None = None,
@@ -302,7 +334,15 @@ class Model:
 
     def submit_tools(self, results: dict[str, Any], *, provider: str | None = None) -> LMResponse:
         if not self._pending_tool_calls:
-            raise ValueError("no pending tool calls")
+            raise ValueError(
+                "no pending tool calls\n\n"
+                "  submit_tools() continues a tool-call conversation.\n"
+                "  It requires a prior call that returned finish_reason='tool_call'.\n\n"
+                "  Common causes:\n"
+                "    - The previous call didn't include tools= (no tools for the model to call)\n"
+                "    - The model chose to answer directly instead of calling a tool\n"
+                "    - history.clear() was called between the tool call and submit_tools()\n"
+            )
 
         parts: list[Part] = []
         for tc in self._pending_tool_calls:
@@ -318,7 +358,15 @@ class Model:
             parts.append(Part.tool_result(tc.id, content, name=tc.name))
 
         if not parts:
-            raise ValueError("no tool results matched pending calls")
+            pending_ids = [tc.id for tc in self._pending_tool_calls]
+            provided_ids = list(results.keys())
+            raise ValueError(
+                "no tool results matched pending calls\n\n"
+                f"  Pending tool call IDs: {pending_ids}\n"
+                f"  Provided result IDs:   {provided_ids}\n\n"
+                "  Each key in the results dict must match a tool call ID.\n"
+                "  Use: results = {tc.id: result for tc in resp.tool_calls}\n"
+            )
 
         tool_message = Message(role="tool", parts=tuple(parts))
         follow_messages = tuple(self._conversation) + (tool_message,)
@@ -357,7 +405,13 @@ class Model:
         stop: list[str] | None,
     ) -> tuple[LMRequest, dict[str, Callable[..., Any]], tuple[Message, ...], bool]:
         if prompt is not None and messages is not None:
-            raise ValueError("prompt and messages are mutually exclusive")
+            raise ValueError(
+                "prompt and messages are mutually exclusive\n\n"
+                "  Use prompt= for a single question:\n"
+                "    lm15.call(model, 'What is TCP?')\n\n"
+                "  Use messages= for a conversation history:\n"
+                "    lm15.call(model, messages=[Message.user('Hi'), ...])\n"
+            )
 
         turn_messages: tuple[Message, ...]
         update_conversation = False
@@ -365,7 +419,13 @@ class Model:
             turn_messages = tuple(messages)
         else:
             if prompt is None:
-                raise ValueError("either prompt or messages is required")
+                raise ValueError(
+                    "either prompt or messages is required\n\n"
+                    "  Provide a prompt string:\n"
+                    "    model('What is TCP?')\n\n"
+                    "  Or a messages list:\n"
+                    "    model(messages=[Message.user('What is TCP?')])\n"
+                )
             if isinstance(prompt, str):
                 turn_messages = (Message.user(prompt),)
             else:

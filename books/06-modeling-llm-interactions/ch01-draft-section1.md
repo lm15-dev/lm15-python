@@ -276,8 +276,7 @@ iterate and switch on `part.type`. It also makes it easy to write code that
 ignores types it doesn't recognize — a quiet form of extensibility that class
 hierarchies don't support without a catch-all base case.
 
-But Rich Hickey's objection is worth hearing: types aren't the only way to carry
-structure. A plain dict — `{"type": "text", "text": "..."}` — is also open,
+Types aren't the only way to carry structure. A plain dict — `{"type": "text", "text": "..."}` — is also open,
 extensible, and portable. It's what the JSON wire format actually is, before the
 library reconstructs it as a typed object. The Part type adds `__post_init__`
 validation, IDE autocompletion, and a named class to talk about. It takes away

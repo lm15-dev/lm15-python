@@ -6,13 +6,13 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from lm15.api import complete, model, upload
+from lm15.api import call, configure, model, prepare, send, upload
 from lm15.client import UniversalLM
 from lm15.errors import RateLimitError
 from lm15.features import EndpointSupport, ProviderManifest
 from lm15.model import Model
 from lm15.protocols import Capabilities
-from lm15.types import FileUploadRequest, FileUploadResponse, LMRequest, LMResponse, Message, Part, PartDelta, StreamEvent, Tool, Usage
+from lm15.types import DataSource, FileUploadRequest, FileUploadResponse, LMRequest, LMResponse, Message, Part, PartDelta, StreamEvent, Tool, Usage
 
 
 class FakeAdapter:
@@ -77,9 +77,10 @@ class APIV2Tests(unittest.TestCase):
         import lm15.api as api
 
         api.build_default = self._old_build_default
+        configure()  # clear any defaults set during tests
 
-    def test_complete_simple(self):
-        resp = complete("gpt-4.1-mini", "hello")
+    def test_call_simple(self):
+        resp = call("gpt-4.1-mini", "hello")
         self.assertEqual(resp.text, "Echo: hello")
 
     def test_model_history_and_stream_response(self):
@@ -177,6 +178,42 @@ class APIV2Tests(unittest.TestCase):
         out = m.submit_tools({"call_1": "22C"})
         self.assertEqual(out.text, "ok")
 
+    def test_configure_sets_defaults(self):
+        """configure() sets module-level defaults used by call/model/etc."""
+        import lm15.api as api
+
+        # Track what build_default receives
+        captured = {}
+        original = api.build_default
+        def spy(**kw):
+            captured.update(kw)
+            return self.lm
+        api.build_default = spy
+
+        # Without configure: env and api_key are None
+        call("gpt-4.1-mini", "hello")
+        self.assertIsNone(captured.get("env"))
+        self.assertIsNone(captured.get("api_key"))
+
+        # With configure: defaults flow through
+        configure(env=".env", api_key="sk-test")
+        call("gpt-4.1-mini", "hello")
+        self.assertEqual(captured["env"], ".env")
+        self.assertEqual(captured["api_key"], "sk-test")
+
+        # Per-call override wins
+        call("gpt-4.1-mini", "hello", env="other.env")
+        self.assertEqual(captured["env"], "other.env")
+        self.assertEqual(captured["api_key"], "sk-test")  # still from configure
+
+        # Clear defaults
+        configure()
+        call("gpt-4.1-mini", "hello")
+        self.assertIsNone(captured.get("env"))
+        self.assertIsNone(captured.get("api_key"))
+
+        api.build_default = original
+
     def test_model_retries_transient_errors(self):
         class FlakyAdapter:
             provider = "openai"
@@ -201,6 +238,218 @@ class APIV2Tests(unittest.TestCase):
         resp = m("hello")
         self.assertEqual(resp.text, "ok")
         self.assertEqual(adapter.calls, 3)
+
+
+    def test_prepare_returns_request_without_sending(self):
+        """prepare() builds the LMRequest without making an API call."""
+        def get_weather(city: str) -> str:
+            """Get the current weather for a city."""
+            return f"22C in {city}"
+
+        req = prepare("gpt-4.1-mini", "What is the weather?",
+                      system="Be concise.", tools=[get_weather], temperature=0)
+
+        # Returns an LMRequest, not an LMResponse
+        self.assertIsInstance(req, LMRequest)
+
+        # Model and system are set
+        self.assertEqual(req.model, "gpt-4.1-mini")
+        self.assertEqual(req.system, "Be concise.")
+
+        # Messages are constructed
+        self.assertEqual(len(req.messages), 1)
+        self.assertEqual(req.messages[0].role, "user")
+        self.assertEqual(req.messages[0].parts[0].text, "What is the weather?")
+
+        # Tools are inferred from the callable
+        self.assertEqual(len(req.tools), 1)
+        self.assertEqual(req.tools[0].name, "get_weather")
+        self.assertEqual(req.tools[0].description, "Get the current weather for a city.")
+        self.assertIn("city", req.tools[0].parameters["properties"])
+
+        # Config is set
+        self.assertEqual(req.config.temperature, 0)
+
+    def test_prepare_then_send(self):
+        """prepare() + send() produces the same result as call()."""
+        req = prepare("gpt-4.1-mini", "hello")
+        resp = send(req)
+        self.assertEqual(resp.text, "Echo: hello")
+        self.assertEqual(resp.finish_reason, "stop")
+
+    def test_model_prepare_method(self):
+        """Model.prepare() builds a request using bound config."""
+        gpt = model("gpt-4.1-mini", system="You are terse.", temperature=0.5)
+        req = gpt.prepare("Hello.")
+
+        self.assertIsInstance(req, LMRequest)
+        self.assertEqual(req.system, "You are terse.")
+        self.assertEqual(req.config.temperature, 0.5)
+        self.assertEqual(req.messages[0].parts[0].text, "Hello.")
+
+
+class TestResponseConvenience(unittest.TestCase):
+    """Tests for response convenience properties: .json, .image_bytes, .audio_bytes, Part.bytes."""
+
+    def test_json_parses_text(self):
+        msg = Message(role="assistant", parts=(Part.text_part('{"name": "Alice", "age": 30}'),))
+        resp = LMResponse(id="r1", model="m", message=msg, finish_reason="stop", usage=Usage())
+        data = resp.json
+        self.assertEqual(data, {"name": "Alice", "age": 30})
+
+    def test_json_raises_on_invalid(self):
+        msg = Message(role="assistant", parts=(Part.text_part("not json at all"),))
+        resp = LMResponse(id="r1", model="m", message=msg, finish_reason="stop", usage=Usage())
+        with self.assertRaises(ValueError) as ctx:
+            resp.json
+        self.assertIn("Cannot parse response as JSON", str(ctx.exception))
+        self.assertIn("not json at all", str(ctx.exception))
+
+    def test_json_raises_on_no_text(self):
+        msg = Message(role="assistant", parts=(Part.tool_call("c1", "fn", {}),))
+        resp = LMResponse(id="r1", model="m", message=msg, finish_reason="tool_call", usage=Usage())
+        with self.assertRaises(ValueError) as ctx:
+            resp.json
+        self.assertIn("no text", str(ctx.exception))
+
+    def test_json_with_prefill(self):
+        """JSON that starts with { from a prefilled response."""
+        msg = Message(role="assistant", parts=(Part.text_part('{"label": "POSITIVE"}'),))
+        resp = LMResponse(id="r1", model="m", message=msg, finish_reason="stop", usage=Usage())
+        self.assertEqual(resp.json["label"], "POSITIVE")
+
+    def test_json_returns_list(self):
+        msg = Message(role="assistant", parts=(Part.text_part('[1, 2, 3]'),))
+        resp = LMResponse(id="r1", model="m", message=msg, finish_reason="stop", usage=Usage())
+        self.assertEqual(resp.json, [1, 2, 3])
+
+    def test_datasource_bytes(self):
+        import base64
+        raw = b"hello world"
+        encoded = base64.b64encode(raw).decode("ascii")
+        ds = DataSource(type="base64", data=encoded, media_type="application/octet-stream")
+        self.assertEqual(ds.bytes, raw)
+
+    def test_datasource_bytes_raises_for_url(self):
+        ds = DataSource(type="url", url="https://example.com/img.png")
+        with self.assertRaises(ValueError) as ctx:
+            ds.bytes
+        self.assertIn("url", str(ctx.exception).lower())
+
+    def test_part_bytes_for_image(self):
+        import base64
+        raw = b"\x89PNG\r\n"
+        encoded = base64.b64encode(raw).decode("ascii")
+        part = Part.image(data=raw, media_type="image/png")
+        self.assertEqual(part.bytes, raw)
+
+    def test_part_bytes_raises_for_text(self):
+        part = Part.text_part("hello")
+        with self.assertRaises(TypeError) as ctx:
+            part.bytes
+        self.assertIn("not a media part", str(ctx.exception))
+
+    def test_image_bytes_on_response(self):
+        import base64
+        raw = b"\x89PNG image data"
+        encoded = base64.b64encode(raw).decode("ascii")
+        img_part = Part(type="image", source=DataSource(type="base64", data=encoded, media_type="image/png"))
+        msg = Message(role="assistant", parts=(Part.text_part("Here's the image."), img_part))
+        resp = LMResponse(id="r1", model="m", message=msg, finish_reason="stop", usage=Usage())
+        self.assertEqual(resp.image_bytes, raw)
+
+    def test_image_bytes_raises_when_no_image(self):
+        msg = Message(role="assistant", parts=(Part.text_part("Just text."),))
+        resp = LMResponse(id="r1", model="m", message=msg, finish_reason="stop", usage=Usage())
+        with self.assertRaises(ValueError) as ctx:
+            resp.image_bytes
+        self.assertIn("no image", str(ctx.exception).lower())
+
+    def test_audio_bytes_on_response(self):
+        import base64
+        raw = b"RIFF audio data"
+        encoded = base64.b64encode(raw).decode("ascii")
+        aud_part = Part(type="audio", source=DataSource(type="base64", data=encoded, media_type="audio/wav"))
+        msg = Message(role="assistant", parts=(aud_part,))
+        resp = LMResponse(id="r1", model="m", message=msg, finish_reason="stop", usage=Usage())
+        self.assertEqual(resp.audio_bytes, raw)
+
+    def test_audio_bytes_raises_when_no_audio(self):
+        msg = Message(role="assistant", parts=(Part.text_part("No audio here."),))
+        resp = LMResponse(id="r1", model="m", message=msg, finish_reason="stop", usage=Usage())
+        with self.assertRaises(ValueError) as ctx:
+            resp.audio_bytes
+        self.assertIn("no audio", str(ctx.exception).lower())
+
+
+class TestInstructionalErrors(unittest.TestCase):
+    """Verify that error messages include actionable guidance."""
+
+    def test_unsupported_model_error_has_instructions(self):
+        from lm15.errors import UnsupportedModelError
+        from lm15.capabilities import resolve_provider
+        with self.assertRaises(UnsupportedModelError) as ctx:
+            resolve_provider("nonexistent-model-xyz")
+        msg = str(ctx.exception)
+        self.assertIn("provider=", msg)
+        self.assertIn("lm15.models()", msg)
+        self.assertIn("gpt-", msg)
+
+    def test_no_adapter_error_has_instructions(self):
+        from lm15.errors import ProviderError
+        client = UniversalLM()
+        req = LMRequest(model="gpt-4.1-mini", messages=(Message.user("Hi"),))
+        with self.assertRaises(ProviderError) as ctx:
+            client.complete(req)
+        msg = str(ctx.exception)
+        self.assertIn("To fix", msg)
+        self.assertIn("API key", msg)  # present in guidance
+        self.assertIn(".env", msg)
+
+    def test_auth_error_has_instructions(self):
+        from lm15.errors import AuthError
+        exc = AuthError("Invalid API key")
+        msg = str(exc)
+        self.assertIn("To fix", msg)
+        self.assertIn("api_key=", msg)
+        self.assertIn("configure", msg)
+
+    def test_rate_limit_error_has_instructions(self):
+        exc = RateLimitError("Too many requests")
+        msg = str(exc)
+        self.assertIn("To fix", msg)
+        self.assertIn("retries=", msg)
+
+    def test_context_length_error_has_instructions(self):
+        from lm15.errors import ContextLengthError
+        exc = ContextLengthError("Input too long")
+        msg = str(exc)
+        self.assertIn("To fix", msg)
+        self.assertIn("history.clear()", msg)
+        self.assertIn("max_tokens", msg)
+
+    def test_submit_tools_no_pending_has_instructions(self):
+        adapter = FakeAdapter()
+        client = UniversalLM()
+        client.register(adapter)
+        m = Model(lm=client, model="gpt-4.1-mini")
+        with self.assertRaises(ValueError) as ctx:
+            m.submit_tools({"id": "result"})
+        msg = str(ctx.exception)
+        self.assertIn("finish_reason", msg)
+        self.assertIn("tool_call", msg)
+
+    def test_prompt_and_messages_exclusive_has_instructions(self):
+        adapter = FakeAdapter()
+        client = UniversalLM()
+        client.register(adapter)
+        m = Model(lm=client, model="gpt-4.1-mini")
+        with self.assertRaises(ValueError) as ctx:
+            m("hello", messages=[Message.user("hi")])
+        msg = str(ctx.exception)
+        self.assertIn("mutually exclusive", msg)
+        self.assertIn("prompt=", msg.lower() or msg)
+        self.assertIn("messages=", msg.lower() or msg)
 
 
 if __name__ == "__main__":

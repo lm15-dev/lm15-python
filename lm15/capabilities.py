@@ -59,7 +59,14 @@ class CapabilityResolver:
         for item in REGISTRY:
             if lower.startswith(item.pattern):
                 return item.provider
-        raise UnsupportedModelError(f"unable to resolve provider for model '{model}'")
+        raise UnsupportedModelError(
+            f"unable to resolve provider for model '{model}'\n\n"
+            f"  To fix, do one of:\n"
+            f"    1. Use provider= to specify the provider explicitly:\n"
+            f"       lm15.call('{model}', ..., provider='openai')\n"
+            f"    2. Check available models with lm15.models()\n"
+            f"    3. Verify the model name is correct (common prefixes: gpt-, claude-, gemini-)\n"
+        )
 
     def resolve_capabilities(self, model: str) -> Capabilities:
         spec = self._model_index.get(model)

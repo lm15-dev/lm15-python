@@ -41,7 +41,7 @@ print(resp.text)  # doesn't know anymore
 ```python
 import lm15
 
-resp = lm15.complete("claude-sonnet-4-5", "Output JSON for a person.", prefill="{")
+resp = lm15.call("claude-sonnet-4-5", "Output JSON for a person.", prefill="{")
 print(resp.text)  # starts with {
 ```
 
@@ -51,7 +51,7 @@ print(resp.text)  # starts with {
 import lm15
 from lm15 import Message
 
-resp = lm15.complete("gpt-4.1-mini", messages=[
+resp = lm15.call("gpt-4.1-mini", messages=[
     Message.user("My name is Max."),
     Message.assistant("Nice to meet you, Max!"),
     Message.user("What's my name?"),

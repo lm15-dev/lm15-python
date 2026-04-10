@@ -78,7 +78,7 @@ tasks = [
     {"prompt": "Summarize proteins.", "max_tokens": 100},
 ]
 
-responses = [lm15.complete(**base, **t) for t in tasks]
+responses = [lm15.call(**base, **t) for t in tasks]
 for r in responses:
     print(r.text)
 ```

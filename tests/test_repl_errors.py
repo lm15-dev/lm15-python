@@ -27,4 +27,4 @@ def test_format_rate_limit_has_hint():
     exc = RateLimitError("Too many requests")
     out = format_lm15_error(exc)
     assert "LM15 RateLimitError" in out
-    assert "retry with backoff" in out
+    assert "Wait a moment and retry" in out

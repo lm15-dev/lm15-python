@@ -19,7 +19,7 @@ One interface for OpenAI, Anthropic, and Gemini. Zero dependencies.
 ```python
 import lm15
 
-resp = lm15.complete("claude-sonnet-4-5", "Hello.")
+resp = lm15.call("claude-sonnet-4-5", "Hello.")
 print(resp.text)
 ```
 
@@ -39,6 +39,16 @@ Set at least one provider key:
 export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
 export GEMINI_API_KEY=...         # or GOOGLE_API_KEY
+```
+
+Or use a `.env` file and configure once:
+
+```python
+import lm15
+lm15.configure(env=".env")
+
+# No env= needed on any subsequent call
+resp = lm15.call("gpt-4.1-mini", "Hello.")
 ```
 
 Discover what is available:
@@ -79,7 +89,7 @@ def get_weather(city: str) -> str:
     """Get weather by city."""
     return f"22°C in {city}"
 
-resp = lm15.complete("gpt-4.1-mini", "Weather in Montreal?", tools=[get_weather])
+resp = lm15.call("gpt-4.1-mini", "Weather in Montreal?", tools=[get_weather])
 print(resp.text)  # "It's 22°C in Montreal."
 ```
 
@@ -97,30 +107,64 @@ resp = gpt.submit_tools(results)
 print(resp.text)
 ```
 
+### Inspect before sending
+
+```python
+req = lm15.prepare("gpt-4.1-mini", "Weather?", tools=[get_weather])
+print(req.tools[0].name)        # "get_weather"
+print(req.tools[0].parameters)  # inferred JSON Schema
+print(req.messages)             # constructed messages
+
+resp = lm15.send(req)           # send when ready
+```
+
 ### Images, audio, video, documents
 
 ```python
 from lm15 import Part
 
 # Image from URL
-resp = lm15.complete("gemini-2.5-flash", ["Describe this.", Part.image(url="https://example.com/cat.jpg")])
+resp = lm15.call("gemini-2.5-flash", ["Describe this.", Part.image(url="https://example.com/cat.jpg")])
 
 # Image generation → vision (cross-model)
-resp = lm15.complete("gpt-4.1-mini", "Draw a cat.", output="image")
-resp2 = lm15.complete("claude-sonnet-4-5", ["What's this?", resp.image])
+resp = lm15.call("gpt-4.1-mini", "Draw a cat.", output="image")
+resp2 = lm15.call("claude-sonnet-4-5", ["What's this?", resp.image])
 
 # Document
-resp = lm15.complete("claude-sonnet-4-5", ["Summarize.", Part.document(url="https://example.com/paper.pdf")])
+resp = lm15.call("claude-sonnet-4-5", ["Summarize.", Part.document(url="https://example.com/paper.pdf")])
 
 # Upload via provider file API
 doc = lm15.upload("claude-sonnet-4-5", "contract.pdf")
-resp = lm15.complete("claude-sonnet-4-5", ["Find liability clauses.", doc])
+resp = lm15.call("claude-sonnet-4-5", ["Find liability clauses.", doc])
+```
+
+### Structured output (JSON)
+
+```python
+resp = lm15.call("gpt-4.1-mini", "Extract: 'Alice is 30.'.",
+    system="Return JSON: {name, age}", prefill="{")
+data = resp.json  # parsed dict — raises ValueError if not valid JSON
+print(data["name"], data["age"])  # Alice 30
+```
+
+### Image and audio bytes
+
+```python
+# Get generated image as raw bytes
+resp = lm15.call("gpt-4.1-mini", "Draw a cat.", output="image")
+with open("cat.png", "wb") as f:
+    f.write(resp.image_bytes)  # decoded bytes, no base64 wrangling
+
+# Same for audio
+resp = lm15.call("gpt-4o-mini-tts", "Say hello.", output="audio")
+with open("hello.wav", "wb") as f:
+    f.write(resp.audio_bytes)
 ```
 
 ### Reasoning
 
 ```python
-resp = lm15.complete("claude-sonnet-4-5", "Prove √2 is irrational.", reasoning=True)
+resp = lm15.call("claude-sonnet-4-5", "Prove √2 is irrational.", reasoning=True)
 print(resp.thinking)  # chain of thought
 print(resp.text)      # final answer
 ```
@@ -157,7 +201,7 @@ while resp.finish_reason == "tool_call":
 ### Prefill
 
 ```python
-resp = lm15.complete("claude-sonnet-4-5", "Output JSON for a person.", prefill="{")
+resp = lm15.call("claude-sonnet-4-5", "Output JSON for a person.", prefill="{")
 ```
 
 ### Reusable model with config
@@ -177,13 +221,13 @@ claude = gpt.with_model("claude-sonnet-4-5")
 
 ```python
 config = {"model": "gpt-4.1-mini", "system": "You are terse.", "temperature": 0}
-resp = lm15.complete(prompt="Summarize DNA.", **config)
+resp = lm15.call(prompt="Summarize DNA.", **config)
 ```
 
 ### Built-in tools
 
 ```python
-resp = lm15.complete("gpt-4.1-mini", "Latest AI news", tools=["web_search"])
+resp = lm15.call("gpt-4.1-mini", "Latest AI news", tools=["web_search"])
 for c in resp.citations:
     print(c.title, c.url)
 ```
@@ -204,7 +248,7 @@ for c in resp.citations:
 ## Architecture
 
 ```
-lm15.complete / lm15.model       ← v2 surface (sugar)
+lm15.call / lm15.model       ← v2 surface (sugar)
         │
         ▼
 LMRequest ──▶ UniversalLM ──▶ MiddlewarePipeline ──▶ ProviderAdapter ──▶ Transport
@@ -214,7 +258,7 @@ LMRequest ──▶ UniversalLM ──▶ MiddlewarePipeline ──▶ ProviderA
             capabilities.py                         providers/{openai,anthropic,gemini}.py
 ```
 
-The v2 surface (`lm15.complete`, `lm15.model`, `Model`, `Stream`) is a thin layer that constructs `LMRequest` objects and calls `UniversalLM`. The universal provider contract is unchanged — third parties can build their own surface on top of the same internals.
+The v2 surface (`lm15.call`, `lm15.model`, `Model`, `Stream`) is a thin layer that constructs `LMRequest` objects and calls `UniversalLM`. The universal provider contract is unchanged — third parties can build their own surface on top of the same internals.
 
 ## Why this exists
 
@@ -251,7 +295,7 @@ The v2 surface (`lm15.complete`, `lm15.model`, `Model`, `Stream`) is a thin laye
 8. [Prompt caching](docs/COOKBOOKS_V2/08-prompt-caching.md)
 9. [Model config](docs/COOKBOOKS_V2/09-model-config.md)
 10. [Building an agent](docs/COOKBOOKS_V2/10-agent.md)
-11. [complete()/stream() reference](docs/COOKBOOKS_V2/11-complete-reference.md)
+11. [call()/stream() reference](docs/COOKBOOKS_V2/11-complete-reference.md)
 12. [Model discovery and provider status](docs/COOKBOOKS_V2/12-model-discovery.md)
 
 **Cookbooks v1 (low-level):** [`docs/COOKBOOKS/`](docs/COOKBOOKS/) — 8 examples using the internal `LMRequest`/`UniversalLM` API directly.

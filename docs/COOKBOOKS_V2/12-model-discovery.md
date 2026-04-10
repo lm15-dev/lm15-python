@@ -1,6 +1,6 @@
 # Cookbook 12 — Model Discovery and Provider Status
 
-Use `lm15.models()` and `lm15.providers_info()` to inspect what is available before calling `complete()`.
+Use `lm15.models()` and `lm15.providers_info()` to inspect what is available before calling `call()`.
 
 ---
 
@@ -107,7 +107,7 @@ import lm15
 candidates = lm15.models(provider="openai", supports={"tools"}, env=".env")
 model_id = candidates[0].id if candidates else "gpt-4.1-mini"
 
-resp = lm15.complete(model_id, "say ok", env=".env")
+resp = lm15.call(model_id, "say ok", env=".env")
 print(resp.text)
 ```
 

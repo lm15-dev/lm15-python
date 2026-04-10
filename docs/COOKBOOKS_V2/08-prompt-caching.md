@@ -75,9 +75,9 @@ contract = Part.document(
     cache=True,
 )
 
-resp = lm15.complete("claude-sonnet-4-5", ["Summarize section 1.", contract])
-resp = lm15.complete("claude-sonnet-4-5", ["Summarize section 2.", contract])  # cache hit
-resp = lm15.complete("claude-sonnet-4-5", ["Find liability clauses.", contract])  # cache hit
+resp = lm15.call("claude-sonnet-4-5", ["Summarize section 1.", contract])
+resp = lm15.call("claude-sonnet-4-5", ["Summarize section 2.", contract])  # cache hit
+resp = lm15.call("claude-sonnet-4-5", ["Find liability clauses.", contract])  # cache hit
 ```
 
 ## Provider-specific cache control

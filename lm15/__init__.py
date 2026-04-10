@@ -5,7 +5,7 @@ try:
 except Exception:
     __version__ = "0.0.0+dev"
 
-from .api import complete, model, models, providers, providers_info, stream, upload
+from .api import call, configure, model, models, prepare, providers, providers_info, send, stream, upload
 from .capabilities import hydrate_with_specs
 from .client import UniversalLM
 from .middleware import with_cache, with_history, with_retries
@@ -73,7 +73,10 @@ __all__ = [
     "__version__",
     "UniversalLM",
     "build_default",
-    "complete",
+    "call",
+    "configure",
+    "prepare",
+    "send",
     "stream",
     "model",
     "upload",

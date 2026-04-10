@@ -37,7 +37,16 @@ class UniversalLM:
         p = provider or resolve_provider(model)
         adapter = self.adapters.get(p)
         if not adapter:
-            raise ProviderError(f"no adapter registered for provider '{p}'")
+            registered = list(self.adapters.keys()) or ["(none)"]
+            raise ProviderError(
+                f"no adapter registered for provider '{p}'\n\n"
+                f"  Registered providers: {', '.join(registered)}\n"
+                f"\n"
+                f"  To fix, do one of:\n"
+                f"    1. Set the API key: export {p.upper()}_API_KEY=...\n"
+                f"    2. Pass it directly: lm15.call(..., api_key='...')\n"
+                f"    3. Add it to your .env file and use lm15.configure(env='.env')\n"
+            )
         return adapter
 
     def complete(self, request: LMRequest, provider: str | None = None) -> LMResponse:

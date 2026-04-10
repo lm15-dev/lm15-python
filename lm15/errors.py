@@ -14,11 +14,36 @@ class ProviderError(ULMError):
 
 
 class AuthError(ProviderError):
-    pass
+    """Authentication failed — invalid, expired, or missing API key."""
+
+    def __init__(self, message: str = "") -> None:
+        guidance = (
+            "\n\n"
+            "  To fix, do one of:\n"
+            "    1. Check that your API key is correct and not expired\n"
+            "    2. Set it in your environment: export OPENAI_API_KEY=sk-...\n"
+            "    3. Pass it directly: lm15.call(..., api_key='sk-...')\n"
+            "    4. Add it to a .env file and call lm15.configure(env='.env')\n"
+        )
+        if guidance.strip() not in message:
+            message = message.rstrip() + guidance
+        super().__init__(message)
 
 
 class RateLimitError(ProviderError):
-    pass
+    """Rate limited by the provider (HTTP 429)."""
+
+    def __init__(self, message: str = "") -> None:
+        guidance = (
+            "\n\n"
+            "  To fix:\n"
+            "    - Wait a moment and retry\n"
+            "    - Use retries= on model objects: lm15.model(..., retries=3)\n"
+            "    - Reduce request rate or upgrade your API plan\n"
+        )
+        if guidance.strip() not in message:
+            message = message.rstrip() + guidance
+        super().__init__(message)
 
 
 class BillingError(ProviderError):
@@ -36,6 +61,19 @@ class InvalidRequestError(ProviderError):
 class ContextLengthError(InvalidRequestError):
     """The input exceeds the model's context window."""
 
+    def __init__(self, message: str = "") -> None:
+        guidance = (
+            "\n\n"
+            "  To fix:\n"
+            "    - Reduce the prompt or system prompt length\n"
+            "    - Clear conversation history: model.history.clear()\n"
+            "    - Use a model with a larger context window\n"
+            "    - Lower max_tokens to leave more room for input\n"
+        )
+        if guidance.strip() not in message:
+            message = message.rstrip() + guidance
+        super().__init__(message)
+
 
 class ServerError(ProviderError):
     pass
@@ -50,7 +88,7 @@ class UnsupportedFeatureError(ProviderError):
 
 
 class NotConfiguredError(ProviderError):
-    pass
+    """No API key found for a provider."""
 
 
 def map_http_error(status: int, message: str) -> ProviderError:

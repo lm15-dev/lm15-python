@@ -11,7 +11,7 @@ def get_weather(city: str) -> str:
     """Get the current weather for a city."""
     return f"22°C and sunny in {city}"
 
-resp = lm15.complete("gpt-4.1-mini", "What's the weather in Montreal?", tools=[get_weather])
+resp = lm15.call("gpt-4.1-mini", "What's the weather in Montreal?", tools=[get_weather])
 print(resp.text)  # "It's 22°C and sunny in Montreal."
 ```
 
@@ -28,7 +28,7 @@ def calculator(expression: str) -> str:
     """Evaluate a math expression."""
     return str(eval(expression))
 
-resp = lm15.complete("gpt-4.1-mini", "What's 2^16 and what's the latest Python news?",
+resp = lm15.call("gpt-4.1-mini", "What's 2^16 and what's the latest Python news?",
     tools=[search, calculator])
 print(resp.text)
 ```

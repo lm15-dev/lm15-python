@@ -35,19 +35,27 @@ ANTHROPIC_API_KEY=sk-ant-abc123...
 GEMINI_API_KEY=AIza...
 ```
 
-Then pass `env=".env"` when you create a model:
+Then configure lm15 once at the top of your script:
 
 ```python
 import lm15
+lm15.configure(env=".env")
 
-gpt = lm15.model("gpt-4.1-mini", env=".env")
-resp = gpt("Hello!")
+# No env= needed on any subsequent call
+resp = lm15.call("gpt-4.1-mini", "Hello!")
 print(resp.text)
 ```
 
-That's it. No extra packages to install. lm15 reads the file, finds the keys it recognises, and uses them.
+That's it. `lm15.configure()` reads the file, finds the keys it recognises, and sets them as defaults for all subsequent calls. No need to pass `env=` on every call.
 
-**Every cookbook after this one assumes you have a `.env` file and uses `env=".env"` on the first `lm15.model()` call.**
+You can also pass `env=` per call if you prefer — it overrides the configured default:
+
+```python
+# Without configure — pass env= every time
+resp = lm15.call("gpt-4.1-mini", "Hello!", env=".env")
+```
+
+**Every cookbook after this one assumes you have a `.env` file and call `lm15.configure(env=".env")` at the start.**
 
 ### Keep your `.env` out of git
 
@@ -74,13 +82,13 @@ git rm --cached .env
 For quick experiments or notebooks:
 
 ```python
-resp = lm15.complete("gpt-4.1-mini", "Hello!", api_key="sk-proj-abc123...")
+resp = lm15.call("gpt-4.1-mini", "Hello!", api_key="sk-proj-abc123...")
 ```
 
 Multiple providers:
 
 ```python
-resp = lm15.complete("claude-sonnet-4-5", "Hello!", api_key={
+resp = lm15.call("claude-sonnet-4-5", "Hello!", api_key={
     "openai": "sk-proj-...",
     "anthropic": "sk-ant-...",
 })
@@ -99,7 +107,7 @@ Then your script needs no `env=` or `api_key=` at all:
 
 ```python
 import lm15
-resp = lm15.complete("gpt-4.1-mini", "Hello!")
+resp = lm15.call("gpt-4.1-mini", "Hello!")
 ```
 
 ### Shell config files
@@ -127,7 +135,7 @@ If you use multiple methods at once, lm15 picks the first key it finds:
 lm15 skips providers with no key. If you call a model from an unconfigured provider:
 
 ```python
-resp = lm15.complete("claude-sonnet-4-5", "Hello!")
+resp = lm15.call("claude-sonnet-4-5", "Hello!")
 # → error: no provider registered for this model
 ```
 

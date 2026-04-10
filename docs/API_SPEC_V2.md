@@ -17,7 +17,7 @@ import lm15
 from lm15 import Part, Tool
 
 # text
-resp = lm15.complete("gpt-4.1-mini", "Hello.")
+resp = lm15.call("gpt-4.1-mini", "Hello.")
 resp.text
 
 # stream
@@ -33,10 +33,10 @@ resp = gpt("Hello.")
 
 ## Module functions
 
-### `lm15.complete`
+### `lm15.call`
 
 ```python
-lm15.complete(
+lm15.call(
     model: str,
     prompt: str | list[str | Part] | None = None,
     *,
@@ -107,7 +107,7 @@ Uploads a file via the provider's file API. Returns a `Part` that can be passed 
 
 ```python
 doc = lm15.upload("claude-sonnet-4-5", "contract.pdf")
-resp = lm15.complete("claude-sonnet-4-5", ["Summarize.", doc])
+resp = lm15.call("claude-sonnet-4-5", ["Summarize.", doc])
 ```
 
 ---
@@ -119,7 +119,7 @@ A callable with bound config and conversation history.
 ### Calling
 
 ```python
-resp = model(prompt, **kwargs)       # same kwargs as lm15.complete minus model
+resp = model(prompt, **kwargs)       # same kwargs as lm15.call minus model
 resp = model(messages=[...])         # multi-turn override
 ```
 
@@ -305,8 +305,8 @@ See [Prompt caching](#prompt-caching).
 Parts from responses pass directly into prompts:
 
 ```python
-resp = lm15.complete("gpt-4.1-mini", "Draw a cat.", output="image")
-resp2 = lm15.complete("claude-sonnet-4-5", ["What's this?", resp.image])
+resp = lm15.call("gpt-4.1-mini", "Draw a cat.", output="image")
+resp2 = lm15.call("claude-sonnet-4-5", ["What's this?", resp.image])
 ```
 
 ---
@@ -332,7 +332,7 @@ def get_weather(city: str) -> str:
     """Get weather by city."""
     return f"22°C in {city}"
 
-resp = lm15.complete("gpt-4.1-mini", "Weather?", tools=[get_weather])
+resp = lm15.call("gpt-4.1-mini", "Weather?", tools=[get_weather])
 resp.text  # tool was called automatically
 ```
 
@@ -341,7 +341,7 @@ Schema inferred from type hints and docstring. Name from function name.
 ### Built-in tools (provider server-side)
 
 ```python
-resp = lm15.complete("gpt-4.1-mini", "Latest news", tools=["web_search"])
+resp = lm15.call("gpt-4.1-mini", "Latest news", tools=["web_search"])
 ```
 
 String in tools list → `Tool(name=..., type="builtin")`.
@@ -384,8 +384,8 @@ For fine-grained control over what gets cached:
 contract = Part.document(data=open("contract.pdf", "rb").read(),
     media_type="application/pdf", cache=True)
 
-resp = lm15.complete("claude-sonnet-4-5", ["Summarize section 1.", contract])
-resp = lm15.complete("claude-sonnet-4-5", ["Summarize section 2.", contract])
+resp = lm15.call("claude-sonnet-4-5", ["Summarize section 1.", contract])
+resp = lm15.call("claude-sonnet-4-5", ["Summarize section 2.", contract])
 # second call hits cache on the document
 ```
 
@@ -541,8 +541,8 @@ print(resp2.text)
 ```python
 import lm15
 
-resp = lm15.complete("gpt-4.1-mini", "Draw a cat wearing a top hat.", output="image")
-resp2 = lm15.complete("claude-sonnet-4-5", ["Describe this image in detail.", resp.image])
+resp = lm15.call("gpt-4.1-mini", "Draw a cat wearing a top hat.", output="image")
+resp2 = lm15.call("claude-sonnet-4-5", ["Describe this image in detail.", resp.image])
 print(resp2.text)
 ```
 
@@ -577,7 +577,7 @@ tasks = [
     {"prompt": "Summarize proteins.", "max_tokens": 100},
 ]
 
-responses = [lm15.complete(**base, **t) for t in tasks]
+responses = [lm15.call(**base, **t) for t in tasks]
 for r in responses:
     print(r.text)
 ```

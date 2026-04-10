@@ -94,27 +94,65 @@ def format_lm15_error(exc: BaseException) -> str:
 
     lines = [f"LM15 {name}", msg]
 
-    if isinstance(exc, AuthError):
-        lines.append("Tip: verify API key env vars (OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY).")
+    _has_guidance = "To fix" in msg or "To fix" in str(exc)
+
+    if isinstance(exc, AuthError) and not _has_guidance:
+        lines.append("")
+        lines.append("  To fix, do one of:")
+        lines.append("    1. Set the API key in your environment:")
+        lines.append("       export OPENAI_API_KEY=sk-...  (or ANTHROPIC_API_KEY / GEMINI_API_KEY)")
+        lines.append("    2. Add it to a .env file and call lm15.configure(env='.env')")
+        lines.append("    3. Pass it directly: lm15.call(..., api_key='sk-...')")
     elif isinstance(exc, BillingError):
-        lines.append("Tip: check billing/quota in your provider dashboard.")
-    elif isinstance(exc, RateLimitError):
-        lines.append("Tip: retry with backoff and/or reduce request rate.")
-    elif isinstance(exc, ContextLengthError):
-        lines.append("Tip: reduce prompt/context length or max output tokens.")
+        lines.append("")
+        lines.append("  Your provider returned a billing/quota error (HTTP 402).")
+        lines.append("  Check your account at:")
+        lines.append("    OpenAI:    platform.openai.com/account/billing")
+        lines.append("    Anthropic: console.anthropic.com/settings/plans")
+        lines.append("    Gemini:    aistudio.google.com")
+    elif isinstance(exc, RateLimitError) and not _has_guidance:
+        lines.append("")
+        lines.append("  The provider rate-limited this request (HTTP 429).")
+        lines.append("  To fix:")
+        lines.append("    - Wait a moment and retry")
+        lines.append("    - Use retries= on model objects: lm15.model(..., retries=3)")
+        lines.append("    - Reduce request rate or upgrade your API plan")
+    elif isinstance(exc, ContextLengthError) and not _has_guidance:
+        lines.append("")
+        lines.append("  The input exceeds this model's context window.")
+        lines.append("  To fix:")
+        lines.append("    - Reduce the prompt or system prompt length")
+        lines.append("    - Clear conversation history: model.history.clear()")
+        lines.append("    - Use a model with a larger context window")
+        lines.append("    - Lower max_tokens to leave more room for input")
     elif isinstance(exc, TimeoutError):
-        lines.append("Tip: increase timeout and reduce prompt size.")
+        lines.append("")
+        lines.append("  The request timed out before the provider responded.")
+        lines.append("  To fix:")
+        lines.append("    - Reduce prompt size (shorter prompts = faster responses)")
+        lines.append("    - Use retries= on model objects: lm15.model(..., retries=2)")
+        lines.append("    - Check your network connection")
     elif isinstance(exc, InvalidRequestError):
         model_name = _extract_model_name(msg)
         if model_name:
             suggestions = _suggest_models(model_name)
             if suggestions:
-                lines.append("Did you mean: " + ", ".join(suggestions))
+                lines.append("")
+                lines.append("  Did you mean: " + ", ".join(suggestions))
+                lines.append("  List available models: lm15.models()")
             else:
-                lines.append("Tip: run with hydrated model specs for better suggestions.")
+                lines.append("")
+                lines.append("  Model not found. List available models with lm15.models()")
+                lines.append("  For custom/fine-tuned models, specify the provider:")
+                lines.append(f"    lm15.call('{model_name}', ..., provider='openai')")
 
     if isinstance(exc, ServerError):
-        lines.append("Tip: transient provider error; retry shortly.")
+        lines.append("")
+        lines.append("  The provider returned a server error (HTTP 5xx).")
+        lines.append("  This is usually transient. To handle automatically:")
+        lines.append("    - Use retries= on model objects: lm15.model(..., retries=3)")
+        lines.append("    - Or switch providers: lm15.call('gemini-2.5-flash', ...)")
+
 
     return "\n".join(lines)
 

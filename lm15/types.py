@@ -48,6 +48,22 @@ class DataSource:
         else:
             raise ValueError(f"unsupported data source type: {self.type}")
 
+    @property
+    def bytes(self) -> bytes:
+        """Decode base64 data and return raw bytes.
+
+        Raises ValueError if the source is not base64-encoded.
+        """
+        if self.type != "base64" or not self.data:
+            raise ValueError(
+                f"DataSource(type='{self.type}') has no inline bytes — "
+                f"only base64 sources can be decoded. "
+                f"{'Use the url to fetch the data.' if self.type == 'url' else ''}"
+                f"{'Use the file_id to retrieve the file.' if self.type == 'file' else ''}"
+            )
+        import base64
+        return base64.b64decode(self.data)
+
 
 @dataclass(slots=True, frozen=True)
 class Part:
@@ -178,6 +194,23 @@ class Part:
     @staticmethod
     def tool_result(id: str, content: list["Part"], is_error: bool | None = None, name: str | None = None) -> "Part":
         return Part(type="tool_result", id=id, name=name, content=tuple(content), is_error=is_error)
+
+    @property
+    def bytes(self) -> bytes:
+        """Decode media data and return raw bytes.
+
+        Works on image, audio, video, and document parts with base64 sources.
+        Raises TypeError for non-media parts. Raises ValueError if the source
+        is not base64-encoded.
+        """
+        if self.type in ("text", "thinking", "refusal", "citation", "tool_call", "tool_result"):
+            raise TypeError(
+                f"Part(type='{self.type}') is not a media part — "
+                f".bytes is only available on image, audio, video, and document parts"
+            )
+        if self.source is None:
+            raise ValueError(f"Part(type='{self.type}') has no source")
+        return self.source.bytes
 
     @staticmethod
     def refusal(text: str) -> "Part":
@@ -342,6 +375,60 @@ class LMResponse:
     @property
     def citations(self) -> list[Part]:
         return [p for p in self.message.parts if p.type == "citation"]
+
+    @property
+    def json(self) -> Any:
+        """Parse the text response as JSON and return the result.
+
+        Raises ValueError if there is no text or the text is not valid JSON.
+        The error message includes the raw text for debugging.
+        """
+        import json as _json
+
+        text = self.text
+        if text is None:
+            raise ValueError(
+                "Cannot parse response as JSON: response contains no text. "
+                f"Parts: {[p.type for p in self.message.parts]}"
+            )
+        try:
+            return _json.loads(text)
+        except _json.JSONDecodeError as e:
+            preview = text[:200] + ("..." if len(text) > 200 else "")
+            raise ValueError(
+                f"Cannot parse response as JSON: {e}\n"
+                f"Raw text: {preview}"
+            ) from e
+
+    @property
+    def image_bytes(self) -> bytes:
+        """Return decoded bytes of the first image part.
+
+        Raises ValueError if there is no image part or if the image is not
+        base64-encoded (e.g. URL or file reference).
+        """
+        img = self.image
+        if img is None:
+            raise ValueError(
+                "Response contains no image part. "
+                f"Parts: {[p.type for p in self.message.parts]}"
+            )
+        return img.bytes
+
+    @property
+    def audio_bytes(self) -> bytes:
+        """Return decoded bytes of the first audio part.
+
+        Raises ValueError if there is no audio part or if the audio is not
+        base64-encoded.
+        """
+        aud = self.audio
+        if aud is None:
+            raise ValueError(
+                "Response contains no audio part. "
+                f"Parts: {[p.type for p in self.message.parts]}"
+            )
+        return aud.bytes
 
 
 @dataclass(slots=True, frozen=True)

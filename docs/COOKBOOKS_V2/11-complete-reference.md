@@ -1,4 +1,4 @@
-# Cookbook 11 — `complete()` and `stream()` Reference
+# Cookbook 11 — `call()` and `stream()` Reference
 
 <details>
 <summary><strong>API keys</strong> — you need at least one to run these examples.</summary>
@@ -12,14 +12,14 @@ Three ways to provide credentials (see [Cookbook 00](00-api-key.md) for full det
 All examples below use `env=".env"`.
 </details>
 
-`lm15.complete()` and `lm15.stream()` are the stateless entry points. They share the same parameters — the only difference is how the response arrives.
+`lm15.call()` and `lm15.stream()` are the stateless entry points. They share the same parameters — the only difference is how the response arrives.
 
 ---
 
 ## Full signature
 
 ```python
-lm15.complete(
+lm15.call(
     model: str,                              # required — e.g. "gpt-4.1-mini", "claude-sonnet-4-5"
     prompt: str | list[str | Part] = None,   # a string or mixed list of text + parts
     *,
@@ -49,7 +49,7 @@ lm15.complete(
 ### Plain string
 
 ```python
-resp = lm15.complete("gpt-4.1-mini", "What is DNA?", env=".env")
+resp = lm15.call("gpt-4.1-mini", "What is DNA?", env=".env")
 ```
 
 ### Mixed list of text and parts
@@ -57,7 +57,7 @@ resp = lm15.complete("gpt-4.1-mini", "What is DNA?", env=".env")
 ```python
 from lm15 import Part
 
-resp = lm15.complete("gemini-2.5-flash", [
+resp = lm15.call("gemini-2.5-flash", [
     "What's in this image?",
     Part.image(url="https://example.com/photo.jpg"),
 ], env=".env")
@@ -72,7 +72,7 @@ For multi-turn or when you need explicit role assignment. **Mutually exclusive w
 ```python
 from lm15 import Message
 
-resp = lm15.complete("gpt-4.1-mini", messages=[
+resp = lm15.call("gpt-4.1-mini", messages=[
     Message.user("My name is Max."),
     Message.assistant("Nice to meet you, Max!"),
     Message.user("What's my name?"),
@@ -85,7 +85,7 @@ print(resp.text)  # Knows it's Max — the history is in the messages
 ## `system` — instructions for the model
 
 ```python
-resp = lm15.complete("gpt-4.1-mini", "Explain TCP.",
+resp = lm15.call("gpt-4.1-mini", "Explain TCP.",
     system="You are a networking expert. Be concise.",
     env=".env",
 )
@@ -95,14 +95,14 @@ resp = lm15.complete("gpt-4.1-mini", "Explain TCP.",
 
 ## `tools` — let the model call functions
 
-Tools work at every level. `complete()` auto-executes callable tools and loops until the model stops calling them.
+Tools work at every level. `call()` auto-executes callable tools and loops until the model stops calling them.
 
 ```python
 def get_weather(city: str) -> str:
     """Get current weather for a city."""
     return f"22°C in {city}"
 
-resp = lm15.complete("gpt-4.1-mini", "Weather in Paris?",
+resp = lm15.call("gpt-4.1-mini", "Weather in Paris?",
     tools=[get_weather], env=".env",
 )
 print(resp.text)  # "It's 22°C in Paris."
@@ -115,7 +115,7 @@ See [Cookbook 03 (Tools Auto)](03-tools-auto.md) and [Cookbook 04 (Tools Manual)
 ## `reasoning` — chain-of-thought
 
 ```python
-resp = lm15.complete("claude-sonnet-4-5", "Prove √2 is irrational.",
+resp = lm15.call("claude-sonnet-4-5", "Prove √2 is irrational.",
     reasoning=True, env=".env",
 )
 print(resp.thinking)  # The model's reasoning steps
@@ -125,7 +125,7 @@ print(resp.text)       # The final answer
 Fine-grained:
 
 ```python
-resp = lm15.complete("claude-sonnet-4-5", "Prove √2 is irrational.",
+resp = lm15.call("claude-sonnet-4-5", "Prove √2 is irrational.",
     reasoning={"budget": 10000}, env=".env",
 )
 ```
@@ -139,7 +139,7 @@ See [Cookbook 06 (Reasoning)](06-reasoning.md).
 Force the model to start its response with a specific string. Useful for steering output format:
 
 ```python
-resp = lm15.complete("claude-sonnet-4-5", "List 3 colors.",
+resp = lm15.call("claude-sonnet-4-5", "List 3 colors.",
     prefill="1.", env=".env",
 )
 print(resp.text)  # Starts with "1. ..."
@@ -151,11 +151,11 @@ print(resp.text)  # Starts with "1. ..."
 
 ```python
 # Image generation
-resp = lm15.complete("gpt-4.1-mini", "Draw a sunset.", output="image", env=".env")
+resp = lm15.call("gpt-4.1-mini", "Draw a sunset.", output="image", env=".env")
 resp.image  # Part with the generated image
 
 # Audio generation
-resp = lm15.complete("gpt-4.1-mini", "Say hello in French.", output="audio", env=".env")
+resp = lm15.call("gpt-4.1-mini", "Say hello in French.", output="audio", env=".env")
 resp.audio  # Part with the generated audio
 ```
 
@@ -166,7 +166,7 @@ See [Cookbook 05 (Multimodal)](05-multimodal.md).
 ## `temperature`, `max_tokens`, `top_p`, `stop`
 
 ```python
-resp = lm15.complete("gpt-4.1-mini", "Write a haiku.",
+resp = lm15.call("gpt-4.1-mini", "Write a haiku.",
     temperature=0.9,     # more creative
     max_tokens=50,       # short response
     top_p=0.95,          # nucleus sampling
@@ -182,7 +182,7 @@ resp = lm15.complete("gpt-4.1-mini", "Write a haiku.",
 lm15 infers the provider from the model name (`gpt-*` → openai, `claude-*` → anthropic, `gemini-*` → gemini). Override when using custom or fine-tuned models:
 
 ```python
-resp = lm15.complete("ft:gpt-4.1-mini:my-org:my-finetune",
+resp = lm15.call("ft:gpt-4.1-mini:my-org:my-finetune",
     "Hello.", provider="openai", env=".env",
 )
 ```
@@ -194,11 +194,11 @@ resp = lm15.complete("ft:gpt-4.1-mini:my-org:my-finetune",
 ```python
 long_doc = open("contract.txt").read()
 
-resp1 = lm15.complete("claude-sonnet-4-5",
+resp1 = lm15.call("claude-sonnet-4-5",
     f"Summarize section 1:\n\n{long_doc}",
     prompt_caching=True, env=".env",
 )
-resp2 = lm15.complete("claude-sonnet-4-5",
+resp2 = lm15.call("claude-sonnet-4-5",
     f"Summarize section 2:\n\n{long_doc}",
     prompt_caching=True, env=".env",
 )
@@ -250,7 +250,7 @@ See [Cookbook 02 (Streaming)](02-streaming.md).
 
 ## The response object
 
-Both `complete()` and `stream()` (after consumption) give you an `LMResponse`:
+Both `call()` and `stream()` (after consumption) give you an `LMResponse`:
 
 | Property | Type | What it is |
 |----------|------|-----------|
@@ -269,7 +269,7 @@ Both `complete()` and `stream()` (after consumption) give you an `LMResponse`:
 ### Usage breakdown
 
 ```python
-resp = lm15.complete("gpt-4.1-mini", "Hello.", env=".env")
+resp = lm15.call("gpt-4.1-mini", "Hello.", env=".env")
 u = resp.usage
 
 print(u.input_tokens)        # Tokens sent
