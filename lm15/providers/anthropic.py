@@ -40,6 +40,7 @@ from .common import ds_to_anthropic_source, parts_to_text
 
 # Canonical builtin tool name → Anthropic tool format
 _ANTHROPIC_BUILTIN_MAP: dict[str, str] = {
+    "web_search": "web_search_20250305",
     "code_execution": "code_execution_20250522",
 }
 
