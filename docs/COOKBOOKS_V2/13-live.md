@@ -16,10 +16,10 @@ pip install lm15[live]
 This adds `websockets` for the WebSocket connection. For the audio examples in this cookbook, you'll also want:
 
 ```bash
-uv pip install sounddevice soundfile numpy Pillow
+uv pip install sounddevice soundfile numpy
 ```
 
-These give you cross-platform microphone recording, audio playback (Windows, macOS, Linux), and image creation for the examples.
+These give you cross-platform microphone recording and audio playback (Windows, macOS, Linux). For the video feed examples, you'll also want `Pillow` for image/screenshot handling.
 
 ---
 
@@ -61,8 +61,8 @@ audio = Part.audio(data=open("recording.wav", "rb").read(), media_type="audio/wa
 r = lm15.call("gemini-3.1-flash-live-preview", [audio, "Transcribe this audio."])
 print(r.text)
 ```
-```output | ✓ 9.5s | 14 vars
-Bonjour, ceci est un test 12345. Est ce que j'ai bien retranscrit?
+```output | ✓ 7.4s | 4 vars
+Bonjour, ceci est un test 1 2 3 4 5
 ```
 
 ### Text-to-speech
@@ -81,7 +81,6 @@ pcm = np.frombuffer(wav_bytes[44:], dtype=np.int16)
 sd.play(pcm, samplerate=24000)
 sd.wait()  # block until playback finishes
 ```
-
 Or just save it:
 
 ```python ✓
@@ -90,31 +89,20 @@ with open("hello.wav", "wb") as f:
 # Open with any media player — it's a standard WAV file
 ```
 
-### Describe an image with voice
+### Vision: live models see video, not images
 
-Create a simple test image, then ask the model to describe it:
+Live models process vision as a **continuous stream of video frames** — like a camera feed or screen share. They don't support single-image input via `lm15.call()`. For still image analysis, use a non-live model:
 
 ```python
 import lm15
 from lm15 import Part
-from PIL import Image, ImageDraw
 
-# Create a simple test image
-img = Image.new("RGB", (200, 200), "skyblue")
-draw = ImageDraw.Draw(img)
-draw.rectangle([50, 80, 150, 180], fill="green")   # a green rectangle
-draw.ellipse([70, 20, 130, 80], fill="yellow")      # a yellow circle
-img.save("test_image.png")
-
-image = Part.image(data=open("test_image.png", "rb").read(), media_type="image/png")
-r = lm15.call("gemini-3.1-flash-live-preview",
-    [image, "Describe what you see."],
-    output="audio")
-
-with open("description.wav", "wb") as f:
-    f.write(r.audio_bytes)
+image = Part.image(data=open("photo.png", "rb").read(), media_type="image/png")
+r = lm15.call("gemini-2.5-flash", [image, "Describe what you see."])
+print(r.text)
 ```
 
+To send video frames to a live model, use a **session** (see [Video feed session](#video-feed-session) below) — that's how camera and screen sharing work.
 ### Audio + text question
 
 Use the microphone recording from earlier together with a text question:
@@ -180,8 +168,7 @@ If the model name doesn't contain `-live`, you can force the WebSocket transport
 r = lm15.call("gemini-2.5-flash", "Hello.",
     provider={"transport": "live"})
 ```
-
-```output | ✗ 6ms | 16 vars
+```output | ✗ 4ms | 2 vars
 Traceback (most recent call last):
   File "/home/maxime/.cache/rat/kernels/py@lm15/python-kernel.py", line 808, in run_code
     exec(compile(tree, "<rat>", "exec"), namespace, namespace)
@@ -217,7 +204,7 @@ import lm15
 
 with lm15.live("gemini-3.1-flash-live-preview",
                system="You are a helpful assistant.") as session:
-    session.send(text="What is the capital of France?")
+    session.send(text="What is the capital of France? Write it to me and say it outloud")
 
     for event in session:
         match event.type:
@@ -225,26 +212,8 @@ with lm15.live("gemini-3.1-flash-live-preview",
             case "turn_end": break
     print()
 ```
-
-```output | ✗ 389ms | 16 vars
-Traceback (most recent call last):
-  File "/home/maxime/.cache/rat/kernels/py@lm15/python-kernel.py", line 808, in run_code
-    exec(compile(tree, "<rat>", "exec"), namespace, namespace)
-    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "<rat>", line 3, in <module>
-  File "/home/maxime/Projects/lm15/lm15/api.py", line 276, in live
-    session = lm.live(config, provider=resolved_provider)
-  File "/home/maxime/Projects/lm15/lm15/client.py", line 76, in live
-    return adapter.live(config)
-           ~~~~~~~~~~~~^^^^^^^^
-  File "/home/maxime/Projects/lm15/lm15/providers/gemini.py", line 708, in live
-    self._wait_for_setup_complete(ws)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^
-  File "/home/maxime/Projects/lm15/lm15/providers/gemini.py", line 730, in _wait_for_setup_complete
-    raw = ws.recv()
-  File "/home/maxime/Projects/lm15/.venv/lib/python3.13/site-packages/websockets/sync/connection.py", line 338, in recv
-    raise self.protocol.close_exc from self.recv_exc
-websockets.exceptions.ConnectionClosedError: received 1011 (internal error) Internal error encountered.; then sent 1011 (internal error) Internal error encountered.
+```output | ✓ 4.0s | 3 vars
+The capital of France is Paris. Paris
 ```
 
 ### Voice assistant (turn-based)
@@ -366,6 +335,77 @@ with lm15.live("gemini-3.1-flash-live-preview",
                 break
         print()
 ```
+
+### Video feed session
+
+Live models see video as a continuous stream of JPEG frames — like a webcam or screen share. Send frames via `session.send(video=...)` and ask questions with text:
+
+```python
+import lm15
+import base64, io, time
+from PIL import Image
+
+# Capture a screenshot (or load any image)
+img = Image.open("screenshot.png").convert("RGB")
+img.thumbnail([1024, 1024])  # resize for the API
+buf = io.BytesIO()
+img.save(buf, format="JPEG")
+jpeg_bytes = buf.getvalue()
+
+session = lm15.live("gemini-3.1-flash-live-preview",
+                    system="You are a helpful visual assistant.")
+
+try:
+    # Send a few frames so the model registers the visual input
+    for _ in range(3):
+        session.send(video=jpeg_bytes)
+        time.sleep(0.5)
+
+    # Now ask about what it sees
+    session.send(text="What do you see on screen?")
+
+    for event in session:
+        match event.type:
+            case "text":     print(event.text, end="")
+            case "turn_end": break
+    print()
+finally:
+    session.close()
+```
+
+For continuous feeds (webcam, screen share), stream frames in a background thread:
+
+```python
+import lm15
+import threading, time, io, base64
+from PIL import ImageGrab  # Windows/macOS screenshot
+
+session = lm15.live("gemini-3.1-flash-live-preview")
+stop = threading.Event()
+
+def screen_feed():
+    while not stop.is_set():
+        img = ImageGrab.grab()
+        img.thumbnail([1024, 1024])
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        session.send(video=buf.getvalue())
+        time.sleep(1.0)  # ~1 fps
+
+threading.Thread(target=screen_feed, daemon=True).start()
+
+try:
+    session.send(text="Describe what's on my screen.")
+    for event in session:
+        if event.type == "text": print(event.text, end="")
+        if event.type == "turn_end": break
+    print()
+finally:
+    stop.set()
+    session.close()
+```
+
+`send(video=...)` accepts raw bytes (which are base64-encoded automatically) or a base64 string. Each call sends one frame.
 
 ### Tools in a session
 
@@ -571,8 +611,9 @@ session.send(LiveClientEvent(type="text", text="Hello"))
 | **Connection** | Opened and closed per call | Persistent until `close()` |
 | **Return type** | `Result` (same as all models) | `Session` (iterator + `send()`) |
 | **State** | Client-managed | Server-managed |
-| **Best for** | STT, TTS, analysis of recordings | Voice assistants, real-time interaction |
+| **Vision** | Audio only (no image input) | Video frames via `send(video=...)` |
+| **Best for** | STT, TTS, analysis of recordings | Voice assistants, video feeds, screen share |
 | **Tools** | Full support | Full support |
 | **Streaming** | `for text in result` | `for event in session` |
 
-**Rule of thumb:** If you know your input before you start, use `call()`. If you're streaming input continuously and the model responds while you're still sending, use `live()`.
+**Rule of thumb:** If you know your input before you start, use `call()`. If you're streaming input continuously (audio, video, screen share) and the model responds while you're still sending, use `live()`.
