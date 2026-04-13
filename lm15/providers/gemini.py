@@ -364,10 +364,13 @@ class GeminiAdapter(BaseProviderAdapter):
         content = candidate.get("content", {})
         parts = self._parse_candidate_parts(content.get("parts", []))
 
+        um = data.get("usageMetadata") or {}
         usage = Usage(
-            input_tokens=data.get("usageMetadata", {}).get("promptTokenCount", 0),
-            output_tokens=data.get("usageMetadata", {}).get("candidatesTokenCount", 0),
-            total_tokens=data.get("usageMetadata", {}).get("totalTokenCount", 0),
+            input_tokens=um.get("promptTokenCount", 0),
+            output_tokens=um.get("candidatesTokenCount", 0),
+            total_tokens=um.get("totalTokenCount", 0),
+            cache_read_tokens=um.get("cachedContentTokenCount"),
+            reasoning_tokens=um.get("thoughtsTokenCount"),
         )
         if not parts:
             parts = [Part.text_part("")]
@@ -595,6 +598,7 @@ class GeminiAdapter(BaseProviderAdapter):
         """
         text_payloads: list[dict[str, Any]] = []
         media_payloads: list[dict[str, Any]] = []
+        content_parts: list[dict[str, Any]] = []
         sent_audio = False
 
         for msg in request.messages:
@@ -613,14 +617,26 @@ class GeminiAdapter(BaseProviderAdapter):
                         sent_audio = True
                 elif part.type == "video" and part.source is not None and part.source.data:
                     media_payloads.append({"realtimeInput": {"video": {"mimeType": part.source.media_type or "video/mp4", "data": part.source.data}}})
+                elif part.type in {"image", "document"} and part.source is not None:
+                    # Images and documents cannot be sent via
+                    # realtimeInput.  On models that accept
+                    # clientContent they are sent as inlineData;
+                    # on models that reject clientContent they
+                    # are silently unsupported.
+                    content_parts.append(self._part(part))
+
+        # Images/documents go via clientContent.
+        payloads: list[dict[str, Any]] = []
+        if content_parts:
+            payloads.append({"clientContent": {"turns": [{"role": "user", "parts": content_parts}], "turnComplete": False}})
 
         # Text first (instruction context), then media.
-        # When audio/video is present, wrap with manual activity signals
-        # to ensure the server processes all data before generating a
-        # response.
-        payloads = text_payloads + media_payloads
+        payloads.extend(text_payloads + media_payloads)
 
-        if sent_audio or media_payloads:
+        # When audio/video is present auto detection is disabled;
+        # wrap with explicit activityStart/End so the server knows
+        # the turn boundaries.
+        if sent_audio:
             payloads.insert(0, {"realtimeInput": {"activityStart": {}}})
             payloads.append({"realtimeInput": {"activityEnd": {}}})
 
@@ -719,9 +735,18 @@ class GeminiAdapter(BaseProviderAdapter):
             if t.type == "function" and callable(t.fn)
         }
 
+        audio_native = self._is_audio_native_live_model(config.model)
+
+        def encode_event(event: LiveClientEvent) -> list[dict[str, Any]]:
+            # Audio-native models only accept realtimeInput, not
+            # clientContent.  Redirect text events accordingly.
+            if audio_native and event.type == "text":
+                return [{"realtimeInput": {"text": event.text or ""}}]
+            return self._encode_live_client_event(event)
+
         return WebSocketLiveSession(
             ws=ws,
-            encode_event=self._encode_live_client_event,
+            encode_event=encode_event,
             decode_event=self._decode_live_server_event,
             callable_registry=callable_registry,
         )
@@ -802,6 +827,8 @@ class GeminiAdapter(BaseProviderAdapter):
             input_tokens=int(usage_payload.get("promptTokenCount", 0) or 0),
             output_tokens=int(usage_payload.get("responseTokenCount", usage_payload.get("candidatesTokenCount", 0)) or 0),
             total_tokens=int(usage_payload.get("totalTokenCount", 0) or 0),
+            cache_read_tokens=usage_payload.get("cachedContentTokenCount"),
+            reasoning_tokens=usage_payload.get("thoughtsTokenCount"),
         )
 
     def _encode_live_client_event(self, event: LiveClientEvent) -> list[dict[str, Any]]:
@@ -908,6 +935,11 @@ class GeminiAdapter(BaseProviderAdapter):
                     name = str(fc.get("name") or "tool")
                     args = fc.get("args") if isinstance(fc.get("args"), dict) else {}
                     events.append(LiveServerEvent(type="tool_call", id=call_id, name=name, input=args))
+
+        # outputTranscription carries text when the model is audio-native
+        out_tx = server.get("outputTranscription")
+        if isinstance(out_tx, dict) and out_tx.get("text"):
+            events.append(LiveServerEvent(type="text", text=str(out_tx["text"])))
 
         if server.get("interrupted"):
             events.append(LiveServerEvent(type="interrupted"))

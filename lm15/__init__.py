@@ -7,6 +7,7 @@ except Exception:
 
 from .api import acall, alive, call, configure, live, model, models, prepare, providers, providers_info, send, stream, upload
 from .capabilities import hydrate_with_specs
+from .cost import CostBreakdown, estimate_cost, enable_cost_tracking, disable_cost_tracking
 from .client import UniversalLM
 from .conversation import Conversation
 from .live import AsyncLiveSession
@@ -117,6 +118,10 @@ __all__ = [
     "with_history",
     "with_retries",
     "hydrate_with_specs",
+    "estimate_cost",
+    "CostBreakdown",
+    "enable_cost_tracking",
+    "disable_cost_tracking",
     "load_plugins",
     "discover_provider_entry_points",
     "fetch_models_dev",

@@ -255,12 +255,16 @@ class OpenAIAdapter(BaseProviderAdapter):
             parts = [Part.text_part(data.get("output_text", ""))]
 
         usage_data = data.get("usage", {})
+        input_details = usage_data.get("input_tokens_details") or {}
+        output_details = usage_data.get("output_tokens_details") or {}
         usage = Usage(
             input_tokens=usage_data.get("input_tokens", 0),
             output_tokens=usage_data.get("output_tokens", 0),
             total_tokens=usage_data.get("total_tokens", 0),
-            reasoning_tokens=usage_data.get("output_tokens_details", {}).get("reasoning_tokens"),
-            cache_read_tokens=usage_data.get("input_tokens_details", {}).get("cached_tokens"),
+            reasoning_tokens=output_details.get("reasoning_tokens"),
+            cache_read_tokens=input_details.get("cached_tokens"),
+            input_audio_tokens=input_details.get("audio_tokens"),
+            output_audio_tokens=output_details.get("audio_tokens"),
         )
 
         finish = "tool_call" if any(p.type == "tool_call" for p in parts) else "stop"
@@ -314,7 +318,17 @@ class OpenAIAdapter(BaseProviderAdapter):
         if et == "response.completed":
             response = payload.get("response", {})
             u = response.get("usage", {})
-            usage = Usage(input_tokens=u.get("input_tokens", 0), output_tokens=u.get("output_tokens", 0), total_tokens=u.get("total_tokens", 0))
+            u_in = u.get("input_tokens_details") or {}
+            u_out = u.get("output_tokens_details") or {}
+            usage = Usage(
+                input_tokens=u.get("input_tokens", 0),
+                output_tokens=u.get("output_tokens", 0),
+                total_tokens=u.get("total_tokens", 0),
+                reasoning_tokens=u_out.get("reasoning_tokens"),
+                cache_read_tokens=u_in.get("cached_tokens"),
+                input_audio_tokens=u_in.get("audio_tokens"),
+                output_audio_tokens=u_out.get("audio_tokens"),
+            )
             finish_reason = "tool_call" if any(item.get("type") == "function_call" for item in response.get("output", [])) else "stop"
             return StreamEvent(type="end", finish_reason=finish_reason, usage=usage)
         if et in {"response.error", "error"}:
@@ -503,10 +517,16 @@ class OpenAIAdapter(BaseProviderAdapter):
         if et in {"response.done", "response.completed"}:
             response = payload.get("response", {})
             usage_data = response.get("usage", {}) if isinstance(response, dict) else {}
+            u_in = usage_data.get("input_tokens_details") or {}
+            u_out = usage_data.get("output_tokens_details") or {}
             usage = Usage(
                 input_tokens=int(usage_data.get("input_tokens", 0) or 0),
                 output_tokens=int(usage_data.get("output_tokens", 0) or 0),
                 total_tokens=int(usage_data.get("total_tokens", 0) or 0),
+                reasoning_tokens=u_out.get("reasoning_tokens"),
+                cache_read_tokens=u_in.get("cached_tokens"),
+                input_audio_tokens=u_in.get("audio_tokens"),
+                output_audio_tokens=u_out.get("audio_tokens"),
             )
             return [StreamEvent(type="end", finish_reason="stop", usage=usage)]
 
@@ -696,10 +716,16 @@ class OpenAIAdapter(BaseProviderAdapter):
         elif et in {"response.done", "response.completed"}:
             response = payload.get("response", {})
             usage_data = response.get("usage", {}) if isinstance(response, dict) else {}
+            u_in = usage_data.get("input_tokens_details") or {}
+            u_out = usage_data.get("output_tokens_details") or {}
             usage = Usage(
                 input_tokens=int(usage_data.get("input_tokens", 0) or 0),
                 output_tokens=int(usage_data.get("output_tokens", 0) or 0),
                 total_tokens=int(usage_data.get("total_tokens", 0) or 0),
+                reasoning_tokens=u_out.get("reasoning_tokens"),
+                cache_read_tokens=u_in.get("cached_tokens"),
+                input_audio_tokens=u_in.get("audio_tokens"),
+                output_audio_tokens=u_out.get("audio_tokens"),
             )
             events.append(LiveServerEvent(type="turn_end", usage=usage))
 

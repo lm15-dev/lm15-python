@@ -22,14 +22,29 @@ def configure(
     *,
     env: str | None = None,
     api_key: str | dict[str, str] | None = None,
+    track_costs: bool = False,
 ) -> None:
-    """Set module-level defaults so you don't repeat them on every call."""
+    """Set module-level defaults so you don't repeat them on every call.
+
+    Parameters
+    ----------
+    track_costs:
+        If ``True``, fetch pricing data from models.dev so that
+        ``result.cost`` and ``model.total_cost`` work automatically.
+    """
     _defaults.clear()
     _client_cache.clear()
     if env is not None:
         _defaults["env"] = env
     if api_key is not None:
         _defaults["api_key"] = api_key
+
+    from .cost import disable_cost_tracking, enable_cost_tracking
+
+    if track_costs:
+        enable_cost_tracking()
+    else:
+        disable_cost_tracking()
 
 
 def _resolve(key: str, explicit: Any) -> Any:

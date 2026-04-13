@@ -275,6 +275,17 @@ class Result:
         return self.response.audio_bytes
 
     @property
+    def cost(self) -> "CostBreakdown | None":
+        """Estimated cost of this call, or ``None`` if cost tracking is not enabled.
+
+        Enable with ``lm15.configure(track_costs=True)``.
+        """
+        from .cost import lookup_cost
+
+        resp = self.response
+        return lookup_cost(resp.model, resp.usage)
+
+    @property
     def response(self) -> LMResponse:
         return self._consume()
 

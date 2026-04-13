@@ -225,6 +225,8 @@ def usage_to_dict(value: Usage) -> dict[str, Any]:
             "cache_read_tokens": value.cache_read_tokens,
             "cache_write_tokens": value.cache_write_tokens,
             "reasoning_tokens": value.reasoning_tokens,
+            "input_audio_tokens": value.input_audio_tokens,
+            "output_audio_tokens": value.output_audio_tokens,
         }
     )
 
@@ -423,6 +425,8 @@ def usage_from_dict(value: dict[str, Any]) -> Usage:
         cache_read_tokens=value.get("cache_read_tokens"),
         cache_write_tokens=value.get("cache_write_tokens"),
         reasoning_tokens=value.get("reasoning_tokens"),
+        input_audio_tokens=value.get("input_audio_tokens"),
+        output_audio_tokens=value.get("output_audio_tokens"),
     )
 
 

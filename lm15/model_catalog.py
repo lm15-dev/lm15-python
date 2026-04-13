@@ -36,12 +36,20 @@ class ModelSpec:
 
 
 def fetch_models_dev(timeout: float = 20.0) -> list[ModelSpec]:
-    with urllib.request.urlopen("https://models.dev/api.json", timeout=timeout) as r:
+    req = urllib.request.Request(
+        "https://models.dev/api.json",
+        headers={"User-Agent": "lm15"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         data = json.loads(r.read())
 
     out: list[ModelSpec] = []
-    providers = data.get("providers", {})
+    # models.dev may nest providers under a "providers" key or
+    # expose them directly at the top level.
+    providers = data.get("providers") or data
     for provider_id, provider_payload in providers.items():
+        if not isinstance(provider_payload, dict) or "models" not in provider_payload:
+            continue
         models = provider_payload.get("models", {})
         for model_id, m in models.items():
             limit = m.get("limit", {})

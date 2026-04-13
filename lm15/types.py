@@ -554,6 +554,8 @@ class Usage:
     cache_read_tokens: int | None = None
     cache_write_tokens: int | None = None
     reasoning_tokens: int | None = None
+    input_audio_tokens: int | None = None
+    output_audio_tokens: int | None = None
 
 
 @dataclass(slots=True, frozen=True)

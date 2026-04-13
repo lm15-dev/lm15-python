@@ -162,6 +162,33 @@ class Model:
             out._pending_tool_calls = list(self._pending_tool_calls)
         return out
 
+    @property
+    def total_cost(self) -> "CostBreakdown | None":
+        """Cumulative cost across all calls in ``self.history``.
+
+        Returns ``None`` if cost tracking is not enabled.
+        Enable with ``lm15.configure(track_costs=True)``.
+        """
+        from .cost import CostBreakdown, lookup_cost
+
+        if not self.history:
+            return CostBreakdown()
+
+        totals: dict[str, float] = {}
+        any_found = False
+        for entry in self.history:
+            c = lookup_cost(entry.response.model, entry.response.usage)
+            if c is None:
+                continue
+            any_found = True
+            for field in ("input", "output", "cache_read", "cache_write",
+                          "reasoning", "input_audio", "output_audio", "total"):
+                totals[field] = totals.get(field, 0.0) + getattr(c, field)
+
+        if not any_found:
+            return None
+        return CostBreakdown(**totals)
+
     # Compatibility shims
     def with_model(self, name: str) -> "Model":
         return self.copy(model=name)
