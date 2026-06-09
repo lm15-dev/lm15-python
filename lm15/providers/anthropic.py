@@ -558,10 +558,11 @@ class AnthropicLM(BaseProviderLM):
         payload = json.loads(raw_event.data)
         et = payload.get("type")
         if et == "message_start":
-            event = self.parse_stream_event(request, raw_event)
-            if event is not None:
-                yield event
             msg = payload.get("message", {}) if isinstance(payload.get("message"), dict) else {}
+            yield StreamStartEvent(
+                id=str(msg.get("id")) if msg.get("id") else None,
+                model=str(msg.get("model") or request.model),
+            )
             if msg.get("id"):
                 yield StreamDeltaEvent(
                     delta=ContinuationDelta(
@@ -574,6 +575,16 @@ class AnthropicLM(BaseProviderLM):
             return
         if et == "content_block_start":
             block = payload.get("content_block", {}) if isinstance(payload.get("content_block"), dict) else {}
+            if block.get("type") == "tool_use":
+                yield StreamDeltaEvent(
+                    delta=ToolCallDelta(
+                        input=json.dumps(block.get("input", {}), separators=(",", ":")) if isinstance(block.get("input"), dict) else str(block.get("input") or ""),
+                        part_index=int(payload.get("index", 0) or 0),
+                        id=str(block.get("id") or "") or None,
+                        name=str(block.get("name") or "") or None,
+                    )
+                )
+                return
             if block.get("type") == "redacted_thinking" and block.get("data") is not None:
                 idx = int(payload.get("index", 0) or 0)
                 yield StreamDeltaEvent(delta=ThinkingDelta(text="[redacted]", part_index=idx))
@@ -585,55 +596,19 @@ class AnthropicLM(BaseProviderLM):
                         part_index=idx,
                     )
                 )
-                return
-        event = self.parse_stream_event(request, raw_event)
-        if event is not None:
-            yield event
-
-    def parse_stream_event(self, request: Request, raw_event: SSEEvent) -> StreamEvent | None:
-        if not raw_event.data:
-            return None
-        payload = json.loads(raw_event.data)
-        et = payload.get("type")
-        if et == "message_start":
-            msg = payload.get("message", {}) if isinstance(payload.get("message"), dict) else {}
-            return StreamStartEvent(
-                id=str(msg.get("id")) if msg.get("id") else None,
-                model=str(msg.get("model") or request.model),
-            )
-        if et == "content_block_start":
-            block = payload.get("content_block", {}) if isinstance(payload.get("content_block"), dict) else {}
-            if block.get("type") == "tool_use":
-                return StreamDeltaEvent(
-                    delta=ToolCallDelta(
-                        input=json.dumps(block.get("input", {}), separators=(",", ":")) if isinstance(block.get("input"), dict) else str(block.get("input") or ""),
-                        part_index=int(payload.get("index", 0) or 0),
-                        id=str(block.get("id") or "") or None,
-                        name=str(block.get("name") or "") or None,
-                    )
-                )
-            if block.get("type") == "redacted_thinking" and block.get("data") is not None:
-                return StreamDeltaEvent(
-                    delta=ContinuationDelta(
-                        provider="anthropic",
-                        kind="redacted_thinking",
-                        data={"data": block.get("data")},
-                        part_index=int(payload.get("index", 0) or 0),
-                    )
-                )
-            return None
+            return
         if et == "content_block_delta":
             delta = payload.get("delta", {}) if isinstance(payload.get("delta"), dict) else {}
             idx = int(payload.get("index", 0) or 0)
             dtype = delta.get("type")
             if dtype == "text_delta":
-                return StreamDeltaEvent(delta=TextDelta(text=str(delta.get("text") or ""), part_index=idx))
-            if dtype == "input_json_delta":
-                return StreamDeltaEvent(delta=ToolCallDelta(input=str(delta.get("partial_json") or ""), part_index=idx))
-            if dtype == "thinking_delta":
-                return StreamDeltaEvent(delta=ThinkingDelta(text=str(delta.get("thinking") or ""), part_index=idx))
-            if dtype == "signature_delta" and delta.get("signature"):
-                return StreamDeltaEvent(
+                yield StreamDeltaEvent(delta=TextDelta(text=str(delta.get("text") or ""), part_index=idx))
+            elif dtype == "input_json_delta":
+                yield StreamDeltaEvent(delta=ToolCallDelta(input=str(delta.get("partial_json") or ""), part_index=idx))
+            elif dtype == "thinking_delta":
+                yield StreamDeltaEvent(delta=ThinkingDelta(text=str(delta.get("thinking") or ""), part_index=idx))
+            elif dtype == "signature_delta" and delta.get("signature"):
+                yield StreamDeltaEvent(
                     delta=ContinuationDelta(
                         provider="anthropic",
                         kind="thinking_signature",
@@ -641,17 +616,41 @@ class AnthropicLM(BaseProviderLM):
                         part_index=idx,
                     )
                 )
-            if dtype in {"citation_delta", "citations_delta"}:
+            elif dtype in {"citation_delta", "citations_delta"}:
                 citation = delta.get("citation", {}) if isinstance(delta.get("citation"), dict) else delta
-                return StreamDeltaEvent(delta=CitationDelta(
+                yield StreamDeltaEvent(delta=CitationDelta(
                     part_index=idx,
                     text=str(citation.get("cited_text") or citation.get("text") or "") or None,
                     url=str(citation.get("url") or "") or None,
                     title=str(citation.get("title") or "") or None,
                 ))
-            return None
+            return
+        if et == "message_delta":
+            # Anthropic sends the authoritative stop_reason and final usage here;
+            # message_stop is just the terminator and carries neither.
+            delta = payload.get("delta", {}) if isinstance(payload.get("delta"), dict) else {}
+            usage_payload = payload.get("usage", {}) if isinstance(payload.get("usage"), dict) else {}
+            usage = None
+            if usage_payload:
+                input_tokens = int(usage_payload.get("input_tokens", 0) or 0)
+                output_tokens = int(usage_payload.get("output_tokens", 0) or 0)
+                usage = Usage(
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    total_tokens=input_tokens + output_tokens,
+                    cache_read_tokens=usage_payload.get("cache_read_input_tokens"),
+                    cache_write_tokens=usage_payload.get("cache_creation_input_tokens"),
+                )
+            stop_reason = delta.get("stop_reason")
+            if stop_reason is not None or usage is not None:
+                yield StreamEndEvent(
+                    finish_reason=_finish_reason(stop_reason) if stop_reason is not None else None,
+                    usage=usage,
+                )
+            return
         if et == "message_stop":
-            return StreamEndEvent(finish_reason="stop")
+            yield StreamEndEvent()
+            return
         if et == "error":
             err = payload.get("error")
             if isinstance(err, dict):
@@ -660,8 +659,7 @@ class AnthropicLM(BaseProviderLM):
             else:
                 provider_code = str(payload.get("code") or payload.get("error_type") or "provider")
                 message = str(payload.get("message") or "")
-            return StreamErrorEvent(error=self._error_detail(provider_code, message))
-        return None
+            yield StreamErrorEvent(error=self._error_detail(provider_code, message))
 
     # ─── Other endpoints ────────────────────────────────────────────
 
