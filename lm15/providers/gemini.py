@@ -762,68 +762,6 @@ class GeminiLM(BaseProviderLM):
             provider_data=_attach_unmapped(data, unmapped),
         )
 
-    def parse_stream_event(self, request: Request, raw_event: SSEEvent) -> StreamEvent | None:
-        if not raw_event.data:
-            return None
-        payload = json.loads(raw_event.data)
-        if not isinstance(payload, dict):
-            return None
-        if "error" in payload:
-            err = payload["error"]
-            provider_code = str(err.get("status") or err.get("code") or "provider") if isinstance(err, dict) else "provider"
-            message = str(err.get("message") or "") if isinstance(err, dict) else ""
-            return StreamErrorEvent(error=self._error_detail(provider_code, message))
-
-        inband = self._inband_error(payload)
-        if inband is not None:
-            return StreamErrorEvent(error=ErrorDetail(code=canonical_error_code(inband), provider_code="inband_finish_reason", message=str(inband)))
-
-        candidates = payload.get("candidates") or []
-        candidate = candidates[0] if candidates and isinstance(candidates[0], dict) else None
-        emitted: StreamEvent | None = None
-        if candidate is not None:
-            content = candidate.get("content", {}) if isinstance(candidate.get("content"), dict) else {}
-            for idx, part in enumerate(content.get("parts", []) or []):
-                if not isinstance(part, dict):
-                    continue
-                if "text" in part:
-                    emitted = StreamDeltaEvent(delta=TextDelta(text=str(part.get("text") or ""), part_index=idx))
-                    break
-                if "functionCall" in part and isinstance(part["functionCall"], dict):
-                    fc = part["functionCall"]
-                    emitted = StreamDeltaEvent(delta=ToolCallDelta(
-                        input=json.dumps(fc.get("args", {}), separators=(",", ":")),
-                        part_index=idx,
-                        id=str(fc.get("id") or "") or None,
-                        name=str(fc.get("name") or "") or None,
-                    ))
-                    break
-                if "inlineData" in part and isinstance(part["inlineData"], dict):
-                    inline = part["inlineData"]
-                    mime = str(inline.get("mimeType") or "application/octet-stream")
-                    data = str(inline.get("data") or "")
-                    if mime.startswith("audio/"):
-                        emitted = StreamDeltaEvent(delta=AudioDelta(data=data, part_index=idx, media_type=mime))
-                    elif mime.startswith("image/"):
-                        emitted = StreamDeltaEvent(delta=ImageDelta(data=data, part_index=idx, media_type=mime))
-                    if emitted is not None:
-                        break
-            finish = candidate.get("finishReason")
-            if finish:
-                usage = self._usage_from_payload(payload)
-                has_tool = emitted is not None and emitted.type == "delta" and isinstance(emitted.delta, ToolCallDelta)
-                # If this frame carries a final text delta, emit the delta now;
-                # the following usage-only frame is not guaranteed.  The Result
-                # will stop on the first end event, so only return end when there
-                # is no content in this frame.
-                if emitted is None:
-                    return StreamEndEvent(finish_reason=_finish_reason(finish, has_tool_call=has_tool), usage=usage, provider_data=payload)
-        if emitted is not None:
-            return emitted
-        if "usageMetadata" in payload:
-            return StreamEndEvent(finish_reason="stop", usage=self._usage_from_payload(payload), provider_data=payload)
-        return None
-
     def parse_stream_events(self, request: Request, raw_event: SSEEvent) -> Iterator[StreamEvent]:
         if not raw_event.data:
             return

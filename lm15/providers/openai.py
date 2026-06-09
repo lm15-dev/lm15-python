@@ -705,7 +705,12 @@ class OpenAILM(BaseProviderLM):
             provider_data=_attach_unmapped(data, unmapped),
         )
 
-    def parse_stream_event(self, request: Request, raw_event: SSEEvent) -> StreamEvent | None:
+    def parse_stream_events(self, request: Request, raw_event: SSEEvent) -> Iterator[StreamEvent]:
+        event = self._parse_single_stream_event(request, raw_event)
+        if event is not None:
+            yield event
+
+    def _parse_single_stream_event(self, request: Request, raw_event: SSEEvent) -> StreamEvent | None:
         if not raw_event.data:
             return None
         if raw_event.data == "[DONE]":

@@ -337,7 +337,7 @@ def test_openai_stream_parses_reasoning_summary_delta() -> None:
         }
     )
 
-    parsed = lm.parse_stream_event(request, raw)
+    parsed = next(iter(lm.parse_stream_events(request, raw)))
 
     assert isinstance(parsed, StreamDeltaEvent)
     assert parsed.delta == ThinkingDelta(
@@ -363,7 +363,7 @@ def test_openai_stream_parses_output_text_annotations() -> None:
         }
     )
 
-    parsed = lm.parse_stream_event(request, raw)
+    parsed = next(iter(lm.parse_stream_events(request, raw)))
 
     assert isinstance(parsed, StreamDeltaEvent)
     assert parsed.delta == CitationDelta(

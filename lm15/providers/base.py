@@ -90,7 +90,7 @@ class ProviderLM(Protocol):
 
     def parse_response(self, request: Request, response: HttpResponse) -> Response: ...
 
-    def parse_stream_event(self, request: Request, raw_event: SSEEvent) -> StreamEvent | None: ...
+    def parse_stream_events(self, request: Request, raw_event: SSEEvent) -> Iterator[StreamEvent]: ...
 
     def normalize_error(self, status: int, body: str) -> ProviderError: ...
 
@@ -125,13 +125,7 @@ class BaseProviderLM:
                     )
                 lines = resp.iter_lines() if hasattr(resp, "iter_lines") else _iter_lines(resp)
                 for raw in parse_sse(lines):
-                    parse_many = getattr(self, "parse_stream_events", None)
-                    if parse_many is not None:
-                        for event in parse_many(request, raw):
-                            if event is not None:
-                                yield event
-                    else:
-                        event = self.parse_stream_event(request, raw)
+                    for event in self.parse_stream_events(request, raw):
                         if event is not None:
                             yield event
         except NetworkTransportError as exc:
