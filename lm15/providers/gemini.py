@@ -502,10 +502,10 @@ class GeminiLM(BaseProviderLM):
             cfg["allowedFunctionNames"] = list(tc.allowed)
         return {"functionCallingConfig": cfg}
 
-    def _payload(self, request: Request) -> dict[str, Any]:
+    def _payload(self, request: Request, *, apply_cache: bool = True) -> dict[str, Any]:
         extensions = dict(request.config.extensions or {})
         cache_cfg = request.config.cache
-        use_cache = cache_cfg is None or cache_cfg.mode != "off"
+        use_cache = (cache_cfg is None or cache_cfg.mode != "off") and apply_cache
 
         payload: dict[str, Any] = {"contents": [self._message(m) for m in request.messages]}
         if request.system:
@@ -568,11 +568,12 @@ class GeminiLM(BaseProviderLM):
             payload.update(passthrough)
         return payload
 
-    def _apply_prompt_cache(self, request: Request, payload: dict[str, Any]) -> None:
+    def _prompt_cache_plan(self, request: Request, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """Compute the cache prefix split and lookup key. Pure — no network."""
         cache_cfg: CacheConfig | None = request.config.cache
         contents = payload.get("contents") or []
         if len(contents) < 2:
-            return
+            return None
 
         # Determine prefix
         if cache_cfg is not None and cache_cfg.prefix_until_index is not None:
@@ -584,7 +585,7 @@ class GeminiLM(BaseProviderLM):
             remaining = contents[-1:]
 
         if not prefix:
-            return
+            return None
 
         # Build cache key
         key_parts = {
@@ -596,37 +597,73 @@ class GeminiLM(BaseProviderLM):
             key_parts["user_key"] = cache_cfg.key
 
         key = hashlib.sha256(json.dumps(key_parts, sort_keys=True).encode("utf-8")).hexdigest()
-        cache_id = self._cached_content_ids.get(key)
+        return {"key": key, "prefix": prefix, "remaining": remaining}
 
-        if cache_id is None:
-            body: dict[str, Any] = {
-                "model": self._model_path(request.model),
-                "contents": prefix,
-            }
-            if payload.get("systemInstruction"):
-                body["systemInstruction"] = payload["systemInstruction"]
+    def resolve_prompt_cache(self, request: Request) -> str | None:
+        """Create or look up the cachedContents entry for this request's prefix.
 
-            # Set TTL if retention="long"
-            if cache_cfg is not None and cache_cfg.retention == "long":
-                body["ttl"] = "86400s"  # 24 hours
+        This is the only place the cachedContents endpoint is called. complete()
+        and stream() invoke it before sending; build_request never touches the
+        network.
+        """
+        cache_cfg: CacheConfig | None = request.config.cache
+        if not (cache_cfg is None or cache_cfg.mode != "off"):
+            return None
+        payload = self._payload(request, apply_cache=False)
+        plan = self._prompt_cache_plan(request, payload)
+        if plan is None:
+            return None
+        cache_id = self._cached_content_ids.get(plan["key"])
+        if cache_id is not None:
+            return cache_id
 
-            resp = self._send(make_json_request(
-                method="POST",
-                url=f"{self.base_url.rstrip('/')}/cachedContents",
-                headers=self._auth_headers({"Content-Type": "application/json"}),
-                payload=body,
-                read_timeout=60.0,
-            ))
-            if resp.status < 400:
-                data = resp.json()
-                cache_id = data.get("name")
-                if cache_id:
-                    self._cached_content_ids[key] = str(cache_id)
+        body: dict[str, Any] = {
+            "model": self._model_path(request.model),
+            "contents": plan["prefix"],
+        }
+        if payload.get("systemInstruction"):
+            body["systemInstruction"] = payload["systemInstruction"]
 
+        # Set TTL if retention="long"
+        if cache_cfg is not None and cache_cfg.retention == "long":
+            body["ttl"] = "86400s"  # 24 hours
+
+        resp = self._send(make_json_request(
+            method="POST",
+            url=f"{self.base_url.rstrip('/')}/cachedContents",
+            headers=self._auth_headers({"Content-Type": "application/json"}),
+            payload=body,
+            read_timeout=60.0,
+        ))
+        if resp.status < 400:
+            data = resp.json()
+            name = data.get("name")
+            if name:
+                cache_id = str(name)
+                self._cached_content_ids[plan["key"]] = cache_id
+                return cache_id
+        return None
+
+    def _apply_prompt_cache(self, request: Request, payload: dict[str, Any]) -> None:
+        """Rewrite the payload to use an already-resolved cache id. Pure — no network."""
+        plan = self._prompt_cache_plan(request, payload)
+        if plan is None:
+            return
+        cache_id = self._cached_content_ids.get(plan["key"])
         if cache_id:
             payload["cachedContent"] = cache_id
-            payload["contents"] = remaining
+            payload["contents"] = plan["remaining"]
             payload.pop("systemInstruction", None)
+
+    def complete(self, request: Request) -> Response:
+        self.resolve_prompt_cache(request)
+        # Explicit base call: conformance loads this module under a second
+        # sys.path entry, which breaks zero-arg super()'s class-cell check.
+        return BaseProviderLM.complete(self, request)
+
+    def stream(self, request: Request) -> Iterator[StreamEvent]:
+        self.resolve_prompt_cache(request)
+        yield from BaseProviderLM.stream(self, request)
 
     def build_request(self, request: Request, stream: bool) -> TransportRequest:
         endpoint = "streamGenerateContent" if stream else "generateContent"
