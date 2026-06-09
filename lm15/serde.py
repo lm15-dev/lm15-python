@@ -76,28 +76,19 @@ def _is_empty(value: Any) -> bool:
     return value is None or value == "" or value == () or value == [] or value == {}
 
 
-def _clean_sequence(values: list[Any]) -> list[Any]:
-    out: list[Any] = []
-    for value in values:
-        if isinstance(value, dict):
-            value = _clean_mapping(value)
-        elif isinstance(value, list):
-            value = _clean_sequence(value)
-        if _is_empty(value):
-            continue
-        out.append(value)
-    return out
-
-
 def _clean_mapping(values: dict[str, Any]) -> dict[str, Any]:
+    """Drop empty optional fields — at the top level of this object ONLY.
+
+    The omission rule (docs/serde-rules.md): each typed serializer omits its
+    own empty optional fields; nested values are either already-serialized
+    typed objects or opaque user/provider payloads, and both are embedded
+    verbatim. Recursing here would give the same value different wire forms
+    depending on the serialization entry point.
+    """
     out: dict[str, Any] = {}
     for key, value in values.items():
-        if isinstance(value, dict):
-            value = _clean_mapping(value)
-        elif isinstance(value, list):
-            value = _clean_sequence(value)
-        elif isinstance(value, tuple):
-            value = _clean_sequence(list(value))
+        if isinstance(value, tuple):
+            value = list(value)
         if _is_empty(value):
             continue
         out[key] = value
