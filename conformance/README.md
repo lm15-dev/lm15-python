@@ -2,10 +2,16 @@
 
 This directory is the active foundation for lm15 compatibility work.
 
+> **Corpus home: the fixture corpus now lives in `lm15-contract/`** (repo root,
+> alongside this repository), governed by its `AUTHORITY.md`. The copies under
+> this directory keep the old suite running until the harness cutover; until
+> then, fixture edits land in BOTH places or not at all. See
+> `lm15-contract/changes/2026-06-09-initial-migration.md`.
+
 For now, **lm15-python2 is the reference implementation**. Other language ports
 are frozen until this conformance suite is stable. Future ports should be built
-against these fixtures and only considered compatible when they pass the same
-checks.
+against the `lm15-contract` fixtures and only considered compatible when they
+pass the same checks.
 
 ## Layout
 
