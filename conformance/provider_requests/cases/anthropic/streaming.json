@@ -37,6 +37,9 @@
         "min": 1
       }
     },
-    "finish_reason": "stop"
+    "finish_reason": "stop",
+    "usage": {
+      "required": true
+    }
   }
 }
