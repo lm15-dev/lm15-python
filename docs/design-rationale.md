@@ -50,3 +50,34 @@ behind an adapter's back after validation. But forcing callers to type
 `(Message.user("hi"),)` is hostile, so constructors coerce lists (and, where
 unambiguous, a single bare item) into tuples at the boundary. You may pass a
 list; you will always read a tuple.
+
+## Async
+
+Async support ships as separate mirror classes — `AsyncOpenAILM`,
+`AsyncAnthropicLM`, `AsyncGeminiLM`, `AsyncOpenAIChatLM` — with the same
+constructor fields, the same canonical `Request` in, and the same canonical
+`Response`/stream events out as their sync siblings. `await` is the only
+user-visible difference: `complete()` is `async def`, `stream()` returns an
+`AsyncIterator[StreamEvent]` (coalesced per MAP-3 by
+`lm15.result.acoalesce_stream`, the async twin of `coalesce_stream`).
+
+They are built by composition, not inheritance. Subclassing the sync adapter
+and overriding sync methods with async ones would be a typing violation —
+`complete` would no longer be substitutable for the base signature. Instead,
+each async class owns the async transport (`lm15.transports
+.StdlibAsyncTransport` by default) and delegates every pure transformation —
+`build_request`, `parse_response`, `parse_stream_events`, `normalize_error`,
+payload/header helpers — to an inner instance of the sync adapter class
+constructed with a transport that raises if it is ever used: the inner
+adapter must never touch the network, so the contract-pinned mapping code
+stays single-sourced and the async classes cannot drift from it. The one
+sync method that does need the network, `GeminiLM.resolve_prompt_cache`, is
+ported onto `AsyncGeminiLM` against the async transport; `complete()` and
+`stream()` invoke it first, mirroring the sync class.
+
+Endpoint status: `complete()` and `stream()` are the 1.0 async mirror. The
+non-chat endpoints (embeddings, file upload, batch, image, audio, live)
+remain sync-only for now; the async classes implement them as methods that
+raise `UnsupportedFeatureError` ("use the sync adapter for this endpoint
+(async endpoints planned)") so the surface is honest rather than silently
+absent.

@@ -211,13 +211,32 @@ ollama = pytest.mark.skipif(_OLLAMA_MODEL is None, reason="local ollama not reac
 
 
 def _ollama_lm() -> AsyncOpenAIChatLM:
-    return AsyncOpenAIChatLM(api_key="ollama", compat="ollama")
+    from lm15.transports import StdlibAsyncTransport
+
+    # Generous read timeout: local models can be slow under load.
+    return AsyncOpenAIChatLM(
+        api_key="ollama", compat="ollama",
+        transport=StdlibAsyncTransport(read_timeout=300.0),
+    )
+
+
+def _ollama_request(prompt: str) -> Request:
+    from lm15 import Config
+
+    # reasoning_effort=none keeps thinking-tuned local models from burning the
+    # whole token budget on reasoning (passthrough extension; the ollama
+    # compat policy omits the canonical reasoning knob).
+    return Request(
+        model=_OLLAMA_MODEL,
+        messages=(Message.user(prompt),),
+        config=Config(max_tokens=80, extensions={"reasoning_effort": "none"}),
+    )
 
 
 @ollama
 def test_live_async_complete_ollama():
     lm = _ollama_lm()
-    req = Request(model=_OLLAMA_MODEL, messages=(Message.user("Say hi in one word."),))
+    req = _ollama_request("Say hi in one word.")
 
     async def main():
         try:
@@ -232,7 +251,7 @@ def test_live_async_complete_ollama():
 @ollama
 def test_live_async_stream_ollama():
     lm = _ollama_lm()
-    req = Request(model=_OLLAMA_MODEL, messages=(Message.user("Count to three."),))
+    req = _ollama_request("Count to three.")
 
     async def main():
         try:
@@ -251,7 +270,7 @@ def test_live_async_stream_ollama():
 @ollama
 def test_live_async_concurrency_no_threads():
     lm = _ollama_lm()
-    req = Request(model=_OLLAMA_MODEL, messages=(Message.user("Reply with the word ok."),))
+    req = _ollama_request("Reply with the word ok.")
     before = threading.active_count()
 
     async def main():

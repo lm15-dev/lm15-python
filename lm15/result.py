@@ -741,6 +741,37 @@ def coalesce_stream(events: Iterator[StreamEvent]) -> Iterator[StreamEvent]:
         )
 
 
+async def acoalesce_stream(events: "AsyncIterator[StreamEvent]") -> "AsyncIterator[StreamEvent]":
+    """Async mirror of :func:`coalesce_stream` — same MAP-3 merge semantics.
+
+    Passes start/delta/error events through unchanged, absorbs every end
+    event's fields (later non-None replaces, None never erases), and emits
+    exactly one merged final StreamEndEvent once the source is exhausted.
+    No end event is fabricated if none was seen.
+    """
+    saw_end = False
+    finish_reason = None
+    usage: Usage | None = None
+    provider_data = None
+    async for event in events:
+        if event.type == "end":
+            saw_end = True
+            if event.finish_reason is not None:
+                finish_reason = event.finish_reason
+            if event.usage is not None:
+                usage = event.usage
+            if event.provider_data is not None:
+                provider_data = event.provider_data
+            continue
+        yield event
+    if saw_end:
+        yield StreamEndEvent(
+            finish_reason=finish_reason,
+            usage=usage,
+            provider_data=provider_data,
+        )
+
+
 def materialize_response(events: Iterator[StreamEvent], request: Request) -> Response:
     """Consume stream events and build a complete Response."""
     return Result(events=events, request=request).response

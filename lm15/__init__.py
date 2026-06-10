@@ -172,12 +172,21 @@ from .providers import (
     HttpResponse,
     SyncTransport,
 )
+from .providers.async_base import (
+    AsyncOpenAILM,
+    AsyncOpenAIChatLM,
+    AsyncAnthropicLM,
+    AsyncGeminiLM,
+    AsyncBaseProviderLM,
+    AsyncTransport,
+)
 
 # ── Stream assembly ──────────────────────────────────────────────────
 from .result import (
     Result,
     AsyncResult,
     StreamChunk,
+    acoalesce_stream,
     materialize_response,
     response_to_events,
 )
@@ -234,9 +243,12 @@ __all__ = [
     # providers
     "OpenAILM", "OpenAIChatLM", "AnthropicLM", "GeminiLM", "ClaudeCodeLM", "OpenAICodexLM",
     "BaseProviderLM", "ProviderLM", "HttpResponse", "SyncTransport",
+    # async mirror providers
+    "AsyncOpenAILM", "AsyncOpenAIChatLM", "AsyncAnthropicLM", "AsyncGeminiLM",
+    "AsyncBaseProviderLM", "AsyncTransport",
     # stream assembly
-    "Result", "AsyncResult", "StreamChunk", "materialize_response",
-    "response_to_events",
+    "Result", "AsyncResult", "StreamChunk", "acoalesce_stream",
+    "materialize_response", "response_to_events",
     # profiles/compat/models
     "EndpointProfile", "ProviderProfile", "OpenAIChatCompat",
     "OpenAIResponsesCompat", "ModelInfo", "ModelRegistry", "Capabilities",
