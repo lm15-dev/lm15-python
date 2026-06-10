@@ -22,7 +22,7 @@ from typing import Any, Callable, Literal, get_args, get_origin
 from . import types as lm15_types
 from . import serde
 from .errors import canonical_error_code
-from .providers import AnthropicLM, GeminiLM, HttpResponse, OpenAILM
+from .providers import AnthropicLM, GeminiLM, HttpResponse, OpenAIChatLM, OpenAILM
 from .providers.base import BaseProviderLM
 from .result import materialize_response
 from .sse import parse_sse
@@ -47,13 +47,18 @@ _PARSE_ONLY_KEY = "vet-parse-only"
 
 # ─── Adapters ────────────────────────────────────────────────────────
 
-def adapter_for_provider(provider: str, api_key: str) -> BaseProviderLM:
+def adapter_for_provider(provider: str, api_key: str, base_url: str | None = None) -> BaseProviderLM:
+    kwargs: dict[str, Any] = {"api_key": api_key}
+    if base_url is not None:
+        kwargs["base_url"] = base_url
     if provider == "openai":
-        return OpenAILM(api_key=api_key)
+        return OpenAILM(**kwargs)
+    if provider == "openai_chat":
+        return OpenAIChatLM(**kwargs)
     if provider == "anthropic":
-        return AnthropicLM(api_key=api_key)
+        return AnthropicLM(**kwargs)
     if provider == "gemini":
-        return GeminiLM(api_key=api_key)
+        return GeminiLM(**kwargs)
     raise ValueError(f"unknown provider: {provider}")
 
 
@@ -163,15 +168,20 @@ def op_capabilities(msg: JsonObject) -> JsonObject:
     }
 
 
+def _base_url(msg: JsonObject) -> str | None:
+    base_url = msg.get("base_url")
+    return str(base_url) if base_url is not None else None
+
+
 def op_build_request(msg: JsonObject) -> JsonObject:
-    lm = adapter_for_provider(str(msg["provider"]), str(msg["api_key"]))
+    lm = adapter_for_provider(str(msg["provider"]), str(msg["api_key"]), _base_url(msg))
     request = serde.request_from_dict(msg["canonical_request"])
     transport_req = lm.build_request(request, stream=bool(msg.get("stream", False)))
     return normalize_transport_request(transport_req)
 
 
 def op_parse_response(msg: JsonObject) -> JsonObject:
-    lm = adapter_for_provider(str(msg["provider"]), _PARSE_ONLY_KEY)
+    lm = adapter_for_provider(str(msg["provider"]), _PARSE_ONLY_KEY, _base_url(msg))
     request = serde.request_from_dict(msg["canonical_request"])
     body = base64.b64decode(msg["body_b64"])
     response = lm.parse_response(request, _http_response(int(msg["status"]), body))
@@ -179,7 +189,7 @@ def op_parse_response(msg: JsonObject) -> JsonObject:
 
 
 def op_replay_stream(msg: JsonObject) -> JsonObject:
-    lm = adapter_for_provider(str(msg["provider"]), _PARSE_ONLY_KEY)
+    lm = adapter_for_provider(str(msg["provider"]), _PARSE_ONLY_KEY, _base_url(msg))
     request = serde.request_from_dict(msg["canonical_request"])
     body = base64.b64decode(msg["body_b64"])
     events = _parse_stream_body(lm, request, body)
@@ -190,7 +200,7 @@ def op_replay_stream(msg: JsonObject) -> JsonObject:
 
 
 def op_normalize_error(msg: JsonObject) -> JsonObject:
-    lm = adapter_for_provider(str(msg["provider"]), _PARSE_ONLY_KEY)
+    lm = adapter_for_provider(str(msg["provider"]), _PARSE_ONLY_KEY, _base_url(msg))
     err = lm.normalize_error(int(msg["status"]), str(msg["body_text"]))
     return {
         "class": type(err).__name__,

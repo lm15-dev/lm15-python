@@ -169,6 +169,7 @@ from .errors import (
 # ── Providers ────────────────────────────────────────────────────────
 from .providers import (
     OpenAILM,
+    OpenAIChatLM,
     AnthropicLM,
     GeminiLM,
     ClaudeCodeLM,
@@ -241,7 +242,7 @@ __all__ = [
     "NotConfiguredError", "map_http_error", "canonical_error_code",
     "error_class_for_code",
     # providers
-    "OpenAILM", "AnthropicLM", "GeminiLM", "ClaudeCodeLM", "OpenAICodexLM",
+    "OpenAILM", "OpenAIChatLM", "AnthropicLM", "GeminiLM", "ClaudeCodeLM", "OpenAICodexLM",
     "BaseProviderLM", "ProviderLM", "HttpResponse", "SyncTransport",
     # stream assembly
     "Result", "AsyncResult", "StreamChunk", "materialize_response",

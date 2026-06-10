@@ -223,9 +223,9 @@ OpenAIChatThinkingFormat = Literal[
 class OpenAIChatCompat:
     """Partial compatibility policy for OpenAI Chat Completions-family APIs.
 
-    This class is provided now so profiles can describe chat-completions style
-    endpoints without overloading OpenAIResponsesCompat. It is not consumed by
-    the current OpenAILM Responses serializer.
+    This class is consumed by OpenAIChatLM (lm15.providers.openai_chat); it is
+    kept separate so profiles can describe chat-completions style endpoints
+    without overloading OpenAIResponsesCompat.
     """
 
     instruction_role: OpenAIChatInstructionRole | None = None
@@ -262,6 +262,188 @@ class OpenAIChatCompat:
         _check_literal_or_none(self.cache_control, OpenAICacheControl, "cache_control")
         _check_json_object_or_none(self.routing, "routing")
         _check_json_object_or_none(self.extensions, "extensions")
+
+
+    @classmethod
+    def preset(cls, name: str) -> "OpenAIChatCompat":
+        key = name.lower().replace("-", "_").replace(" ", "_")
+
+        if key in {"openai", "openai_chat", "chat", "chat_completions"}:
+            return cls(
+                instruction_role="system",
+                max_tokens_field="max_completion_tokens",
+                stream_usage="include",
+                thinking_format="reasoning_effort",
+                tool_result_name="omit",
+                strict_tools="omit",
+                cache_control="openai",
+            )
+
+        if key in {"ollama", "lmstudio", "lm_studio"}:
+            return cls(
+                instruction_role="system",
+                max_tokens_field="max_tokens",
+                stream_usage="include",
+                thinking_format="none",
+                tool_result_name="omit",
+                strict_tools="omit",
+                cache_control="none",
+            )
+
+        if key == "groq":
+            return cls(
+                instruction_role="system",
+                max_tokens_field="max_tokens",
+                stream_usage="include",
+                thinking_format="reasoning_effort",
+                tool_result_name="omit",
+                strict_tools="omit",
+                cache_control="none",
+            )
+
+        if key == "openrouter":
+            return cls(
+                instruction_role="system",
+                max_tokens_field="max_tokens",
+                stream_usage="include",
+                thinking_format="openrouter",
+                tool_result_name="omit",
+                strict_tools="omit",
+                cache_control="openai",
+            )
+
+        if key in {"vllm", "sglang"}:
+            return cls(
+                instruction_role="system",
+                max_tokens_field="max_tokens",
+                stream_usage="include",
+                thinking_format="reasoning_effort",
+                tool_result_name="omit",
+                strict_tools="omit",
+                cache_control="none",
+            )
+
+        if key == "deepseek":
+            return cls(
+                instruction_role="system",
+                max_tokens_field="max_tokens",
+                stream_usage="include",
+                thinking_format="deepseek",
+                tool_result_name="omit",
+                strict_tools="omit",
+                cache_control="none",
+            )
+
+        if key in {"qwen", "dashscope_qwen"}:
+            return cls(
+                instruction_role="system",
+                max_tokens_field="max_tokens",
+                stream_usage="include",
+                thinking_format="qwen",
+                tool_result_name="omit",
+                strict_tools="omit",
+                cache_control="none",
+            )
+
+        if key in {"zai", "z_ai"}:
+            return cls(
+                instruction_role="system",
+                max_tokens_field="max_tokens",
+                stream_usage="include",
+                thinking_format="zai",
+                tool_result_name="omit",
+                strict_tools="omit",
+                cache_control="none",
+            )
+
+        raise ValueError(f"unknown OpenAIChatCompat preset: {name!r}")
+
+
+# Default base URLs for OpenAI Chat Completions preset names.  Used by
+# OpenAIChatLM when a compat preset is given by name and no explicit
+# base_url overrides it.
+OPENAI_CHAT_PRESET_BASE_URLS: dict[str, str] = {
+    "openai": "https://api.openai.com/v1",
+    "ollama": "http://localhost:11434/v1",
+    "groq": "https://api.groq.com/openai/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
+    "vllm": "http://localhost:8000/v1",
+    "sglang": "http://localhost:30000/v1",
+}
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedOpenAIChatCompat:
+    """Fully resolved OpenAI Chat Completions compatibility policy."""
+
+    instruction_role: Literal["developer", "system"] = "system"
+    max_tokens_field: Literal["max_completion_tokens", "max_tokens"] = "max_completion_tokens"
+    stream_usage: Literal["include", "omit"] = "include"
+    tool_result_name: Literal["include", "omit"] = "omit"
+    assistant_after_tool_result: Literal["insert", "omit"] = "omit"
+    thinking_format: Literal[
+        "none",
+        "reasoning_effort",
+        "openrouter",
+        "deepseek",
+        "qwen",
+        "qwen_chat_template",
+        "zai",
+    ] = "reasoning_effort"
+    thinking_replay: Literal["native", "as_text", "omit"] = "omit"
+    assistant_reasoning_content: Literal["include_empty", "omit"] = "omit"
+    strict_tools: Literal["include", "omit"] = "omit"
+    cache_control: Literal["none", "openai", "anthropic"] = "openai"
+    routing: JsonObject | None = None
+    extensions: JsonObject | None = None
+
+
+_CHAT_AUTO_DEFAULTS: dict[str, str] = {
+    "instruction_role": "system",
+    "max_tokens_field": "max_completion_tokens",
+    "stream_usage": "include",
+    "tool_result_name": "omit",
+    "assistant_after_tool_result": "omit",
+    "thinking_format": "reasoning_effort",
+    "thinking_replay": "omit",
+    "assistant_reasoning_content": "omit",
+    "strict_tools": "omit",
+    "cache_control": "openai",
+}
+
+
+def merge_openai_chat_compat(
+    base: OpenAIChatCompat,
+    override: OpenAIChatCompat | None,
+) -> OpenAIChatCompat:
+    """Merge partial OpenAI Chat compat objects.
+
+    None fields inherit. Non-None fields, including "auto", override.
+    """
+    if override is None:
+        return base
+
+    kwargs = {}
+    for f in fields(OpenAIChatCompat):
+        value = getattr(override, f.name)
+        if f.name == "extensions":
+            kwargs[f.name] = _merge_json_object(base.extensions, override.extensions)
+        else:
+            kwargs[f.name] = getattr(base, f.name) if value is None else value
+    return OpenAIChatCompat(**kwargs)
+
+
+def resolve_openai_chat_compat(partial: OpenAIChatCompat) -> ResolvedOpenAIChatCompat:
+    """Resolve a partial chat compat object into concrete serializer policy."""
+    kwargs: dict[str, object] = {}
+    for field_name, default in _CHAT_AUTO_DEFAULTS.items():
+        value = getattr(partial, field_name)
+        kwargs[field_name] = default if value in {None, "auto"} else value
+    return ResolvedOpenAIChatCompat(
+        routing=partial.routing,
+        extensions=partial.extensions,
+        **kwargs,  # type: ignore[arg-type]
+    )
 
 
 CompatProfile: TypeAlias = OpenAIResponsesCompat | OpenAIChatCompat
