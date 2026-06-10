@@ -66,6 +66,9 @@
     {"id": "cache_config.full", "kind": "cache_config", "value": {"mode": "auto", "retention": "short", "key": "tenant-a", "prefix_until_index": 0}},
     {"id": "cache_config.minimal", "kind": "cache_config", "value": {"mode": "auto"}},
     {"id": "continuation_state.response-id", "kind": "continuation_state", "value": {"provider": "openai", "kind": "response_id", "data": {"id": "resp_123"}}},
-    {"id": "continuation_state.opaque-data", "kind": "continuation_state", "value": {"provider": "gemini", "kind": "cached_content", "data": {"name": "cachedContents/xyz", "ttl": "300s"}}}
+    {"id": "continuation_state.opaque-data", "kind": "continuation_state", "value": {"provider": "gemini", "kind": "cached_content", "data": {"name": "cachedContents/xyz", "ttl": "300s"}}},
+    {"id": "usage.nothing_reported", "kind": "usage", "value": {}},
+    {"id": "usage.reported_zeros", "kind": "usage", "value": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}},
+    {"id": "usage.partial_input_only", "kind": "usage", "value": {"input_tokens": 7}}
   ]
 }

@@ -1752,14 +1752,22 @@ class Usage:
     can return ``ThinkingPart`` content while reporting only combined
     ``output_tokens``; in that case ``reasoning_tokens`` remains ``None``.
 
-    When ``total_tokens`` is omitted, it defaults to ``input_tokens +
-    output_tokens`` as a convenience for simple providers and tests.
+    Every counter is ``int | None``: ``None`` means "the provider did not
+    report this dimension", which is distinct from a reported ``0``.
+    ``Usage()`` with no arguments therefore means "nothing reported" and
+    serializes to ``{}`` (omitted entirely by enclosing serializers, per
+    docs/serde-rules.md).
+
+    ``total_tokens``: an explicit value is preserved as provider telemetry.
+    When omitted, it auto-computes as ``input_tokens + output_tokens`` only
+    when BOTH are present; if either is ``None`` the total stays ``None``.
+
+    Arithmetic over usage (e.g. ``InferencePricing.estimate``) must treat
+    ``None`` as "unknown", never as zero.
     """
 
-    # ``None`` means "compute from input + output".  An explicit value is
-    # preserved as provider telemetry after non-negative validation.
-    input_tokens: int = 0
-    output_tokens: int = 0
+    input_tokens: int | None = None
+    output_tokens: int | None = None
     total_tokens: int | None = None
     cache_read_tokens: int | None = None
     cache_write_tokens: int | None = None
@@ -1779,7 +1787,11 @@ class Usage:
         ):
             _validate_non_negative(getattr(self, field_name), field_name=field_name)
         _validate_non_negative(self.total_tokens, field_name="total_tokens")
-        if self.total_tokens is None:
+        if (
+            self.total_tokens is None
+            and self.input_tokens is not None
+            and self.output_tokens is not None
+        ):
             object.__setattr__(self, "total_tokens", self.input_tokens + self.output_tokens)
 
 

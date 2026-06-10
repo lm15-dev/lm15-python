@@ -544,8 +544,8 @@ def usage_to_dict(u: Usage) -> dict[str, Any]:
 
 def usage_from_dict(d: dict[str, Any]) -> Usage:
     return Usage(
-        input_tokens=d.get("input_tokens", 0),
-        output_tokens=d.get("output_tokens", 0),
+        input_tokens=d.get("input_tokens"),
+        output_tokens=d.get("output_tokens"),
         total_tokens=d.get("total_tokens"),
         cache_read_tokens=d.get("cache_read_tokens"),
         cache_write_tokens=d.get("cache_write_tokens"),
@@ -896,7 +896,7 @@ def live_server_event_to_dict(e: LiveServerEvent) -> dict[str, Any]:
     if isinstance(e, LiveServerInterruptedEvent):
         return {"type": e.type}
     if isinstance(e, LiveServerTurnEndEvent):
-        return {"type": e.type, "usage": usage_to_dict(e.usage)}
+        return _clean_mapping({"type": e.type, "usage": usage_to_dict(e.usage)})
     if isinstance(e, LiveServerErrorEvent):
         return {"type": e.type, "error": error_detail_to_dict(e.error)}
     raise TypeError(f"unsupported live server event type: {type(e)}")

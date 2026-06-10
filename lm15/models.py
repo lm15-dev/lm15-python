@@ -68,20 +68,29 @@ class InferencePricing:
     def estimate(
         self,
         *,
-        input_tokens: int = 0,
-        output_tokens: int = 0,
+        input_tokens: int | None = None,
+        output_tokens: int | None = None,
         cache_read_tokens: int | None = None,
         cache_write_tokens: int | None = None,
     ) -> float:
+        """Estimate cost for the given token counts.
+
+        ``None`` means "count unknown / not reported" (the ``Usage``
+        zeros-vs-absent distinction) and is SKIPPED: an unknown dimension
+        contributes nothing to the estimate, the same as a dimension whose
+        rate is unset. It is NOT treated as zero tokens — the returned
+        figure is a lower bound when any dimension is unknown. Pass an
+        explicit ``0`` for a known-zero count.
+        """
         total = 0.0
-        if self.input_per_million is not None:
+        if self.input_per_million is not None and input_tokens is not None:
             total += input_tokens * self.input_per_million / 1_000_000
-        if self.output_per_million is not None:
+        if self.output_per_million is not None and output_tokens is not None:
             total += output_tokens * self.output_per_million / 1_000_000
-        if self.cache_read_per_million is not None:
-            total += (cache_read_tokens or 0) * self.cache_read_per_million / 1_000_000
-        if self.cache_write_per_million is not None:
-            total += (cache_write_tokens or 0) * self.cache_write_per_million / 1_000_000
+        if self.cache_read_per_million is not None and cache_read_tokens is not None:
+            total += cache_read_tokens * self.cache_read_per_million / 1_000_000
+        if self.cache_write_per_million is not None and cache_write_tokens is not None:
+            total += cache_write_tokens * self.cache_write_per_million / 1_000_000
         return total
 
 
