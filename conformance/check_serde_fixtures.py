@@ -41,6 +41,8 @@ KIND_SERDE: dict[str, tuple[JsonToObj, ObjToJson]] = {
     "tool_choice": (serde.tool_choice_from_dict, serde.tool_choice_to_dict),
     "reasoning": (serde.reasoning_from_dict, serde.reasoning_to_dict),
     "config": (serde.config_from_dict, serde.config_to_dict),
+    "cache_config": (serde.cache_config_from_dict, serde.cache_config_to_dict),
+    "continuation_state": (serde.continuation_from_dict, serde.continuation_to_dict),
     "error_detail": (serde.error_detail_from_dict, serde.error_detail_to_dict),
     "delta": (serde.delta_from_dict, serde.delta_to_dict),
     "usage": (serde.usage_from_dict, serde.usage_to_dict),

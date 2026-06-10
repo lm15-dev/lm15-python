@@ -60,6 +60,12 @@
     {"id": "model_info.minimal", "kind": "model_info", "value": {"id": "tiny-1", "provider": "exampleai", "api_family": "openai-chat"}},
     {"id": "model_info.pricing-cache", "kind": "model_info", "value": {"id": "cachey-2", "provider": "exampleai", "api_family": "anthropic-messages", "inference": {"input_modalities": ["text"], "output_modalities": ["text"], "context_window": 1000000, "pricing": {"input_per_million": 1.25, "output_per_million": 10.0, "cache_read_per_million": 0.125, "cache_write_per_million": 1.5625, "currency": "USD"}}}},
     {"id": "model_info.extensions-empty-object", "kind": "model_info", "value": {"id": "opaque-1", "provider": "exampleai", "api_family": "openai-responses", "extensions": {"vendor_defaults": {}}}},
-    {"id": "model_info.origin-provider-data", "kind": "model_info", "value": {"id": "distill-7", "provider": "exampleai", "api_family": "gemini", "origin": {"type": "distillation", "base_model": "mega-7", "provider_data": {"job": "", "steps": 0}}, "inference": {"input_modalities": ["text", "audio"], "output_modalities": ["text", "audio"], "pricing": {"input_per_million": 0.5, "output_per_million": 2.0, "currency": "EUR", "dimensions": {"audio_input_per_million": 4.0}}}}}
+    {"id": "model_info.origin-provider-data", "kind": "model_info", "value": {"id": "distill-7", "provider": "exampleai", "api_family": "gemini", "origin": {"type": "distillation", "base_model": "mega-7", "provider_data": {"job": "", "steps": 0}}, "inference": {"input_modalities": ["text", "audio"], "output_modalities": ["text", "audio"], "pricing": {"input_per_million": 0.5, "output_per_million": 2.0, "currency": "EUR", "dimensions": {"audio_input_per_million": 4.0}}}}},
+    {"id": "config.cache-full", "kind": "config", "value": {"max_tokens": 1024, "temperature": 0.5, "cache": {"mode": "auto", "retention": "long", "key": "session-42", "prefix_until_index": 3}}},
+    {"id": "config.cache-minimal", "kind": "config", "value": {"cache": {"mode": "off"}}},
+    {"id": "cache_config.full", "kind": "cache_config", "value": {"mode": "auto", "retention": "short", "key": "tenant-a", "prefix_until_index": 0}},
+    {"id": "cache_config.minimal", "kind": "cache_config", "value": {"mode": "auto"}},
+    {"id": "continuation_state.response-id", "kind": "continuation_state", "value": {"provider": "openai", "kind": "response_id", "data": {"id": "resp_123"}}},
+    {"id": "continuation_state.opaque-data", "kind": "continuation_state", "value": {"provider": "gemini", "kind": "cached_content", "data": {"name": "cachedContents/xyz", "ttl": "300s"}}}
   ]
 }

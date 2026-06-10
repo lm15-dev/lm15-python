@@ -24,6 +24,7 @@ from .types import (
     AudioPart,
     BinaryPart,
     BuiltinTool,
+    CacheConfig,
     CitationDelta,
     CitationPart,
     Config,
@@ -362,6 +363,34 @@ def reasoning_from_dict(d: dict[str, Any]) -> Reasoning:
     )
 
 
+_CACHE_MODES = ("auto", "off")
+_CACHE_RETENTIONS = ("short", "long")
+
+
+def cache_config_to_dict(c: CacheConfig) -> dict[str, Any]:
+    return _clean_mapping({
+        "mode": c.mode,
+        "retention": c.retention,
+        "key": c.key,
+        "prefix_until_index": c.prefix_until_index,
+    })
+
+
+def cache_config_from_dict(d: dict[str, Any]) -> CacheConfig:
+    mode = d.get("mode", "auto")
+    if mode not in _CACHE_MODES:
+        raise ValueError(f"unsupported cache mode: {mode}")
+    retention = d.get("retention")
+    if retention is not None and retention not in _CACHE_RETENTIONS:
+        raise ValueError(f"unsupported cache retention: {retention}")
+    return CacheConfig(
+        mode=mode,
+        retention=retention,
+        key=d.get("key"),
+        prefix_until_index=d.get("prefix_until_index"),
+    )
+
+
 def config_to_dict(c: Config) -> dict[str, Any]:
     return _clean_mapping({
         "max_tokens": c.max_tokens,
@@ -372,6 +401,7 @@ def config_to_dict(c: Config) -> dict[str, Any]:
         "response_format": c.response_format,
         "tool_choice": tool_choice_to_dict(c.tool_choice) if c.tool_choice else None,
         "reasoning": reasoning_to_dict(c.reasoning) if c.reasoning else None,
+        "cache": cache_config_to_dict(c.cache) if c.cache else None,
         "extensions": c.extensions,
     })
 
@@ -386,6 +416,7 @@ def config_from_dict(d: dict[str, Any]) -> Config:
         response_format=d.get("response_format"),
         tool_choice=tool_choice_from_dict(d["tool_choice"]) if isinstance(d.get("tool_choice"), dict) else None,
         reasoning=reasoning_from_dict(d["reasoning"]) if isinstance(d.get("reasoning"), dict) else None,
+        cache=cache_config_from_dict(d["cache"]) if isinstance(d.get("cache"), dict) else None,
         extensions=d.get("extensions"),
     )
 
