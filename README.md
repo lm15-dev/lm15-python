@@ -28,7 +28,7 @@ The package name is `lm15`. It is not on PyPI yet — publishing 1.0 there is
 the plan. Until then, install from source:
 
 ```bash
-git clone <this repository> && cd lm15-python2
+git clone https://github.com/MaximeRivest/lm15-python2 && cd lm15-python2
 python3 -m pip install -e .
 # Optional extra for websocket live sessions:
 python3 -m pip install -e '.[live]'
@@ -246,7 +246,7 @@ from lm15 import BuiltinTool, Message, Request
 response = lm.complete(
     Request(
         model="gpt-4.1-mini",
-        messages=(Message.user("Find a recent Python release note and cite it. Answer in two sentences."),),
+        messages=(Message.user("Where will the 2028 Summer Olympics be held? One sentence, cite a source."),),
         tools=(BuiltinTool("web_search"),),
     )
 )
@@ -257,8 +257,8 @@ for citation in response.citations:
 ```
 
 ```output
-The latest Python release is version 3.11.15, which was released on March 3, 2026. This security release addresses several vulnerabilities, including CVE-2024-6923, which affects the `email.generator.BytesGenerator` component. ([test.python.org](https://test.python.org/downloads/latest/python3.11/?utm_source=openai))
-Python Release Python 3.11.15 | Python.org https://test.python.org/downloads/latest/python3.11/?utm_source=openai
+The 2028 Summer Olympics are scheduled to be held in Los Angeles, California, United States, from July 14 to 30, 2028. ([britannica.com](https://www.britannica.com/event/Los-Angeles-2028-Summer-Olympic-Games?utm_source=openai))
+Los Angeles 2028 Summer Olympic Games | Bidding, Host, Venues, Planning, Sports, Marketing, & Facts | Britannica https://www.britannica.com/event/Los-Angeles-2028-Summer-Olympic-Games?utm_source=openai
 ```
 
 ## Async
