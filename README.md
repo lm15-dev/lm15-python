@@ -5,8 +5,22 @@ typed, provider-neutral interface for foundation-model requests, responses,
 streams, tools, media parts, endpoint APIs, errors, and canonical JSON
 serialization.
 
-For now, this repo is also the reference conformance target for future lm15
-ports in other languages.
+**What lm15 is — and deliberately is not.** lm15 is a low-level foundation
+library: one canonical representation, exact serde for it, and adapters that
+translate it to and from each provider's wire format — stdlib-only, with its
+own HTTP transport (`websockets` is the single optional extra, for live
+sessions). It is NOT an opinionated user-facing API: no magic `call()`, no
+automatic tool loops, no DSL. lm15 is meant to be **the dependency** for
+libraries that want to build their own take on the right way to talk to AI
+systems in Python — you bring the opinions, lm15 brings every provider.
+
+The public API is the top-level package: `from lm15 import AnthropicLM,
+Request, Message, ...` (see `lm15/__init__.py` for the full curated surface).
+Transport plumbing stays under `lm15.transports`, live sessions under
+`lm15.live`, and the conformance shim under `lm15.vet`.
+
+Behavior is pinned by the `lm15-contract` corpus (sibling repo): this package
+is the reference implementation, not the spec.
 
 ## Install for local development
 
@@ -492,8 +506,8 @@ A provider adapter is responsible for:
 - `build_request(request, stream)` — map canonical `Request` to an HTTP request.
 - `parse_response(request, response)` — map provider JSON to canonical
   `Response`.
-- `parse_stream_event(...)` or `parse_stream_events(...)` — map SSE chunks to
-  `StreamEvent`s.
+- `parse_stream_events(...)` — map SSE chunks to `StreamEvent`s (the single
+  stream-parse path per provider).
 - `normalize_error(status, body)` — map provider errors to `lm15.errors`.
 - Optional endpoint methods: `embeddings`, `file_upload`, `batch_submit`,
   `image_generate`, `audio_generate`, `live`.
