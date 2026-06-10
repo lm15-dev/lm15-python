@@ -1,9 +1,9 @@
-# lm15-python2
+# lm15
 
-`lm15-python2` is the Python reference implementation of **lm15**: a small,
-typed, provider-neutral interface for foundation-model requests, responses,
-streams, tools, media parts, endpoint APIs, errors, and canonical JSON
-serialization.
+**lm15** is a small, typed, provider-neutral interface for foundation-model
+requests, responses, streams, tools, media parts, endpoint APIs, errors, and
+canonical JSON serialization. This repository is its Python reference
+implementation.
 
 **What lm15 is — and deliberately is not.** lm15 is a low-level foundation
 library: one canonical representation, exact serde for it, and adapters that
@@ -19,76 +19,30 @@ Request, Message, ...` (see `lm15/__init__.py` for the full curated surface).
 Transport plumbing stays under `lm15.transports`, live sessions under
 `lm15.live`, and the conformance shim under `lm15.vet`.
 
-Behavior is pinned by the `lm15-contract` corpus (sibling repo): this package
-is the reference implementation, not the spec.
+The code blocks below are documentation that runs: every ```output``` block is
+the real, captured output of the example above it.
 
-## Install for local development
+## Install
 
-From this directory:
+The package name is `lm15`. It is not on PyPI yet — publishing 1.0 there is
+the plan. Until then, install from source:
 
 ```bash
+git clone <this repository> && cd lm15-python2
 python3 -m pip install -e .
-# Optional extras:
+# Optional extra for websocket live sessions:
 python3 -m pip install -e '.[live]'
 ```
 
-Run the tests:
+lm15 has zero required dependencies — it is stdlib-only, including its HTTP
+transports.
 
-```bash
-pytest -q
-python3 conformance/run_all.py --strict
-```
-
-## Repository layout
-
-```text
-lm15-python2/
-├── lm15/
-│   ├── types.py              # canonical dataclasses: Request, Response, Parts, tools, endpoints
-│   ├── providers/            # OpenAI, Anthropic, Gemini adapters
-│   ├── compat.py             # typed API-dialect compatibility policies
-│   ├── models.py             # optional ModelInfo metadata + ModelRegistry
-│   ├── profiles.py           # ProviderProfile/EndpointProfile resolution helpers
-│   ├── result.py             # stream materialization + lazy Result helper
-│   ├── serde.py              # canonical JSON dictionaries
-│   ├── errors.py             # normalized lm15 error hierarchy
-│   ├── live.py               # websocket/live-session helpers
-│   ├── sse.py                # server-sent event parser
-│   └── transports/           # stdlib HTTP/1.1 sync + async transports
-├── conformance/              # fixture suite and reports
-├── tests/                    # unit + conformance tests wired into pytest
-├── benchmarks/               # transport benchmarks
-└── pyproject.toml
-```
-
-## Mental model
-
-The central object flow is:
-
-```text
-Message parts → Message → Request → ProviderLM → Response
-                              │
-                              └── stream() → StreamEvent → Result/materialized Response
-```
-
-- **Parts** are typed content blocks: `TextPart`, `ImagePart`, `AudioPart`,
-  `DocumentPart`, `ToolCallPart`, `ToolResultPart`, `ThinkingPart`,
-  `CitationPart`, etc.
-- **Messages** group parts under a role: `user`, `assistant`, `tool`, or
-  `developer`.
-- **Requests** contain the model, messages, tools, and `Config`.
-- **Providers** map canonical lm15 requests to provider HTTP requests and map
-  provider responses back to canonical lm15 responses.
-- **Conformance fixtures** make sure the mapping stays stable across providers
-  and future SDK ports.
-
-## Basic completion example
+## Quickstart
 
 ```python
 import os
 
-from lm15.providers import OpenAILM
-from lm15.types import Config, Message, Request
+from lm15 import Config, Message, OpenAILM, Request
 
 lm = OpenAILM(api_key=os.environ["OPENAI_API_KEY"])
 
@@ -97,7 +51,7 @@ response = lm.complete(
         model="gpt-4.1-mini",
         system="You are terse.",
         messages=(Message.user("Say hello in three words."),),
-        config=Config(max_tokens=20, temperature=0.2),
+        config=Config(max_tokens=50, temperature=0.2),
     )
 )
 
@@ -106,19 +60,28 @@ print(response.finish_reason)
 print(response.usage.total_tokens)
 ```
 
-```output | ✓ 1.3s | 37 vars
-Hello, how are?
+```output
+Hello there, friend.
 stop
 27
 ```
 
-The same `Request` shape is used for Anthropic and Gemini:
+The mental model is one straight line:
+
+```text
+Message parts → Message → Request → ProviderLM → Response
+                              │
+                              └── stream() → StreamEvent → materialized Response
+```
+
+## One Request, every provider
+
+The exact same `Request` shape drives the three first-party adapters:
 
 ```python
 import os
 
-from lm15.providers import AnthropicLM, GeminiLM
-from lm15.types import Message, Request
+from lm15 import AnthropicLM, GeminiLM, Message, Request
 
 providers = [
     AnthropicLM(api_key=os.environ["ANTHROPIC_API_KEY"]),
@@ -137,22 +100,54 @@ for lm in providers:
     )
     print(lm.provider, response.text)
 ```
-```output | ✓ 2.0s | 37 vars
+
+```output
 anthropic Hello! How can I help you today?
 gemini Hello! How can I help you today?
 ```
 
-## Streaming example
+And the same shape reaches every OpenAI-compatible server through
+`OpenAIChatLM`, the Chat Completions dialect adapter. A compat preset name —
+`"ollama"`, `"groq"`, `"openrouter"`, `"vllm"`, `"sglang"`, ... — bundles
+that server's wire-format quirks *and* its default `base_url`, so a local
+Ollama is one constructor argument away:
+
+```python
+from lm15 import Config, Message, OpenAIChatLM, Request
+
+lm = OpenAIChatLM(api_key="ollama", compat="ollama")  # base_url -> http://localhost:11434/v1
+
+response = lm.complete(
+    Request(
+        model="qwen3.5:0.8b",
+        messages=(Message.user("Say hello in five words or fewer."),),
+        config=Config(max_tokens=80, extensions={"reasoning_effort": "none"}),
+    )
+)
+
+print(response.text)
+```
+
+```output
+Hello there! I'm ready to help. What would you like me to discuss?
+```
+
+Swap `compat="groq"` (plus your Groq key) or `compat="openrouter"` and the
+same request hits those servers; pass an explicit `base_url` to point a
+preset anywhere. Server-specific knobs ride in `Config.extensions` and pass
+through verbatim.
+
+## Streaming
 
 `stream()` yields typed `StreamEvent` objects. Text arrives as
-`StreamDeltaEvent(delta=TextDelta(...))`; the final event carries finish reason
-and usage.
+`StreamDeltaEvent(delta=TextDelta(...))`, and the stream is normalized across
+providers: exactly one `StreamEndEvent` ends the stream, carrying
+`finish_reason` and `usage` (mapping rule MAP-3).
 
 ```python
 import os
 
-from lm15.providers import OpenAILM
-from lm15.types import Message, Request, StreamDeltaEvent, TextDelta
+from lm15 import Message, OpenAILM, Request, StreamDeltaEvent, TextDelta
 
 lm = OpenAILM(api_key=os.environ["OPENAI_API_KEY"])
 request = Request(
@@ -164,50 +159,42 @@ for event in lm.stream(request):
     if isinstance(event, StreamDeltaEvent) and isinstance(event.delta, TextDelta):
         print(event.delta.text, end="", flush=True)
 ```
-```output | ✓ 2.3s | 39 vars
-Montreal is a vibrant, multicultural city in Canada known for its rich history and lively arts scene.
+
+```output
+Montreal is a vibrant, multicultural city in Canada known for its rich history and festivals.
 ```
 
 To consume a stream into a full `Response`:
 
 ```python
-from lm15.result import materialize_response
+from lm15 import materialize_response
 
 response = materialize_response(lm.stream(request), request)
 print(response.text)
 ```
 
-```output | ✓ 4.5s | 40 vars
-Montreal is a vibrant, multicultural city in Canada known for its rich history and delicious cuisine.
+```output
+Montreal is a vibrant, multicultural city in Canada known for its rich history and cuisine.
 ```
 
-```python
-response
-```
+The materialized `Response` is identical in shape to one from `complete()` —
+same `message`, `finish_reason`, `usage`, and `provider_data`.
 
-```output | ✓ 2ms | 40 vars
-Response(
-    text='Montreal is a vibrant, multicultural city in Canada known for its rich history and delicious cuisine.',
-    model='gpt-4.1-mini-2025-04-14',
-    finish_reason='stop',
-    usage=Usage(input_tokens=14, output_tokens=20, total_tokens=34, cache_read_tokens=0, cache_write_tokens=None, reasoning_tokens=0, input_audio_tokens=None, output_audio_tokens=None),
-    id='resp_059dae56d8c4f9fa0069f25d77579881949db1ac4a47a9c16b',
-    provider_data=<dict: 34 keys>,
-)
-```
-
-## Tools example
+## Tools: the full round-trip
 
 lm15 distinguishes **function tools** that your application executes from
-**provider-native built-in tools** like web search.
+**provider-native built-in tools** like web search. Here is the complete
+function-tool round-trip — model asks, you run your function, you answer back:
 
 ```python
 import os
 
-from lm15.providers import OpenAILM
-from lm15.types import FunctionTool, Message, Request, ToolCallPart
+from lm15 import FunctionTool, Message, OpenAILM, Request
 
 lm = OpenAILM(api_key=os.environ["OPENAI_API_KEY"])
+
+def get_weather(city: str) -> str:
+    return f"Sunny and 22°C in {city}."
 
 weather_tool = FunctionTool(
     name="get_weather",
@@ -219,32 +206,47 @@ weather_tool = FunctionTool(
     },
 )
 
-response = lm.complete(
-    Request(
-        model="gpt-4.1-mini",
-        messages=(Message.user("What is the weather in Montreal?"),),
-        tools=(weather_tool,),
-    )
-)
+messages = (Message.user("What is the weather in Montreal?"),)
+request = Request(model="gpt-4.1-mini", messages=messages, tools=(weather_tool,))
 
+response = lm.complete(request)
 for call in response.tool_calls:
-    assert isinstance(call, ToolCallPart)
     print(call.name, call.input)
 ```
 
-```output | ✓ 845ms | 44 vars
+```output
 get_weather {'city': 'Montreal'}
 ```
 
-Built-in tool example:
+Now run your function and hand the result back. The model's tool-call turn is
+`response.message`; your answer is `Message.tool({call_id: result})`:
 
 ```python
-from lm15.types import BuiltinTool, Message, Request
+call = response.tool_calls[0]
+result = get_weather(**call.input)
+
+messages = (*messages, response.message, Message.tool({call.id: result}))
+final = lm.complete(Request(model="gpt-4.1-mini", messages=messages, tools=(weather_tool,)))
+print(final.text)
+```
+
+```output
+The weather in Montreal is sunny with a temperature of 22°C. Would you like to know the forecast for the coming days or any other information?
+```
+
+lm15 will never run the loop for you — that's your layer. This is the whole
+loop.
+
+Built-in tools are provider-executed; you just declare them and read the
+results (citations come back as typed parts):
+
+```python
+from lm15 import BuiltinTool, Message, Request
 
 response = lm.complete(
     Request(
         model="gpt-4.1-mini",
-        messages=(Message.user("Find a recent Python release note and cite it."),),
+        messages=(Message.user("Find a recent Python release note and cite it. Answer in two sentences."),),
         tools=(BuiltinTool("web_search"),),
     )
 )
@@ -254,47 +256,155 @@ for citation in response.citations:
     print(citation.title, citation.url)
 ```
 
-```output | ✓ 6.8s | 46 vars
-The most recent Python release is version 3.11.15, which supersedes Python 3.11.4. The release notes for Python 3.11.4, published on June 6, 2023, are available on the official Python website. ([python.org](https://www.python.org/downloads/release/python-3114/?utm_source=openai))
-
-Python 3.11.4 introduced several significant features and optimizations, including:
-
-- **PEP 657**: Include Fine-Grained Error Locations in Tracebacks
-- **PEP 654**: Exception Groups and `except*`
-- **PEP 680**: `tomllib`: Support for Parsing TOML in the Standard Library
-- **gh-90908**: Introduce task groups to `asyncio`
-- **gh-34627**: Support for atomic grouping (`(?>...)`) and possessive quantifiers (`*+`, `++`, `?+`, `{m,n}+`) in regular expressions
-
-Additionally, the Faster CPython Project yielded exciting results, with Python 3.11 being up to 10-60% faster than Python 3.10. On average, a 1.22x speedup was measured on the standard benchmark suite. ([python.org](https://www.python.org/downloads/release/python-3114/?utm_source=openai))
-
-For a comprehensive list of changes and improvements, you can refer to the full changelog provided in the release notes. ([python.org](https://www.python.org/downloads/release/python-3114/?utm_source=openai))
-Python Release Python 3.11.4 | Python.org https://www.python.org/downloads/release/python-3114/?utm_source=openai
-Python Release Python 3.11.4 | Python.org https://www.python.org/downloads/release/python-3114/?utm_source=openai
-Python Release Python 3.11.4 | Python.org https://www.python.org/downloads/release/python-3114/?utm_source=openai
+```output
+The latest Python release is version 3.11.15, which was released on March 3, 2026. This security release addresses several vulnerabilities, including CVE-2024-6923, which affects the `email.generator.BytesGenerator` component. ([test.python.org](https://test.python.org/downloads/latest/python3.11/?utm_source=openai))
+Python Release Python 3.11.15 | Python.org https://test.python.org/downloads/latest/python3.11/?utm_source=openai
 ```
+
+## Async
+
+Every adapter has an async mirror — `AsyncOpenAILM`, `AsyncAnthropicLM`,
+`AsyncGeminiLM`, `AsyncOpenAIChatLM`, `AsyncClaudeCodeLM`,
+`AsyncOpenAICodexLM` — with the same constructor fields, the same canonical
+`Request` in, and the same `Response`/stream events out. `await` is the only
+difference: `complete()` is `async def`, and `stream()` is an
+`async for`-able iterator of the same events.
 
 ```python
-response
-```
+import asyncio
 
-```output | ✓ 3ms | 46 vars
-Response(
-    text='The most recent Python release is version 3.11.15, which supersedes Python 3.11.4. The release notes for Python 3.11.4, published on June 6, 2023, are available on the official Python website. ([python.org](https://www.python.org/downloads/release/python-3114/?utm_source=openai))\n\nPython 3.11.4 introduced several significant features and optimizations, including:\n\n- **PEP 657**: Include Fine-Grained Error Locations in Tracebacks\n- **PEP 654**: Exception Groups and `except*`\n- **PEP 680**: `tomllib`: Support for Parsing TOML in the Standard Library\n- **gh-90908**: Introduce task groups to `asyncio`\n- **gh-34627**: Support for atomic grouping (`(?>...)`) and possessive quantifiers (`*+`, `++`, `?+`, `{m,n}+`) in regular expressions\n\nAdditionally, the Faster CPython Project yielded exciting results, with Python 3.11 being up to 10-60% faster than Python 3.10. On average, a 1.22x speedup was measured on the standard benchmark suite. ([python.org](https://www.python.org/downloads/release/python-3114/?utm_source=openai))\n\nFor a comprehensive list of changes and improvements, you can refer to the full changelog provided in the release notes. ([python.org](https://www.python.org/downloads/release/python-3114/?utm_source=openai)) ',
-    model='gpt-4.1-mini-2025-04-14',
-    finish_reason='stop',
-    usage=Usage(input_tokens=311, output_tokens=346, total_tokens=657, cache_read_tokens=0, cache_write_tokens=None, reasoning_tokens=0, input_audio_tokens=None, output_audio_tokens=None),
-    citations=[CitationPart(url='https://www.python.org/downloads/release/python-3114/?utm_source=openai', title='Python Release Python 3.11.4 | Python.org', text='([python.org](https://www.python.org/downloads/release/python-3114/?utm_source=openai))', type='citation'), CitationPart(url='https://www.python.org/downloads/release/python-3114/?utm_source=openai', title='Python Release Python 3.11.4 | Python.org', text='([python.org](https://www.python.org/downloads/release/python-3114/?utm_source=openai))', type='citation'), CitationPart(url='https://www.python.org/downloads/release/python-3114/?utm_source=openai', title='Python Release Python 3.11.4 | Python.org', text='([python.org](https://www.python.org/downloads/release/python-3114/?utm_source=openai))', type='citation')],
-    id='resp_022eca20811cb3450069f25dc2cd6c8195b881e701d5e89926',
-    provider_data=<dict: 35 keys>,
+from lm15 import (
+    AsyncOpenAIChatLM,
+    Config,
+    Message,
+    Request,
+    StreamDeltaEvent,
+    TextDelta,
 )
+
+async def main() -> None:
+    lm = AsyncOpenAIChatLM(api_key="ollama", compat="ollama")
+    request = Request(
+        model="qwen3.5:0.8b",
+        messages=(Message.user("Name two colors."),),
+        config=Config(max_tokens=80, extensions={"reasoning_effort": "none"}),
+    )
+
+    response = await lm.complete(request)
+    print(response.text)
+
+    async for event in lm.stream(request):
+        if isinstance(event, StreamDeltaEvent) and isinstance(event.delta, TextDelta):
+            print(event.delta.text, end="", flush=True)
+    print()
+
+asyncio.run(main())
 ```
 
-## Media and endpoint examples
+```output
+Two examples of natural and artificial colors are **red** and **blue**.
+Two common names for a color are **red** (or crimson) and **blue** (often called indigo, cobalt, or azure). Other examples include green, yellow, purple, and brown.
+```
 
-Multimodal input uses typed media parts:
+The non-chat endpoints (embeddings, files, batch, image, audio, live) are
+sync-only for now; the async classes raise `UnsupportedFeatureError` for them
+rather than pretending. Async endpoint mirrors are planned.
+
+## Local subscription adapters
+
+The ordinary provider adapters use API keys that callers pass explicitly:
+`OpenAILM(api_key=...)`, `AnthropicLM(api_key=...)`, and
+`GeminiLM(api_key=...)`.
+
+lm15 also has explicit local-developer subscription adapters for users who are
+already signed in to provider CLIs. These adapters do not read API-key
+environment variables. They read local OAuth credentials created by the CLI and
+send provider-specific OAuth headers.
+
+### Claude Code subscription auth
+
+Use `ClaudeCodeLM.from_claude_code()` when Claude Code is installed and logged
+in as the same OS user:
 
 ```python
-from lm15.types import ImagePart, Message, Request, TextPart
+from lm15 import ClaudeCodeLM, Config, Message, Request
+
+lm = ClaudeCodeLM.from_claude_code()
+
+response = lm.complete(
+    Request(
+        model="claude-fable-5",
+        messages=(Message.user("Say hello briefly."),),
+        config=Config(max_tokens=128),
+    )
+)
+
+print(response.text)
+```
+
+The default credential path is `~/.claude/.credentials.json`. If the
+credential is missing or expired, run Claude Code and log in again (`claude`,
+then `/login` if prompted).
+
+`ClaudeCodeLM` always prepends the Claude Code system prompt required by this
+OAuth route:
+
+```text
+You are Claude Code, Anthropic's official CLI for Claude.
+```
+
+If `Request.system` is also provided, lm15 keeps both: the required Claude Code
+prompt comes first, then the caller's system instruction.
+
+Fable 5 note: Fable may spend part of `max_tokens` on hidden thinking, so a
+too-small budget can return no visible text with `finish_reason="length"`.
+Use `Config(max_tokens=128)` or higher for non-trivial prompts.
+
+### OpenAI Codex / ChatGPT subscription auth
+
+Use `OpenAICodexLM.from_codex_cli()` when Codex CLI is installed and signed in
+with ChatGPT:
+
+```python
+from lm15 import Message, OpenAICodexLM, Request
+
+lm = OpenAICodexLM.from_codex_cli()
+
+response = lm.complete(
+    Request(
+        model="gpt-5.5",
+        messages=(Message.user("Say hello briefly."),),
+    )
+)
+
+print(response.text)
+```
+
+The default credential path is `~/.codex/auth.json`. `OpenAICodexLM` reads the
+local ChatGPT OAuth access token and account id from that file, then calls the
+Codex subscription endpoint. The Codex subscription backend is
+streaming-first, so `complete()` internally streams and materializes a normal
+`Response`.
+
+Current Codex route note: lm15 intentionally omits max-token fields here
+because the verified local Codex route accepts the request shape without them;
+set output limits in your application layer if you need a hard cap.
+
+These subscription adapters are intended for local interactive development, not
+server or CI deployments. Treat the credential files as secrets; do not print or
+log their bearer tokens.
+
+## Media and non-chat endpoints
+
+Multimodal input uses typed media parts (`ImagePart`, `AudioPart`,
+`DocumentPart`, ...):
+
+```python
+import os
+
+from lm15 import ImagePart, Message, OpenAILM, Request, TextPart
+
+lm = OpenAILM(api_key=os.environ["OPENAI_API_KEY"])
 
 request = Request(
     model="gpt-4.1-mini",
@@ -310,23 +420,19 @@ request = Request(
     ),
 )
 
-lm.complete(request)
-```
-```output
-Response(
-    text='The image is a stylized, light blue atomic symbol with a central nucleus and three elliptical orbits.',
-    model='gpt-4.1-mini-2025-04-14',
-    finish_reason='stop',
-    usage=Usage(input_tokens=148, output_tokens=22, total_tokens=170, cache_read_tokens=0, cache_write_tokens=None, reasoning_tokens=0, input_audio_tokens=None, output_audio_tokens=None),
-    id='resp_0b292d5cfae1bc4b0069f25e9b30c881949d202000d6a4af89',
-    provider_data=<dict: 35 keys>,
-)
+print(lm.complete(request).text)
 ```
 
-Non-chat endpoints have separate request/response types:
+```output
+This image shows a blue atomic symbol, often used to represent an atom or atomic energy.
+```
+
+Non-chat endpoints have separate request/response types — `EmbeddingRequest`,
+`ImageGenerationRequest`, `AudioGenerationRequest`, `FileUploadRequest`,
+`BatchRequest`, `LiveConfig`:
 
 ```python
-from lm15.types import EmbeddingRequest, ImageGenerationRequest
+from lm15 import EmbeddingRequest
 
 embeddings = lm.embeddings(
     EmbeddingRequest(
@@ -335,29 +441,20 @@ embeddings = lm.embeddings(
     )
 )
 print(len(embeddings.vectors), len(embeddings.vectors[0]))
-
-image_response = lm.image_generate(
-    ImageGenerationRequest(
-        model="gpt-image-1",
-        prompt="A tiny watercolor robot reading a book.",
-        size="1024x1024",
-    )
-)
-print(image_response.images[0])
 ```
-```output | ✓ 20.2s | 52 vars
+
+```output
 2 1536
-ImagePart(media_type='image/png', data='<base64: 2461668 chars>', url=None, file_id=None, path=None)
 ```
 
 ## Canonical JSON serialization
 
-`lm15.serde` converts public lm15 types to canonical JSON-compatible dicts.
-This is what conformance fixtures use.
+The serde functions convert every public lm15 type to canonical
+JSON-compatible dicts and back, exactly — this is the wire format the
+conformance corpus pins:
 
 ```python
-from lm15.serde import request_from_dict, request_to_dict
-from lm15.types import Message, Request
+from lm15 import Message, Request, request_from_dict, request_to_dict
 
 request = Request(model="gpt-4.1-mini", messages=(Message.user("Hi"),))
 wire = request_to_dict(request)
@@ -365,20 +462,22 @@ round_tripped = request_from_dict(wire)
 round_tripped == request
 ```
 
-```output | ✓ 41ms | 56 vars
+```output
 True
 ```
 
 ## Error normalization
 
-Provider-specific HTTP/API errors are normalized into lm15 error classes:
+Provider-specific HTTP/API errors are normalized into one lm15 error
+hierarchy, so callers handle `AuthError`, `RateLimitError`,
+`ContextLengthError`, ... identically across providers:
 
 ```python
-from lm15.errors import AuthError, RateLimitError, ProviderError
-from lm15.types import Message, Request
-from lm15.providers import OpenAILM
+import os
 
-lm = OpenAILM(api_key = 'not a key')
+from lm15 import AuthError, Message, OpenAILM, ProviderError, RateLimitError, Request
+
+lm = OpenAILM(api_key="not a key")
 
 try:
     lm.complete(Request(model="gpt-4.1-mini", messages=(Message.user("Hi"),)))
@@ -389,150 +488,35 @@ except RateLimitError as exc:
 except ProviderError as exc:
     print(exc.provider, exc.provider_code, exc.status, exc.request_id)
 ```
-```output | ✓ 189ms | 59 vars
+
+```output
 Check API key: ('OPENAI_API_KEY',)
 ```
 
-## How the fixture/conformance system works
+## Model metadata
 
-The conformance suite checks that lm15's canonical model stays aligned with real
-provider APIs.
+`ModelRegistry.discover()` hydrates optional, advisory model metadata
+(pricing, context windows, capability hints) from installed catalog packages
+via the `lm15.model_catalogs` entry-point group — the `aimo` catalog is one
+such package. Hydrated metadata never changes what an adapter sends: requests
+are byte-identical with or without it. See
+[docs/model-hydration.md](docs/model-hydration.md) for the contract.
 
-```text
-logical lm15 case
-  conformance/cross_sdk/test_cases.json
-        │
-        ▼
-lm15-python2 provider adapter builds HTTP request
-        │
-        ▼
-expected provider fixture
-  conformance/provider_requests/cases/<provider>/<feature>.json
-        │
-        ├── check_request_fixtures.py compares request shape
-        ├── validate_live.py can send the request to the real API
-        ├── check_response_fixtures.py parses saved response bodies/SSE
-        ├── check_error_fixtures.py normalizes provider error bodies
-        ├── check_endpoint_fixtures.py checks embeddings/files/batch/image/audio/live
-        ├── check_serde_fixtures.py checks canonical JSON round trips
-        └── check_doc_drift.py checks provider docs against features.yaml
-```
+## Design notes
 
-Run everything:
+- [docs/design-rationale.md](docs/design-rationale.md) — why `config=Config(...)`
+  instead of kwargs, why there is no automatic tool loop, why request
+  `extensions` and response `provider_data` are different names on purpose.
+- [docs/serde-rules.md](docs/serde-rules.md) — the canonical JSON omission and
+  round-trip rules.
+- [docs/mapping-rules.md](docs/mapping-rules.md) — the provider mapping
+  invariants (MAP-1, MAP-2, MAP-3, ...).
+- Behavior is pinned by a cross-language conformance corpus: the sibling
+  `lm15-contract` repository is the spec; this package is the reference
+  implementation, not the authority.
 
-```bash
-python3 conformance/run_all.py --strict
-```
+## Contributing
 
-Run one check:
-
-```bash
-python3 conformance/check_doc_drift.py --strict
-python3 conformance/check_response_fixtures.py --strict
-```
-
-Run or preview one live provider fixture, if the relevant API key is set:
-
-```bash
-python3 conformance/provider_requests/validate_live.py --dry-run --task openai.basic_text
-python3 conformance/provider_requests/validate_live.py --task openai.basic_text
-```
-
-Generated reports are written under `conformance/reports/` and are ignored by
-git.
-
-### Adding or completing a fixture
-
-1. Add or update the logical case in
-   `conformance/cross_sdk/test_cases.json`.
-2. Add the expected provider HTTP request in
-   `conformance/provider_requests/cases/<provider>/<feature>.json`.
-3. Add the feature to `conformance/provider_requests/features.yaml` so doc drift
-   can tell whether provider documentation is represented.
-4. If response parsing should be checked, add an `expect_lm15` block to the
-   provider case and save a real response body under
-   `conformance/provider_requests/results/bodies/<provider>.<feature>/`.
-5. If the provider has a special error shape, add an error case under
-   `conformance/errors/cases/<provider>.json`.
-6. Run:
-
-   ```bash
-   python3 conformance/run_all.py --strict
-   pytest -q
-   ```
-
-Example `expect_lm15` block:
-
-```json
-{
-  "expect_lm15": {
-    "parts": {
-      "text": {"min": 1},
-      "citation": {"min": 1}
-    },
-    "finish_reason": "stop",
-    "usage": {"required": true}
-  }
-}
-```
-
-### Doc-drift fixture check
-
-`conformance/check_doc_drift.py` parses snapshotted provider docs in
-`conformance/provider_docs/` and compares top-level request parameters with
-`conformance/provider_requests/features.yaml`.
-
-Some always-on lm15 request fields do not need separate feature entries:
-
-```python
-IGNORE_PARAMS = {"model", "messages", "contents", "input"}
-```
-
-Provider docs often use camelCase/PascalCase while lm15 feature names use
-snake_case, so the drift check normalizes names before deciding that a param is
-unmapped.
-
-If `check_doc_drift.py --strict` reports an unmapped param, either:
-
-- add a real feature entry to `features.yaml`, or
-- add the param to `IGNORE_PARAMS` only if it is a core field that should never
-  have a separate fixture.
-
-## Provider adapter development guide
-
-Provider classes live in `lm15/providers/` and inherit `BaseProviderLM`.
-A provider adapter is responsible for:
-
-- `build_request(request, stream)` — map canonical `Request` to an HTTP request.
-- `parse_response(request, response)` — map provider JSON to canonical
-  `Response`.
-- `parse_stream_events(...)` — map SSE chunks to `StreamEvent`s (the single
-  stream-parse path per provider).
-- `normalize_error(status, body)` — map provider errors to `lm15.errors`.
-- Optional endpoint methods: `embeddings`, `file_upload`, `batch_submit`,
-  `image_generate`, `audio_generate`, `live`.
-
-Keep provider-only options in `Config.extensions` rather than adding universal
-fields unless the same concept is supported across providers.
-
-## Useful commands
-
-```bash
-# Unit and conformance tests through pytest
-pytest -q
-
-# Full offline conformance suite
-python3 conformance/run_all.py --strict
-
-# Request fixture comparison only
-python3 conformance/check_request_fixtures.py --strict
-
-# Response/SSE fixture parser check only
-python3 conformance/check_response_fixtures.py --strict
-
-# Canonical JSON round trips only
-python3 conformance/check_serde_fixtures.py --strict
-
-# Provider-doc coverage only
-python3 conformance/check_doc_drift.py --strict
-```
+Fixture and conformance workflows, the doc-drift checker, the provider
+adapter development guide, and the useful-commands cheat sheet live in
+[CONTRIBUTING.md](CONTRIBUTING.md).
