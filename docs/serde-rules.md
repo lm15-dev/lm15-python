@@ -39,6 +39,50 @@ Required fields are always emitted, even when empty — e.g. `TextPart.text` is
 emitted as `""` when empty, and `ToolResultPart.content` is emitted as `[]`
 when empty, because those fields are part of the type's shape, not optional.
 
+## Number rule
+
+Every numeric field in the canonical model has a DECLARED JSON number type.
+The canonical wire form follows the declaration, never the Python literal the
+caller happened to type: a value has exactly one wire form, reproducible from
+any language.
+
+1. **Float fields always serialize as JSON floats** (`1.0`, never `1`):
+   - `Config.temperature`, `Config.top_p`
+   - `InferencePricing.input_per_million`, `.output_per_million`,
+     `.cache_read_per_million`, `.cache_write_per_million`
+   - `TrainingPricing.training_tokens_per_million`, `.gpu_second`
+   - `EmbeddingResponse.vectors` elements
+   - `retry_after` on lm15 errors (rate-limit metadata, not serde, but
+     float-typed under the same rule)
+2. **Int fields always serialize as JSON ints** (`2`, never `2.0`):
+   - `Config.max_tokens`, `Config.top_k`
+   - `Reasoning.thinking_budget`, `.total_budget`
+   - `CacheConfig.prefix_until_index`
+   - every `Usage` token counter
+   - `InferenceModelInfo.context_window`, `.max_output_tokens`
+   - `AudioFormat.sample_rate`, `.channels`
+   - every Delta `part_index`
+3. **Constructors coerce same-valued cross-type input.** Int `1` for a float
+   field becomes `1.0`; float `2.0` for an int field becomes `2`. A
+   non-integral float for an int field (`top_k=2.5`) is REJECTED, never
+   rounded. `bool` never coerces to either number type — `True` is not `1`.
+4. **Opaque payloads are untouched, as always.** Inside `extensions`, tool
+   call `input`, FunctionTool `parameters`, `response_format`, builtin tool
+   `config`, `provider_data`, continuation `data`, and pricing `dimensions`,
+   numbers round-trip exactly as written: `{"x": 1}` stays int `1`. The
+   Number rule applies to TYPED fields only.
+
+Provider wire dialects are a different layer: an adapter may format a
+canonical float in whatever number form the provider's API expects (e.g. the
+Gemini adapter emits integral `generationConfig.temperature`/`topP` values in
+proto3-JSON integer form, matching live captures). The canonical JSON form is
+fixed by the declarations above.
+
+History: before 2026-06-10, `Config(temperature=1)` serialized as `1` while
+`Config(temperature=1.0)` serialized as `1.0` — the canonical form depended on
+the caller's Python literal, which non-Python ports cannot reproduce. The rule
+above replaces that behavior.
+
 History: before 2026-06-09, `_clean_mapping` recursed into nested structures,
 which stripped empties inside opaque payloads at the request/response level
 but not at the part level — the same value had two wire forms depending on

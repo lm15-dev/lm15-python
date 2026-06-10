@@ -69,6 +69,10 @@
     {"id": "continuation_state.opaque-data", "kind": "continuation_state", "value": {"provider": "gemini", "kind": "cached_content", "data": {"name": "cachedContents/xyz", "ttl": "300s"}}},
     {"id": "usage.nothing_reported", "kind": "usage", "value": {}},
     {"id": "usage.reported_zeros", "kind": "usage", "value": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}},
-    {"id": "usage.partial_input_only", "kind": "usage", "value": {"input_tokens": 7}}
+    {"id": "usage.partial_input_only", "kind": "usage", "value": {"input_tokens": 7}},
+
+    {"id": "config.number-float-fields-integral", "kind": "config", "value": {"temperature": 1.0, "top_p": 1.0}},
+    {"id": "config.number-int-fields", "kind": "config", "value": {"max_tokens": 64, "top_k": 2}},
+    {"id": "model_info.number-integral-pricing", "kind": "model_info", "value": {"id": "flat-1", "provider": "exampleai", "api_family": "openai-chat", "inference": {"input_modalities": ["text"], "output_modalities": ["text"], "pricing": {"input_per_million": 1.0, "output_per_million": 2.0, "currency": "USD"}}}}
   ]
 }

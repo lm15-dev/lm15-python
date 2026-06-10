@@ -31,8 +31,31 @@ def _check_positive_or_none(value: int | None, field_name: str) -> None:
 
 
 def _check_non_negative_or_none(value: float | None, field_name: str) -> None:
-    if value is not None and value < 0:
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field_name} must be a number or None")
+    if value < 0:
         raise ValueError(f"{field_name} must be >= 0")
+
+
+def _coerce_float_field(obj: object, field_name: str) -> None:
+    """Number rule (docs/serde-rules.md): float fields have ONE wire form.
+
+    Same-valued int input is coerced (1 -> 1.0); bool never coerces.
+    """
+    value = getattr(obj, field_name)
+    if type(value) is int:
+        object.__setattr__(obj, field_name, float(value))
+
+
+def _coerce_int_field(obj: object, field_name: str) -> None:
+    """Number rule: int fields coerce same-valued floats, reject the rest."""
+    value = getattr(obj, field_name)
+    if type(value) is float:
+        if not value.is_integer():
+            raise ValueError(f"{field_name} must be an integer")
+        object.__setattr__(obj, field_name, int(value))
 
 
 def _check_json_object_or_none(value: object, field_name: str) -> None:
@@ -62,6 +85,7 @@ class InferencePricing:
             "cache_write_per_million",
         ):
             _check_non_negative_or_none(getattr(self, name), name)
+            _coerce_float_field(self, name)
         _check_nonempty_text(self.currency, "currency")
         _check_json_object_or_none(self.dimensions, "dimensions")
 
@@ -106,6 +130,8 @@ class TrainingPricing:
     def __post_init__(self) -> None:
         _check_non_negative_or_none(self.training_tokens_per_million, "training_tokens_per_million")
         _check_non_negative_or_none(self.gpu_second, "gpu_second")
+        _coerce_float_field(self, "training_tokens_per_million")
+        _coerce_float_field(self, "gpu_second")
         _check_nonempty_text(self.currency, "currency")
         _check_json_object_or_none(self.dimensions, "dimensions")
 
@@ -134,6 +160,8 @@ class InferenceModelInfo:
             raise ValueError("output_modalities must contain non-empty strings")
         if any(not isinstance(v, str) or not v for v in self.reasoning_efforts):
             raise ValueError("reasoning_efforts must contain non-empty strings")
+        _coerce_int_field(self, "context_window")
+        _coerce_int_field(self, "max_output_tokens")
         _check_positive_or_none(self.context_window, "context_window")
         _check_positive_or_none(self.max_output_tokens, "max_output_tokens")
         _check_json_object_or_none(self.extensions, "extensions")

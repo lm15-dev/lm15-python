@@ -270,6 +270,31 @@ def continuation_data(
     return _continuation_by_kind(states, provider, kind)
 
 
+def _coerce_int_field(obj: object, field_name: str) -> None:
+    """Number rule (docs/serde-rules.md): int fields have ONE wire form.
+
+    Same-valued float input is coerced (2.0 -> 2); non-integral floats are
+    rejected; bool never coerces (``type is float`` excludes bool, and the
+    int validators reject bool downstream).
+    """
+    value = getattr(obj, field_name)
+    if type(value) is float:
+        if not value.is_integer():
+            raise TypeError(f"{field_name} must be an int")
+        object.__setattr__(obj, field_name, int(value))
+
+
+def _coerce_float_field(obj: object, field_name: str) -> None:
+    """Number rule (docs/serde-rules.md): float fields have ONE wire form.
+
+    Same-valued int input is coerced (1 -> 1.0); bool never coerces
+    (``type is int`` excludes bool, leaving it for downstream rejection).
+    """
+    value = getattr(obj, field_name)
+    if type(value) is int:
+        object.__setattr__(obj, field_name, float(value))
+
+
 def _validate_int(value: Any, *, field_name: str) -> None:
     """Reject non-int values, including bool (which subclasses int)."""
     if value is None:
@@ -1174,6 +1199,7 @@ class TextDelta:
     type: Literal["text"] = field(default="text", init=False)
 
     def __post_init__(self) -> None:
+        _coerce_int_field(self, "part_index")
         _validate_part_index(self.part_index)
         _validate_text(self.text, field_name="TextDelta.text")
 
@@ -1187,6 +1213,7 @@ class ThinkingDelta:
     type: Literal["thinking"] = field(default="thinking", init=False)
 
     def __post_init__(self) -> None:
+        _coerce_int_field(self, "part_index")
         _validate_part_index(self.part_index)
         _validate_text(self.text, field_name="ThinkingDelta.text")
 
@@ -1208,6 +1235,7 @@ class AudioDelta:
     type: Literal["audio"] = field(default="audio", init=False)
 
     def __post_init__(self) -> None:
+        _coerce_int_field(self, "part_index")
         _validate_part_index(self.part_index)
         _validate_optional_text(self.data, field_name="AudioDelta.data")
         _validate_optional_text(self.url, field_name="AudioDelta.url")
@@ -1238,6 +1266,7 @@ class ImageDelta:
     type: Literal["image"] = field(default="image", init=False)
 
     def __post_init__(self) -> None:
+        _coerce_int_field(self, "part_index")
         _validate_part_index(self.part_index)
         _validate_optional_text(self.data, field_name="ImageDelta.data")
         _validate_optional_text(self.url, field_name="ImageDelta.url")
@@ -1267,6 +1296,7 @@ class ToolCallDelta:
     type: Literal["tool_call"] = field(default="tool_call", init=False)
 
     def __post_init__(self) -> None:
+        _coerce_int_field(self, "part_index")
         _validate_part_index(self.part_index)
         _validate_text(self.input, field_name="ToolCallDelta.input")
         _validate_optional_text(self.id, field_name="ToolCallDelta.id", allow_empty=False)
@@ -1284,6 +1314,7 @@ class CitationDelta:
     type: Literal["citation"] = field(default="citation", init=False)
 
     def __post_init__(self) -> None:
+        _coerce_int_field(self, "part_index")
         _validate_part_index(self.part_index)
         _validate_optional_text(self.text, field_name="CitationDelta.text")
         _validate_optional_text(self.url, field_name="CitationDelta.url")
@@ -1311,6 +1342,7 @@ class ContinuationDelta:
         _validate_text(self.kind, field_name="ContinuationDelta.kind", allow_empty=False)
         _validate_json_field(self, "data", required=True)
         if self.part_index is not None:
+            _coerce_int_field(self, "part_index")
             _validate_part_index(self.part_index)
 
     def to_state(self) -> ContinuationState:
@@ -1548,6 +1580,8 @@ class Reasoning:
             raise ValueError(f"unsupported reasoning effort: {self.effort}")
         if self.summary is not None and self.summary not in REASONING_SUMMARIES:
             raise ValueError(f"unsupported reasoning summary: {self.summary}")
+        _coerce_int_field(self, "thinking_budget")
+        _coerce_int_field(self, "total_budget")
         _validate_positive(self.thinking_budget, field_name="thinking_budget")
         _validate_positive(self.total_budget, field_name="total_budget")
         if self.effort == "off" and (
@@ -1595,6 +1629,7 @@ class CacheConfig:
         if self.mode == "off" and (self.retention is not None or self.key is not None):
             raise ValueError("CacheConfig(mode='off') cannot specify retention or key")
         if self.prefix_until_index is not None:
+            _coerce_int_field(self, "prefix_until_index")
             _validate_non_negative(self.prefix_until_index, field_name="prefix_until_index")
 
 
@@ -1660,6 +1695,8 @@ class Config:
     def __post_init__(self) -> None:
         stop = (self.stop,) if isinstance(self.stop, str) else tuple(self.stop or ())
         object.__setattr__(self, "stop", stop)
+        _coerce_int_field(self, "max_tokens")
+        _coerce_int_field(self, "top_k")
         _validate_positive(self.max_tokens, field_name="max_tokens")
         _validate_positive(self.top_k, field_name="top_k")
         for field_name in ("temperature", "top_p"):
@@ -1668,6 +1705,7 @@ class Config:
                 isinstance(value, bool) or not isinstance(value, (int, float))
             ):
                 raise TypeError(f"{field_name} must be numeric")
+            _coerce_float_field(self, field_name)
         if self.temperature is not None and self.temperature < 0:
             raise ValueError("temperature must be >= 0")
         if self.top_p is not None and not (0 <= self.top_p <= 1):
@@ -1786,7 +1824,9 @@ class Usage:
             "input_audio_tokens",
             "output_audio_tokens",
         ):
+            _coerce_int_field(self, field_name)
             _validate_non_negative(getattr(self, field_name), field_name=field_name)
+        _coerce_int_field(self, "total_tokens")
         _validate_non_negative(self.total_tokens, field_name="total_tokens")
         if (
             self.total_tokens is None
@@ -1957,7 +1997,10 @@ class EmbeddingResponse:
                     raise ValueError(
                         "EmbeddingResponse vector elements must be finite"
                     )
-        object.__setattr__(self, "vectors", vectors)
+        # Number rule: vector elements are float-typed; same-valued ints coerce.
+        object.__setattr__(
+            self, "vectors", tuple(tuple(float(x) for x in vector) for vector in vectors)
+        )
         _validate_json_field(self, "provider_data")
 
 
@@ -2190,6 +2233,8 @@ class AudioFormat:
     def __post_init__(self) -> None:
         if self.encoding not in AUDIO_ENCODINGS:
             raise ValueError(f"unsupported audio encoding: {self.encoding}")
+        _coerce_int_field(self, "sample_rate")
+        _coerce_int_field(self, "channels")
         _validate_positive(self.sample_rate, field_name="sample_rate")
         _validate_positive(self.channels, field_name="channels")
 

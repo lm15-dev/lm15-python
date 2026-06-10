@@ -55,6 +55,10 @@ class LM15Error(Exception):
         self.provider_code = provider_code
         self.status = status
         self.request_id = request_id
+        # Number rule (docs/serde-rules.md): retry_after is float-typed;
+        # same-valued int input (e.g. a Retry-After header of "30") coerces.
+        if type(retry_after) is int:
+            retry_after = float(retry_after)
         self.retry_after = retry_after
         super().__init__(message)
 

@@ -136,6 +136,20 @@ def _contains_key(value: Any, key: str) -> bool:
     return False
 
 
+def _gemini_number(value: float) -> float | int:
+    """Gemini wire dialect: integral float knobs are sent in integer form.
+
+    The canonical model declares temperature/top_p as float fields (Number
+    rule, docs/serde-rules.md), but Gemini's proto3-JSON wire form for
+    integral doubles is the integer digits (live capture:
+    lm15-contract/cases/gemini/temperature.json sends ``"temperature": 1``).
+    This is a provider wire-dialect mapping, not a canonical form.
+    """
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
+
+
 def _response_format_to_gemini_config(format_config: dict[str, Any]) -> dict[str, Any]:
     """Map canonical lm15 response_format to Gemini generationConfig."""
     generation_config = format_config.get("generationConfig")
@@ -514,11 +528,11 @@ class GeminiLM(BaseProviderLM):
 
         generation_config: dict[str, Any] = {}
         if request.config.temperature is not None:
-            generation_config["temperature"] = request.config.temperature
+            generation_config["temperature"] = _gemini_number(request.config.temperature)
         if request.config.max_tokens is not None:
             generation_config["maxOutputTokens"] = request.config.max_tokens
         if request.config.top_p is not None:
-            generation_config["topP"] = request.config.top_p
+            generation_config["topP"] = _gemini_number(request.config.top_p)
         if request.config.top_k is not None:
             generation_config["topK"] = request.config.top_k
         if request.config.stop:
