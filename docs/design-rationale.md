@@ -40,6 +40,8 @@ loop-termination rules) that the foundation has no business hard-coding.
 `lm15` gives you the exact canonical request/response/stream vocabulary and
 provider adapters; loops and ergonomics are intentionally left to the layer
 above. `Result` exists only to assemble streams, not to run conversations.
+`Result` previously contained an automatic tool-execution loop; it was
+removed on 2026-06-11 as a positioning violation.
 
 ## Why tuples everywhere, but lists accepted?
 

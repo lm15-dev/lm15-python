@@ -1,5 +1,5 @@
 """
-lm15.result — Stream materialization and tool-calling loop.
+lm15.result — Stream materialization.
 
 Result is the lazy stream-backed response wrapper.  It unifies
 streaming and non-streaming behind one interface:
@@ -16,21 +16,18 @@ streaming and non-streaming behind one interface:
         ...
 
 _RoundState accumulates stream deltas into a complete Response.
-The _chunks() generator handles multi-round tool calling with
-automatic retry.
+Result executes nothing: tool calls are surfaced as data, and any
+execute-tools-until-done loop belongs to the layer above lm15.
 """
 
 from __future__ import annotations
 
 import asyncio
-import inspect
 import json
-import time
-from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any, AsyncIterator, Callable, Iterator
 
-from .errors import LM15Error, RETRYABLE_ERRORS, error_class_for_code
+from .errors import LM15Error, error_class_for_code
 from .types import (
     AudioDelta,
     AudioPart,
@@ -44,7 +41,6 @@ from .types import (
     ImagePart,
     JsonObject,
     Message,
-    PART_CLASSES,
     Part,
     Request,
     Response,
@@ -57,12 +53,9 @@ from .types import (
     ThinkingDelta,
     ThinkingPart,
     ToolCallDelta,
-    ToolCallInfo,
     ToolCallPart,
-    ToolRegistry,
     Usage,
     VideoPart,
-    tool_result,
 )
 
 _FINISH_SENTINEL = object()
@@ -78,13 +71,6 @@ class StreamChunk:
     image: ImagePart | None = None
     audio: AudioPart | None = None
     response: Response | None = None
-
-
-@dataclass(slots=True)
-class _ExecutedTool:
-    name: str | None
-    part: Part
-    preview: str | None = None
 
 
 @dataclass(slots=True)
@@ -261,7 +247,12 @@ class _RoundState:
 
 
 class Result:
-    """Lazy stream-backed response with automatic tool calling."""
+    """Lazy stream-backed response: a pure stream materializer.
+
+    Consumes stream events and exposes chunks, text and the complete
+    Response.  Tool calls are surfaced as data only; Result never
+    executes tools.
+    """
 
     def __init__(
         self,
@@ -270,10 +261,6 @@ class Result:
         request: Request,
         start_stream: Callable[[Request], Iterator[StreamEvent]] | None = None,
         on_finished: Callable[[Request, Response], None] | None = None,
-        callable_registry: ToolRegistry | None = None,
-        on_tool_call: Callable[[ToolCallInfo], Any] | None = None,
-        max_tool_rounds: int = 8,
-        retries: int = 0,
     ) -> None:
         if events is None and start_stream is None:
             raise ValueError("Result requires events or start_stream")
@@ -281,10 +268,6 @@ class Result:
         self._request = request
         self._start_stream = start_stream
         self._on_finished = on_finished
-        self._callable_registry = callable_registry or {}
-        self._on_tool_call = on_tool_call
-        self._max_tool_rounds = max_tool_rounds
-        self._retries = max(int(retries), 0)
         self._response: Response | None = None
         self._final_request: Request = request
         self._done = False
@@ -405,112 +388,42 @@ class Result:
         return self._response
 
     def _chunks(self) -> Iterator[StreamChunk]:
-        current_request = self._request
-        use_initial_events = True
-        rounds = 0
+        request = self._request
+        state = _RoundState(request=request)
 
         try:
-            while True:
-                state: _RoundState | None = None
-                emitted_visible = False
-                round_response: Response | None = None
-                attempt = 0
-
-                while True:
-                    state = _RoundState(request=current_request)
-                    emitted_visible = False
-                    round_response = None
-                    try:
-                        events = self._open_stream(
-                            current_request,
-                            use_initial_events=use_initial_events,
-                        )
-                        use_initial_events = False
-                        for event in events:
-                            if event.type == "error":
-                                raise _exception_from_error(event)
-                            for chunk in state.apply(event):
-                                if chunk.type in {"text", "thinking", "audio", "image"}:
-                                    emitted_visible = True
-                                yield chunk
-                            if event.type == "end":
-                                break
-                        round_response = state.materialize()
+            try:
+                events = self._open_stream(request)
+                for event in events:
+                    if event.type == "error":
+                        raise _exception_from_error(event)
+                    for chunk in state.apply(event):
+                        yield chunk
+                    if event.type == "end":
                         break
-                    except RETRYABLE_ERRORS as exc:
-                        if emitted_visible or attempt >= self._retries:
-                            self._capture_partial(current_request, state)
-                            self._failure = exc
-                            raise
-                        time.sleep(0.2 * (2 ** attempt))
-                        attempt += 1
-                        continue
-                    except Exception as exc:
-                        self._capture_partial(current_request, state)
-                        self._failure = exc
-                        raise
+                response = state.materialize()
+            except Exception as exc:
+                self._capture_partial(request, state)
+                self._failure = exc
+                raise
 
-                assert round_response is not None
-                self._final_request = current_request
-                self._response = round_response
+            self._final_request = request
+            self._response = response
 
-                pending = round_response.tool_calls
-                for tc in pending:
-                    yield StreamChunk(type="tool_call", name=tc.name, input=tc.input)
+            for tc in response.tool_calls:
+                yield StreamChunk(type="tool_call", name=tc.name, input=tc.input)
 
-                if (
-                    round_response.finish_reason == "tool_call"
-                    and pending
-                    and rounds < self._max_tool_rounds
-                    and self._start_stream is not None
-                ):
-                    executed: list[_ExecutedTool] = []
-                    unanswered = False
-                    for tc in pending:
-                        outcome = self._execute_tool_call(tc)
-                        if outcome is None:
-                            unanswered = True
-                            break
-                        executed.append(outcome)
-
-                    if executed and not unanswered:
-                        for outcome in executed:
-                            yield StreamChunk(
-                                type="tool_result",
-                                text=outcome.preview,
-                                name=outcome.name,
-                            )
-                        tool_message = Message(
-                            role="tool",
-                            parts=tuple(item.part for item in executed),
-                        )
-                        messages = current_request.messages + (
-                            round_response.message,
-                            tool_message,
-                        )
-                        current_request = Request(
-                            model=current_request.model,
-                            messages=messages,
-                            system=current_request.system,
-                            tools=current_request.tools,
-                            config=current_request.config,
-                        )
-                        rounds += 1
-                        continue
-
-                self._finalize(self._final_request, round_response)
-                yield StreamChunk(type="finished", response=round_response)
-                return
+            self._finalize(request, response)
+            yield StreamChunk(type="finished", response=response)
         finally:
             self._done = True
 
-    def _open_stream(self, request: Request, *, use_initial_events: bool) -> Iterator[StreamEvent]:
-        if use_initial_events and self._initial_events is not None:
+    def _open_stream(self, request: Request) -> Iterator[StreamEvent]:
+        if self._initial_events is not None:
             events = self._initial_events
             self._initial_events = None
             return events
-        if self._start_stream is None:
-            raise ValueError("cannot start follow-up stream: no stream factory")
+        assert self._start_stream is not None  # enforced in __init__
         return self._start_stream(request)
 
     def _capture_partial(self, request: Request, state: _RoundState | None) -> None:
@@ -528,31 +441,6 @@ class Result:
         if not self._callback_called and self._on_finished is not None:
             self._callback_called = True
             self._on_finished(request, response)
-
-    def _execute_tool_call(self, tc: ToolCallPart) -> _ExecutedTool | None:
-        info = ToolCallInfo(id=tc.id, name=tc.name, input=tc.input)
-
-        if self._on_tool_call is not None:
-            override = self._on_tool_call(info)
-            if override is not None:
-                content = _normalize_tool_output(override)
-                return _ExecutedTool(
-                    name=info.name,
-                    part=tool_result(info.id, content, name=info.name),
-                    preview=_preview_parts(content),
-                )
-
-        fn = self._callable_registry.get(info.name)
-        if fn is None:
-            return None
-
-        output = _invoke_tool(fn, info.input)
-        content = _normalize_tool_output(output)
-        return _ExecutedTool(
-            name=info.name,
-            part=tool_result(info.id, content, name=info.name),
-            preview=_preview_parts(content),
-        )
 
 
 class AsyncResult:
@@ -839,37 +727,3 @@ def _parse_json_best_effort(raw: str | None) -> JsonObject:
 
 def _reject_json_constant(value: str) -> None:
     raise ValueError(f"non-standard JSON constant: {value}")
-
-
-def _normalize_tool_output(value: Any) -> list[Part]:
-    if isinstance(value, str):
-        return [TextPart(text=value)]
-    if isinstance(value, PART_CLASSES):
-        return [value]
-    if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
-        parts = list(value)
-        if all(isinstance(part, PART_CLASSES) for part in parts):
-            return parts
-    return [TextPart(text=str(value))]
-
-
-def _preview_parts(parts: list[Part]) -> str | None:
-    texts = [p.text for p in parts if isinstance(p, (TextPart, ThinkingPart)) and p.text]
-    return "\n".join(texts) or None
-
-
-def _invoke_tool(fn: Callable[..., Any], payload: JsonObject) -> Any:
-    try:
-        sig = inspect.signature(fn)
-    except (TypeError, ValueError):
-        return fn(**payload)
-
-    try:
-        sig.bind(**payload)
-    except TypeError as kwargs_error:
-        try:
-            sig.bind(payload)
-        except TypeError:
-            raise kwargs_error
-        return fn(payload)
-    return fn(**payload)

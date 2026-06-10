@@ -6,8 +6,6 @@ import pytest
 
 from lm15.result import (
     Result,
-    _invoke_tool,
-    _normalize_tool_output,
     response_to_events,
 )
 from lm15.types import (
@@ -150,21 +148,18 @@ def test_result_delegates_video_and_document_helpers() -> None:
     assert result.document_bytes == b"doc"
 
 
-def test_tool_output_normalization_accepts_any_part_sequence() -> None:
-    video = VideoPart(data=_b64(b"video"))
-    document = DocumentPart(data=_b64(b"doc"))
+def test_result_rejects_tool_loop_parameters() -> None:
+    """Result is a pure stream materializer: the automatic tool-execution
+    loop was removed (positioning decision, 2026-06-11)."""
+    req = Request(model="m", messages=(Message.user("hi"),))
+    for kwarg in ("callable_registry", "on_tool_call", "max_tool_rounds", "retries"):
+        with pytest.raises(TypeError):
+            Result(events=iter(()), request=req, **{kwarg: None})
 
-    assert _normalize_tool_output((video, document)) == [video, document]
-    assert _normalize_tool_output("ok") == [TextPart("ok")]
 
+def test_result_module_has_no_tool_execution_helpers() -> None:
+    import lm15.result as result_mod
 
-def test_tool_invocation_fallback_does_not_swallow_internal_type_errors() -> None:
-    def accepts_payload(payload):
-        return payload["x"]
-
-    def raises_inside(x):
-        raise TypeError("internal bug")
-
-    assert _invoke_tool(accepts_payload, {"x": 1}) == 1
-    with pytest.raises(TypeError, match="internal bug"):
-        _invoke_tool(raises_inside, {"x": 1})
+    for name in ("_invoke_tool", "_normalize_tool_output", "_preview_parts",
+                 "_ExecutedTool"):
+        assert not hasattr(result_mod, name)
