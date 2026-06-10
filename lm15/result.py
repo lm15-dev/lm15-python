@@ -704,6 +704,43 @@ def response_to_events(response: Response) -> Iterator[StreamEvent]:
     )
 
 
+def coalesce_stream(events: Iterator[StreamEvent]) -> Iterator[StreamEvent]:
+    """Enforce MAP-3: a stream yields exactly one StreamEndEvent, as the final event.
+
+    Adapters are stateless and may emit one end event per provider terminal
+    frame (finish_reason chunk, usage-only chunk, ``[DONE]``,
+    ``message_delta`` + ``message_stop``).  This wrapper passes start, delta
+    and error events through unchanged, absorbs every end event's fields —
+    a later non-None field replaces the accumulated value, a None field never
+    erases one — and emits the single merged end event once the underlying
+    iterator is exhausted.  If no end event was seen (e.g. the stream errored
+    or was truncated), no end event is fabricated.
+
+    See docs/mapping-rules.md MAP-3.
+    """
+    saw_end = False
+    finish_reason = None
+    usage: Usage | None = None
+    provider_data = None
+    for event in events:
+        if event.type == "end":
+            saw_end = True
+            if event.finish_reason is not None:
+                finish_reason = event.finish_reason
+            if event.usage is not None:
+                usage = event.usage
+            if event.provider_data is not None:
+                provider_data = event.provider_data
+            continue
+        yield event
+    if saw_end:
+        yield StreamEndEvent(
+            finish_reason=finish_reason,
+            usage=usage,
+            provider_data=provider_data,
+        )
+
+
 def materialize_response(events: Iterator[StreamEvent], request: Request) -> Response:
     """Consume stream events and build a complete Response."""
     return Result(events=events, request=request).response

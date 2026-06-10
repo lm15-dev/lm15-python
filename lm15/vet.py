@@ -17,14 +17,14 @@ import dataclasses
 import json
 import sys
 import urllib.parse
-from typing import Any, Callable, Literal, get_args, get_origin
+from typing import Any, Callable, Iterator, Literal, get_args, get_origin
 
 from . import types as lm15_types
 from . import serde
 from .errors import canonical_error_code
 from .providers import AnthropicLM, GeminiLM, HttpResponse, OpenAIChatLM, OpenAILM
 from .providers.base import BaseProviderLM
-from .result import materialize_response
+from .result import coalesce_stream, materialize_response
 from .sse import parse_sse
 from .types import Request, Response, StreamEvent
 
@@ -152,12 +152,15 @@ def _response_result(response: Response) -> JsonObject:
 
 
 def _parse_stream_body(lm: BaseProviderLM, request: Request, body: bytes) -> list[StreamEvent]:
-    events: list[StreamEvent] = []
-    for raw in parse_sse(iter(body.splitlines(keepends=True))):
-        for event in lm.parse_stream_events(request, raw):
-            if event is not None:
-                events.append(event)
-    return events
+    def raw_events() -> Iterator[StreamEvent]:
+        for raw in parse_sse(iter(body.splitlines(keepends=True))):
+            for event in lm.parse_stream_events(request, raw):
+                if event is not None:
+                    yield event
+
+    # MAP-3: the canonical event trace is the POST-coalesce trace — exactly
+    # one merged StreamEndEvent, final.
+    return list(coalesce_stream(raw_events()))
 
 
 # ─── Ops ─────────────────────────────────────────────────────────────

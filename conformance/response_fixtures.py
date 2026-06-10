@@ -14,7 +14,7 @@ if str(REPO_ROOT) not in sys.path:
 from lm15.providers import AnthropicLM, GeminiLM, HttpResponse, OpenAILM
 from lm15.providers.base import BaseProviderLM
 from lm15.sse import parse_sse
-from lm15.stream import materialize_response
+from lm15.stream import coalesce_stream, materialize_response
 from lm15.types import (
     AudioPart,
     BuiltinTool,
@@ -158,17 +158,20 @@ def parse_complete(provider: str, request: Request, body: bytes) -> Response:
 
 def parse_stream(provider: str, request: Request, body: bytes) -> list[StreamEvent]:
     lm = provider_lm(provider)
-    events: list[StreamEvent] = []
-    lines = iter(body.splitlines(keepends=True))
-    for raw in parse_sse(lines):
-        parse_many = getattr(lm, "parse_stream_events", None)
-        if parse_many is not None:
-            events.extend(event for event in parse_many(request, raw) if event is not None)
-        else:
-            event = lm.parse_stream_event(request, raw)
-            if event is not None:
-                events.append(event)
-    return events
+
+    def raw_events() -> Iterator[StreamEvent]:
+        lines = iter(body.splitlines(keepends=True))
+        for raw in parse_sse(lines):
+            parse_many = getattr(lm, "parse_stream_events", None)
+            if parse_many is not None:
+                yield from (event for event in parse_many(request, raw) if event is not None)
+            else:
+                event = lm.parse_stream_event(request, raw)
+                if event is not None:
+                    yield event
+
+    # MAP-3: the canonical event trace is the POST-coalesce trace.
+    return list(coalesce_stream(raw_events()))
 
 
 def parse_complete_fixture(provider: str, feature: str, *, body_path: str | Path | None = None) -> Response:

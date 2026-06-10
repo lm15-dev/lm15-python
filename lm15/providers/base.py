@@ -114,6 +114,14 @@ class BaseProviderLM:
         return self.parse_response(request, resp)
 
     def stream(self, request: Request) -> Iterator[StreamEvent]:
+        # MAP-3 (docs/mapping-rules.md): adapters may emit one end event per
+        # provider terminal frame; the coalescer merges them so the public
+        # stream yields exactly one final StreamEndEvent.
+        from ..result import coalesce_stream
+
+        return coalesce_stream(self._stream_raw(request))
+
+    def _stream_raw(self, request: Request) -> Iterator[StreamEvent]:
         req = self.build_request(request, stream=True)
         self._ensure_transport_open()
         try:
