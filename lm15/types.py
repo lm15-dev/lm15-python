@@ -49,7 +49,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
-from typing import Any, Callable, Literal, TypeAlias, TypeVar, get_args
+from typing import Any, Literal, TypeAlias, TypeVar, get_args
 
 
 # ─── Literal vocabularies ────────────────────────────────────────────
@@ -1526,7 +1526,6 @@ class BuiltinTool:
 
 
 Tool: TypeAlias = FunctionTool | BuiltinTool
-ToolRegistry: TypeAlias = dict[str, Callable[..., Any]]
 
 
 # ─── Configuration ───────────────────────────────────────────────────

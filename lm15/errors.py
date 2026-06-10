@@ -142,7 +142,7 @@ class RateLimitError(ProviderError):
             "\n\n"
             "  To fix:\n"
             "    - Wait a moment and retry\n"
-            "    - Enable retries where the calling API exposes a retries option\n"
+            "    - Retry with backoff in your application layer (lm15 never retries for you)\n"
             "    - Reduce request rate or upgrade your API plan\n"
         )
         super().__init__(_append_guidance(message, guidance), **kwargs)
@@ -348,7 +348,8 @@ def error_class_for_code(code: str) -> type[LM15Error]:
     return _CODE_TO_CLASS.get(code, ProviderError)
 
 
-# Retryable errors — used by Result for automatic retries
+# Errors that are safe to retry; lm15 never retries itself — this
+# classification is data for the caller's own retry policy.
 RETRYABLE_ERRORS = (RateLimitError, TimeoutError, ServerError, TransportError)
 
 

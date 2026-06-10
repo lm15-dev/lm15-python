@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import inspect
 import json
 import threading
 from collections import deque
@@ -17,7 +16,6 @@ from collections.abc import Sequence
 from typing import Any, Callable, Deque
 
 from .types import (
-    JsonObject,
     LiveClientAudioEvent,
     LiveClientEndAudioEvent,
     LiveClientEvent,
@@ -31,8 +29,6 @@ from .types import (
     Part,
     PartInput,
     TextPart,
-    ToolCallInfo,
-    ToolRegistry,
     _normalize_parts,
 )
 
@@ -62,20 +58,13 @@ class WebSocketLiveSession:
         ws: Any,
         encode_event: EncodeEventFn,
         decode_event: DecodeEventFn,
-        callable_registry: ToolRegistry | None = None,
-        on_tool_call: Callable[[ToolCallInfo], Any] | None = None,
     ) -> None:
         self._ws = ws
         self._encode_event = encode_event
         self._decode_event = decode_event
-        self._callable_registry = callable_registry or {}
-        self._on_tool_call = on_tool_call
         self._pending: Deque[LiveServerEvent] = deque()
         self._send_lock = threading.Lock()
         self._closed = False
-
-    def set_on_tool_call(self, callback: Callable[[ToolCallInfo], Any] | None) -> None:
-        self._on_tool_call = callback
 
     def send(
         self,
@@ -153,7 +142,6 @@ class WebSocketLiveSession:
                 continue
 
             for event in decoded:
-                self._maybe_auto_execute_tool(event)
                 self._pending.append(event)
 
     def close(self) -> None:
@@ -220,33 +208,6 @@ class WebSocketLiveSession:
             raise ValueError("nothing to send")
         return events
 
-    def _maybe_auto_execute_tool(self, event: LiveServerEvent) -> None:
-        if event.type != "tool_call" or not event.id:
-            return
-
-        info = ToolCallInfo(
-            id=event.id,
-            name=event.name or "tool",
-            input=event.input or {},
-        )
-
-        result: Any | None = None
-        if self._on_tool_call is not None:
-            override = self._on_tool_call(info)
-            if override is not None:
-                result = override
-
-        if result is None:
-            fn = self._callable_registry.get(info.name)
-            if fn is not None:
-                result = _invoke_tool(fn, info.input)
-
-        if result is None:
-            return
-
-        self.send(tool_result={info.id: result})
-
-
 class AsyncLiveSession:
     """Async wrapper over a sync live session."""
 
@@ -309,23 +270,6 @@ def _tool_result_parts(value: Any) -> list[Part]:
         if all(isinstance(part, PART_CLASSES) for part in parts):
             return parts
     return [TextPart(text=str(value))]
-
-
-def _invoke_tool(fn: Callable[..., Any], payload: JsonObject) -> Any:
-    try:
-        sig = inspect.signature(fn)
-    except (TypeError, ValueError):
-        return fn(**payload)
-
-    try:
-        sig.bind(**payload)
-    except TypeError as kwargs_error:
-        try:
-            sig.bind(payload)
-        except TypeError:
-            raise kwargs_error
-        return fn(payload)
-    return fn(**payload)
 
 
 def _to_base64_str(data: bytes | str) -> str:

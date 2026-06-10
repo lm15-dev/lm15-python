@@ -89,7 +89,9 @@ def test_rate_limit_guidance_does_not_reference_missing_top_level_api() -> None:
     text = str(RateLimitError("rate limited"))
 
     assert "lm15.model" not in text
-    assert "Enable retries" in text
+    # lm15 has no retries option anywhere; guidance must not imply one.
+    assert "Enable retries" not in text
+    assert "application layer" in text
 
 
 def test_openai_model_not_found_maps_to_unsupported_model() -> None:

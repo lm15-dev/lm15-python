@@ -41,7 +41,10 @@ loop-termination rules) that the foundation has no business hard-coding.
 provider adapters; loops and ergonomics are intentionally left to the layer
 above. `Result` exists only to assemble streams, not to run conversations.
 `Result` previously contained an automatic tool-execution loop; it was
-removed on 2026-06-11 as a positioning violation.
+removed on 2026-06-11 as a positioning violation. Live sessions had their own
+copy of that loop (callable registry, tool-call callback, auto-execution); it
+was removed for the same reason — a session surfaces tool calls as events and
+the caller sends results back.
 
 ## Why tuples everywhere, but lists accepted?
 
