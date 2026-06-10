@@ -102,25 +102,32 @@ class AuthError(ProviderError):
         *,
         provider: str | None = None,
         env_keys: tuple[str, ...] = (),
+        credential_hint: str | None = None,
         **kwargs,
     ) -> None:
         if provider is not None:
             kwargs.setdefault("provider", provider)
         provider_name = provider or kwargs.get("provider")
         self.env_keys = tuple(env_keys)
+        self.credential_hint = credential_hint
 
-        guidance = (
-            "\n\n"
-            "  To fix:\n"
-            "    - Check that your API key is correct and not expired\n"
-        )
-        if self.env_keys:
-            keys = " or ".join(f"{key}=..." for key in self.env_keys)
-            guidance += f"    - Set the provider API key in your environment: {keys}\n"
+        if credential_hint:
+            # Subscription/OAuth adapters: guidance is how to re-login, not
+            # which env var to set (there is none).
+            guidance = f"\n\n  To fix:\n    - {credential_hint}\n"
         else:
-            guidance += "    - Set the provider API key in your environment\n"
-        if provider_name:
-            guidance += f"    - Verify your {provider_name} account/project has access\n"
+            guidance = (
+                "\n\n"
+                "  To fix:\n"
+                "    - Check that your API key is correct and not expired\n"
+            )
+            if self.env_keys:
+                keys = " or ".join(f"{key}=..." for key in self.env_keys)
+                guidance += f"    - Set the provider API key in your environment: {keys}\n"
+            else:
+                guidance += "    - Set the provider API key in your environment\n"
+            if provider_name:
+                guidance += f"    - Verify your {provider_name} account/project has access\n"
 
         super().__init__(_append_guidance(message, guidance), **kwargs)
 
@@ -214,15 +221,19 @@ class NotConfiguredError(ConfigurationError):
         *,
         provider: str | None = None,
         env_keys: tuple[str, ...] = (),
+        credential_hint: str | None = None,
         **kwargs,
     ) -> None:
         if provider is not None:
             kwargs.setdefault("provider", provider)
         provider_name = provider or kwargs.get("provider")
         self.env_keys = tuple(env_keys)
+        self.credential_hint = credential_hint
 
         guidance = ""
-        if self.env_keys or provider_name:
+        if credential_hint:
+            guidance = f"\n\n  To fix:\n    - {credential_hint}\n"
+        elif self.env_keys or provider_name:
             guidance = "\n\n  To fix:\n"
             if self.env_keys:
                 keys = " or ".join(f"{key}=..." for key in self.env_keys)
@@ -232,6 +243,30 @@ class NotConfiguredError(ConfigurationError):
 
         message = _append_guidance(message, guidance) if guidance else message
         super().__init__(message, **kwargs)
+
+
+_GUIDANCE_MARKER = "\n\n  To fix:"
+
+
+def with_credential_hint(error: ProviderError, hint: str) -> ProviderError:
+    """Rewrite an AuthError's guidance for subscription (OAuth) adapters.
+
+    API-key adapters point at env vars; subscription adapters have no env
+    var — the fix is re-running the provider CLI login. Non-auth errors pass
+    through unchanged.
+    """
+    if not isinstance(error, AuthError):
+        return error
+    base = error.message.split(_GUIDANCE_MARKER, 1)[0]
+    return AuthError(
+        base,
+        provider=error.provider,
+        credential_hint=hint,
+        provider_code=error.provider_code,
+        status=error.status,
+        request_id=error.request_id,
+        retry_after=error.retry_after,
+    )
 
 
 # ─── HTTP status → error class mapping ───────────────────────────────

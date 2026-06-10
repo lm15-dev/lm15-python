@@ -177,6 +177,8 @@ from .providers.async_base import (
     AsyncOpenAIChatLM,
     AsyncAnthropicLM,
     AsyncGeminiLM,
+    AsyncClaudeCodeLM,
+    AsyncOpenAICodexLM,
     AsyncBaseProviderLM,
     AsyncTransport,
 )
@@ -245,6 +247,7 @@ __all__ = [
     "BaseProviderLM", "ProviderLM", "HttpResponse", "SyncTransport",
     # async mirror providers
     "AsyncOpenAILM", "AsyncOpenAIChatLM", "AsyncAnthropicLM", "AsyncGeminiLM",
+    "AsyncClaudeCodeLM", "AsyncOpenAICodexLM",
     "AsyncBaseProviderLM", "AsyncTransport",
     # stream assembly
     "Result", "AsyncResult", "StreamChunk", "acoalesce_stream",

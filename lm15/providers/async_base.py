@@ -15,6 +15,7 @@ if it is ever used: the inner adapter must never touch the network.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, ClassVar, Protocol
 
@@ -46,10 +47,12 @@ from ..types import (
 )
 from .anthropic import AnthropicLM
 from .base import BaseProviderLM, HttpResponse, SyncTransport
+from .claude_code import DEFAULT_CLAUDE_CODE_VERSION, ClaudeCodeLM
 from .common import make_json_request
 from .gemini import GeminiLM
 from .openai import OpenAILM
 from .openai_chat import OpenAIChatLM
+from .openai_codex import DEFAULT_CODEX_BASE_URL, DEFAULT_CODEX_ORIGINATOR, OpenAICodexLM
 
 
 class AsyncTransport(Protocol):
@@ -364,6 +367,108 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
         self.compat = self._inner.compat
 
 
+# ─── Subscription mirrors (Claude Code / Codex CLI OAuth) ────────────
+#
+# Same composition pattern: the inner sync adapter resolves the local OAuth
+# credential at construction time (file read; a token refresh, if needed, is
+# one blocking call) and owns all pure mapping; the resolved token fields are
+# repr-suppressed so secrets never leak.
+
+
+@dataclass(slots=True)
+class AsyncClaudeCodeLM(AsyncBaseProviderLM):
+    api_key: str | None = field(default=None, repr=False)
+    credentials_path: "str | os.PathLike[str] | None" = None
+    transport: AsyncTransport = field(default_factory=default_async_transport)
+    base_url: str = "https://api.anthropic.com/v1"
+    api_version: str = "2023-06-01"
+    claude_code_version: str = DEFAULT_CLAUDE_CODE_VERSION
+
+    # Not constructor params on the sync sibling either (it is not a dataclass).
+    provider: str = field(default="claude-code", init=False)
+    capabilities: Capabilities = field(default=ClaudeCodeLM.capabilities, init=False)
+    supports: ClassVar[EndpointSupport] = ClaudeCodeLM.supports
+    manifest: ClassVar[ProviderManifest] = ClaudeCodeLM.manifest
+
+    _inner: ClaudeCodeLM = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        self._inner = ClaudeCodeLM(
+            api_key=self.api_key,
+            credentials_path=self.credentials_path,
+            transport=_ForbiddenTransport(),
+            base_url=self.base_url,
+            api_version=self.api_version,
+            claude_code_version=self.claude_code_version,
+        )
+        self.api_key = self._inner.api_key  # resolved OAuth token (repr-suppressed)
+
+    def file_upload(self, request: FileUploadRequest):
+        return self._inner.file_upload(request)  # raises UnsupportedFeatureError
+
+    def batch_submit(self, request: BatchRequest):
+        return self._inner.batch_submit(request)  # raises UnsupportedFeatureError
+
+    def live(self, config: LiveConfig):
+        return self._inner.live(config)  # raises UnsupportedFeatureError
+
+
+@dataclass(slots=True)
+class AsyncOpenAICodexLM(AsyncBaseProviderLM):
+    api_key: str | None = field(default=None, repr=False)
+    account_id: str | None = None
+    auth_path: "str | os.PathLike[str] | None" = None
+    transport: AsyncTransport = field(default_factory=default_async_transport)
+    base_url: str = DEFAULT_CODEX_BASE_URL
+    originator: str = DEFAULT_CODEX_ORIGINATOR
+
+    # Not constructor params on the sync sibling either (it is not a dataclass).
+    provider: str = field(default="openai-codex", init=False)
+    capabilities: Capabilities = field(default=OpenAICodexLM.capabilities, init=False)
+    supports: ClassVar[EndpointSupport] = OpenAICodexLM.supports
+    manifest: ClassVar[ProviderManifest] = OpenAICodexLM.manifest
+
+    _inner: OpenAICodexLM = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        self._inner = OpenAICodexLM(
+            api_key=self.api_key,
+            account_id=self.account_id,
+            auth_path=self.auth_path,
+            transport=_ForbiddenTransport(),
+            base_url=self.base_url,
+            originator=self.originator,
+        )
+        self.api_key = self._inner.api_key  # resolved OAuth token (repr-suppressed)
+        self.account_id = self._inner.account_id
+
+    async def complete(self, request: Request) -> Response:
+        # Mirror of OpenAICodexLM.complete: the Codex subscription backend is
+        # streaming-first; materialize the (coalesced) stream.
+        from ..result import materialize_response
+
+        events = [event async for event in self.stream(request)]
+        return materialize_response(iter(events), request)
+
+    def live(self, config: LiveConfig):
+        return self._inner.live(config)  # raises UnsupportedFeatureError
+
+    def embeddings(self, request: EmbeddingRequest):
+        return self._inner.embeddings(request)  # raises UnsupportedFeatureError
+
+    def file_upload(self, request: FileUploadRequest):
+        return self._inner.file_upload(request)  # raises UnsupportedFeatureError
+
+    def batch_submit(self, request: BatchRequest):
+        return self._inner.batch_submit(request)  # raises UnsupportedFeatureError
+
+    def image_generate(self, request: ImageGenerationRequest):
+        return self._inner.image_generate(request)  # raises UnsupportedFeatureError
+
+    def audio_generate(self, request: AudioGenerationRequest):
+        return self._inner.audio_generate(request)  # raises UnsupportedFeatureError
+
+
 __all__ = [
     "AsyncBaseProviderLM",
     "AsyncTransport",
@@ -371,5 +476,7 @@ __all__ = [
     "AsyncAnthropicLM",
     "AsyncGeminiLM",
     "AsyncOpenAIChatLM",
+    "AsyncClaudeCodeLM",
+    "AsyncOpenAICodexLM",
     "default_async_transport",
 ]
