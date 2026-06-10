@@ -21,9 +21,14 @@ Quick tour:
     for event in lm.stream(request): ...   # canonical stream events
 
 Subpackages kept off the top level on purpose: `lm15.transports` (HTTP
-plumbing; its Request/TransportError are transport-level, not canonical),
+plumbing; its TransportRequest/TransportError are transport-level, not
+canonical),
 `lm15.live` (realtime sessions; optional `websockets` dependency),
 `lm15.vet` (the conformance shim CLI: `python -m lm15.vet`).
+
+The lowercase part-factory helpers (`text`, `image`, `tool_call`, ...) live in
+`lm15.types`, not at the top level — generic lowercase names at package top
+level invite collisions with user code.
 """
 
 from importlib.metadata import PackageNotFoundError, version as _version
@@ -58,18 +63,6 @@ from .types import (
     BinaryPart,
     ToolCallPart,
     ToolResultPart,
-    # part factory helpers
-    text,
-    thinking,
-    refusal,
-    citation,
-    image,
-    audio,
-    video,
-    document,
-    binary,
-    tool_call,
-    tool_result,
     # tools
     FunctionTool,
     BuiltinTool,
@@ -206,9 +199,6 @@ __all__ = [
     "TextPart", "ThinkingPart", "RefusalPart", "CitationPart", "ImagePart",
     "AudioPart", "VideoPart", "DocumentPart", "BinaryPart", "ToolCallPart",
     "ToolResultPart",
-    # part factories
-    "text", "thinking", "refusal", "citation", "image", "audio", "video",
-    "document", "binary", "tool_call", "tool_result",
     # tools
     "FunctionTool", "BuiltinTool", "ToolCallInfo",
     # streaming

@@ -5,7 +5,7 @@ import json
 import urllib.parse
 from typing import Any
 
-from ..transports import Request as TransportRequest
+from ..transports import TransportRequest
 from ..types import (
     AudioPart,
     BinaryPart,

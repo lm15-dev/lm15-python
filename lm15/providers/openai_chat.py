@@ -24,7 +24,7 @@ from ..errors import ProviderError
 from ..features import EndpointSupport, ProviderManifest
 from ..protocols import Capabilities
 from ..sse import SSEEvent
-from ..transports import Request as TransportRequest
+from ..transports import TransportRequest
 from ..types import (
     FunctionTool,
     Message,

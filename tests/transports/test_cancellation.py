@@ -13,7 +13,7 @@ import time
 
 import pytest
 
-from lm15.transports import Request, StdlibAsyncTransport, StdlibTransport
+from lm15.transports import TransportRequest, StdlibAsyncTransport, StdlibTransport
 from .conftest import reply_chunked, reply_bytes
 
 
@@ -27,7 +27,7 @@ def test_break_mid_stream_closes_connection(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             for i, _ in enumerate(resp):
                 if i >= 2:
@@ -45,7 +45,7 @@ def test_exception_in_iteration_closes_connection(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with pytest.raises(RuntimeError):
             with t.stream(req) as resp:
                 for i, _ in enumerate(resp):
@@ -65,7 +65,7 @@ def test_break_then_new_request_works(server) -> None:
     t = StdlibTransport()
     try:
         for _ in range(3):
-            req = Request(method="GET", url=f"{server.base_url()}/")
+            req = TransportRequest(method="GET", url=f"{server.base_url()}/")
             with t.stream(req) as resp:
                 for i, _ in enumerate(resp):
                     if i >= 2:
@@ -89,7 +89,7 @@ async def test_task_cancelled_mid_stream_closes_connection(server):
     t = StdlibAsyncTransport()
 
     async def run():
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         async with t.stream(req) as resp:
             async for _ in resp:
                 await asyncio.sleep(0)
@@ -114,7 +114,7 @@ async def test_async_exception_closes_connection(server):
     server.ctx.handler = handler
     t = StdlibAsyncTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with pytest.raises(RuntimeError):
             async with t.stream(req) as resp:
                 i = 0
@@ -138,7 +138,7 @@ async def test_gather_cancellation_cleans_up_all(server):
     t = StdlibAsyncTransport(max_connections=5)
 
     async def one():
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         async with t.stream(req) as resp:
             async for _ in resp:
                 await asyncio.sleep(0)
@@ -173,7 +173,7 @@ async def test_stop_early_on_detected_wrong_answer(server):
     server.ctx.handler = handler
     t = StdlibAsyncTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         received_events = 0
         async with t.stream(req) as resp:
             async for chunk in resp:

@@ -35,7 +35,7 @@ from ._http11 import (
     build_request_head,
 )
 from ._ssl import make_ssl_context
-from ._types import AsyncResponse, Request
+from ._types import AsyncTransportResponse, TransportRequest
 from ._url import ParsedURL, parse_url
 
 
@@ -219,11 +219,11 @@ class StdlibAsyncTransport:
 
     # ─── Main entry point ───
 
-    def stream(self, request: Request) -> "_AsyncStreamCM":
-        """Return an async context manager that produces an AsyncResponse."""
+    def stream(self, request: TransportRequest) -> "_AsyncStreamCM":
+        """Return an async context manager that produces an AsyncTransportResponse."""
         return _AsyncStreamCM(self, request)
 
-    async def _do_stream(self, request: Request) -> AsyncResponse:
+    async def _do_stream(self, request: TransportRequest) -> AsyncTransportResponse:
         if self._closed:
             raise TransportError("transport is closed")
 
@@ -322,7 +322,7 @@ class StdlibAsyncTransport:
                 finally:
                     release_slot_once()
 
-            return AsyncResponse(
+            return AsyncTransportResponse(
                 status=head.status,
                 reason=head.reason,
                 headers=head.headers,
@@ -376,7 +376,7 @@ class StdlibAsyncTransport:
     async def _send_request(
         self,
         conn: _AsyncConnection,
-        request: Request,
+        request: TransportRequest,
         parsed: ParsedURL,
         *,
         write_timeout: float,
@@ -440,15 +440,15 @@ class _AsyncStreamCM:
             async for chunk in resp: ...
     """
 
-    def __init__(self, transport: StdlibAsyncTransport, request: Request) -> None:
+    def __init__(self, transport: StdlibAsyncTransport, request: TransportRequest) -> None:
         self._transport = transport
         self._request = request
-        self._response: AsyncResponse | None = None
+        self._response: AsyncTransportResponse | None = None
 
     def __await__(self):
         return self._transport._do_stream(self._request).__await__()
 
-    async def __aenter__(self) -> AsyncResponse:
+    async def __aenter__(self) -> AsyncTransportResponse:
         self._response = await self._transport._do_stream(self._request)
         return self._response
 

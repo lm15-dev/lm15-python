@@ -15,7 +15,7 @@ from lm15.transports import (
     ProtocolError,
     ReadError,
     ReadTimeout,
-    Request,
+    TransportRequest,
     StdlibTransport,
     TransportError,
 )
@@ -26,7 +26,7 @@ from .conftest import reply_bytes, reply_chunked
 def test_simple_get(server) -> None:
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/hello")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/hello")
         with t.stream(req) as resp:
             assert resp.status == 200
             body = b"".join(resp)
@@ -51,7 +51,7 @@ def test_post_with_json_body(server) -> None:
     t = StdlibTransport()
     try:
         body = json.dumps({"x": 1}).encode()
-        req = Request(
+        req = TransportRequest(
             method="POST", url=f"{server.base_url()}/v1/x",
             headers=[("Content-Type", "application/json")],
             body=body,
@@ -74,7 +74,7 @@ def test_host_header_includes_port_when_non_default(server) -> None:
 
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             b"".join(resp)
         host = server.ctx.requests[0].header("host")
@@ -90,7 +90,7 @@ def test_chunked_response(server) -> None:
 
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             assert resp.status == 200
             chunks = list(resp)
@@ -111,7 +111,7 @@ def test_streaming_yields_chunks_as_they_arrive(server) -> None:
     t = StdlibTransport()
     try:
         start = time.monotonic()
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             for chunk in resp:
                 arrival_times.append(time.monotonic() - start)
@@ -139,7 +139,7 @@ def test_sse_style_response(server) -> None:
 
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/v1/stream")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/v1/stream")
         with t.stream(req) as resp:
             assert resp.header("content-type") == "text/event-stream"
             body = b"".join(resp)
@@ -157,7 +157,7 @@ def test_error_status_still_delivers_body(server) -> None:
 
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             assert resp.status == 429
             body = b"".join(resp)
@@ -175,7 +175,7 @@ def test_content_length_response(server) -> None:
 
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             received = b"".join(resp)
         assert received == payload
@@ -187,7 +187,7 @@ def test_connect_refused_raises_connect_error() -> None:
     t = StdlibTransport()
     try:
         # port 1 is reliably closed
-        req = Request(method="GET", url="http://127.0.0.1:1/")
+        req = TransportRequest(method="GET", url="http://127.0.0.1:1/")
         with pytest.raises(ConnectError):
             t.stream(req).__enter__()
     finally:
@@ -198,7 +198,7 @@ def test_connect_timeout() -> None:
     t = StdlibTransport(connect_timeout=0.2)
     try:
         # TEST-NET-1 address — non-routable, connect will hang
-        req = Request(method="GET", url="http://192.0.2.1/")
+        req = TransportRequest(method="GET", url="http://192.0.2.1/")
         with pytest.raises((ConnectTimeout, ConnectError)):
             t.stream(req).__enter__()
     finally:
@@ -214,7 +214,7 @@ def test_read_timeout(server) -> None:
 
     t = StdlibTransport(read_timeout=0.3)
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with pytest.raises((ReadTimeout, ReadError, TransportError)):
             with t.stream(req) as resp:
                 b"".join(resp)
@@ -231,7 +231,7 @@ def test_response_closed_on_early_break(server) -> None:
 
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             for i, chunk in enumerate(resp):
                 if i >= 3:
@@ -239,7 +239,7 @@ def test_response_closed_on_early_break(server) -> None:
         # Now the pool must NOT have this connection cached as idle
         assert t.pool_stats()["idle"] == 0
         # But a follow-up request should still work
-        req2 = Request(method="GET", url=f"{server.base_url()}/")
+        req2 = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req2) as resp2:
             b"".join(resp2)
     finally:
@@ -254,7 +254,7 @@ def test_keepalive_reuses_connection(server) -> None:
     t = StdlibTransport()
     try:
         for _ in range(3):
-            req = Request(method="GET", url=f"{server.base_url()}/")
+            req = TransportRequest(method="GET", url=f"{server.base_url()}/")
             with t.stream(req) as resp:
                 b"".join(resp)
         # Three requests, one connection
@@ -280,7 +280,7 @@ def test_pool_detects_server_close_and_reconnects(server) -> None:
 
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as r:
             b"".join(r)
         # Server closed; idle pool should be empty
@@ -303,7 +303,7 @@ def test_multiple_hosts_pool_separately(server) -> None:
     try:
         # Same server, but address 127.0.0.1 vs localhost resolve differently
         for host in ("127.0.0.1", "localhost"):
-            req = Request(method="GET", url=f"http://{host}:{server.port}/")
+            req = TransportRequest(method="GET", url=f"http://{host}:{server.port}/")
             try:
                 with t.stream(req) as r:
                     b"".join(r)
@@ -328,7 +328,7 @@ def test_concurrent_requests_from_threads(server) -> None:
 
     def worker():
         try:
-            req = Request(method="GET", url=f"{server.base_url()}/")
+            req = TransportRequest(method="GET", url=f"{server.base_url()}/")
             with t.stream(req) as r:
                 out = b"".join(r)
             with lock:
@@ -359,7 +359,7 @@ def test_auth_header_passed_through(server) -> None:
 
     t = StdlibTransport()
     try:
-        req = Request(
+        req = TransportRequest(
             method="GET", url=f"{server.base_url()}/",
             headers=[("Authorization", "Bearer sk-test-xxx")],
         )
@@ -382,7 +382,7 @@ def test_error_then_recovery(server) -> None:
     server.ctx.handler = handler_fail
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with pytest.raises((ProtocolError, ReadError, TransportError)):
             with t.stream(req) as r:
                 b"".join(r)
@@ -406,7 +406,7 @@ def test_read_returns_single_response_not_partial_stream(server) -> None:
     t = StdlibTransport()
     try:
         for expected in (b"first", b"first"):
-            req = Request(method="GET", url=f"{server.base_url()}/")
+            req = TransportRequest(method="GET", url=f"{server.base_url()}/")
             with t.stream(req) as r:
                 out = b"".join(r)
             assert out == expected

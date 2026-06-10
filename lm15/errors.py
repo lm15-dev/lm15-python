@@ -25,6 +25,8 @@ Hierarchy:
 
 from __future__ import annotations
 
+import builtins
+
 
 class LM15Error(Exception):
     """Base for all lm15 errors.
@@ -141,8 +143,13 @@ class BillingError(ProviderError):
     default_code = "billing"
 
 
-class TimeoutError(ProviderError):
-    """Provider request timed out."""
+class TimeoutError(ProviderError, builtins.TimeoutError):
+    """Provider request timed out.
+
+    Also subclasses the builtin ``TimeoutError`` so a user's bare
+    ``except TimeoutError:`` catches lm15 timeouts. ``ProviderError`` comes
+    first in the MRO, so lm15 metadata (``code``, ``status``, ...) wins.
+    """
 
     default_code = "timeout"
 

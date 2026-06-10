@@ -14,7 +14,7 @@ import pytest
 
 from lm15.transports import (
     ConnectError,
-    Request,
+    TransportRequest,
     StdlibAsyncTransport,
     StdlibTransport,
 )
@@ -35,7 +35,7 @@ def test_sync_tls_with_trusted_cert(tls_server):
 
     t = StdlibTransport(ca_bundle=tls_server.ca_bundle_path())
     try:
-        req = Request(method="GET", url=f"{tls_server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{tls_server.base_url()}/")
         with t.stream(req) as resp:
             body = b"".join(resp)
         assert body == b"secure"
@@ -51,7 +51,7 @@ def test_sync_tls_with_untrusted_cert_rejected(tls_server):
     # No CA bundle → system default, which won't trust our self-signed cert
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{tls_server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{tls_server.base_url()}/")
         with pytest.raises(ConnectError):
             with t.stream(req) as resp:
                 b"".join(resp)
@@ -66,7 +66,7 @@ def test_sync_tls_verify_false_accepts_self_signed(tls_server):
 
     t = StdlibTransport(verify=False)
     try:
-        req = Request(method="GET", url=f"{tls_server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{tls_server.base_url()}/")
         with t.stream(req) as resp:
             assert b"".join(resp) == b"secure"
     finally:
@@ -90,7 +90,7 @@ def test_sync_tls_stale_keepalive_reconnects_without_peeking(tls_server):
 
     t = StdlibTransport(ca_bundle=tls_server.ca_bundle_path())
     try:
-        req = Request(method="GET", url=f"{tls_server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{tls_server.base_url()}/")
         with t.stream(req) as resp:
             assert b"".join(resp) == b"secure-1"
 
@@ -115,7 +115,7 @@ async def test_async_tls_with_trusted_cert(tls_server):
 
     t = StdlibAsyncTransport(ca_bundle=tls_server.ca_bundle_path())
     try:
-        req = Request(method="GET", url=f"{tls_server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{tls_server.base_url()}/")
         async with t.stream(req) as resp:
             body = b""
             async for c in resp:
@@ -133,7 +133,7 @@ async def test_async_tls_untrusted_rejected(tls_server):
 
     t = StdlibAsyncTransport()
     try:
-        req = Request(method="GET", url=f"{tls_server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{tls_server.base_url()}/")
         with pytest.raises(ConnectError):
             async with t.stream(req) as resp:
                 async for _ in resp:
@@ -160,7 +160,7 @@ async def test_async_tls_stale_keepalive_reconnects_without_peeking(tls_server):
 
     t = StdlibAsyncTransport(ca_bundle=tls_server.ca_bundle_path())
     try:
-        req = Request(method="GET", url=f"{tls_server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{tls_server.base_url()}/")
         async with t.stream(req) as resp:
             body = b""
             async for chunk in resp:

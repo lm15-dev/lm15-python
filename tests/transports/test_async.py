@@ -13,7 +13,7 @@ from lm15.transports import (
     ProtocolError,
     ReadError,
     ReadTimeout,
-    Request,
+    TransportRequest,
     StdlibAsyncTransport,
     TransportError,
 )
@@ -25,7 +25,7 @@ from .conftest import reply_bytes, reply_chunked
 async def test_simple_get(server):
     t = StdlibAsyncTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/hello")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/hello")
         async with t.stream(req) as resp:
             assert resp.status == 200
             body = b""
@@ -50,7 +50,7 @@ async def test_post_with_json_body(server):
     t = StdlibAsyncTransport()
     try:
         body = json.dumps({"x": 1}).encode()
-        req = Request(
+        req = TransportRequest(
             method="POST", url=f"{server.base_url()}/v1/x",
             headers=[("Content-Type", "application/json")], body=body,
         )
@@ -73,7 +73,7 @@ async def test_chunked_response(server):
 
     t = StdlibAsyncTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         async with t.stream(req) as resp:
             chunks = []
             async for c in resp:
@@ -94,7 +94,7 @@ async def test_streaming_yields_chunks_as_they_arrive(server):
     t = StdlibAsyncTransport()
     try:
         start = time.monotonic()
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         async with t.stream(req) as resp:
             async for _ in resp:
                 arrival_times.append(time.monotonic() - start)
@@ -117,7 +117,7 @@ async def test_sse_style_response(server):
 
     t = StdlibAsyncTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/v1/stream")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/v1/stream")
         async with t.stream(req) as resp:
             assert resp.header("content-type") == "text/event-stream"
             body = b""
@@ -132,7 +132,7 @@ async def test_sse_style_response(server):
 async def test_connect_refused():
     t = StdlibAsyncTransport()
     try:
-        req = Request(method="GET", url="http://127.0.0.1:1/")
+        req = TransportRequest(method="GET", url="http://127.0.0.1:1/")
         with pytest.raises(ConnectError):
             async with t.stream(req):
                 pass
@@ -144,7 +144,7 @@ async def test_connect_refused():
 async def test_connect_timeout():
     t = StdlibAsyncTransport(connect_timeout=0.2)
     try:
-        req = Request(method="GET", url="http://192.0.2.1/")
+        req = TransportRequest(method="GET", url="http://192.0.2.1/")
         with pytest.raises((ConnectTimeout, ConnectError)):
             async with t.stream(req):
                 pass
@@ -161,7 +161,7 @@ async def test_read_timeout(server):
 
     t = StdlibAsyncTransport(read_timeout=0.3)
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with pytest.raises((ReadTimeout, ReadError, TransportError)):
             async with t.stream(req) as resp:
                 async for _ in resp:
@@ -180,7 +180,7 @@ async def test_cancellation_closes_connection(server):
     t = StdlibAsyncTransport()
 
     async def run():
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         async with t.stream(req) as resp:
             async for _ in resp:
                 await asyncio.sleep(0)  # yield to allow cancellation
@@ -195,7 +195,7 @@ async def test_cancellation_closes_connection(server):
         assert t.pool_stats()["idle"] == 0
 
         # And a fresh request still works
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         # Replace the handler with one that completes
         server.ctx.handler = lambda req, client: reply_bytes(client, 200, b"ok")
         async with t.stream(req) as resp:
@@ -216,7 +216,7 @@ async def test_keepalive_reuses_connection(server):
     t = StdlibAsyncTransport()
     try:
         for _ in range(3):
-            req = Request(method="GET", url=f"{server.base_url()}/")
+            req = TransportRequest(method="GET", url=f"{server.base_url()}/")
             async with t.stream(req) as resp:
                 async for _ in resp:
                     pass
@@ -237,7 +237,7 @@ async def test_concurrent_requests(server):
     t = StdlibAsyncTransport(max_connections=5)
     try:
         async def one():
-            req = Request(method="GET", url=f"{server.base_url()}/")
+            req = TransportRequest(method="GET", url=f"{server.base_url()}/")
             async with t.stream(req) as resp:
                 out = b""
                 async for c in resp:
@@ -260,7 +260,7 @@ async def test_early_break_closes_connection(server):
 
     t = StdlibAsyncTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         async with t.stream(req) as resp:
             i = 0
             async for _ in resp:

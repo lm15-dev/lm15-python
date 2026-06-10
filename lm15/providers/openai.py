@@ -25,7 +25,7 @@ from ..live import WebSocketLiveSession, require_websocket_sync_connect
 from ..profiles import ProviderProfile, ResolvedOpenAIResponsesCompat, resolve_openai_responses_compat
 from ..protocols import Capabilities
 from ..sse import SSEEvent
-from ..transports import Request as TransportRequest
+from ..transports import TransportRequest
 from ..types import (
     AudioDelta,
     AudioGenerationRequest,

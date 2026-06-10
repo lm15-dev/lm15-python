@@ -11,7 +11,7 @@ import pytest
 from lm15.transports import (
     ProtocolError,
     ReadError,
-    Request,
+    TransportRequest,
     StdlibAsyncTransport,
     StdlibTransport,
     TransportError,
@@ -30,7 +30,7 @@ def test_204_no_body(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             assert resp.status == 204
             assert b"".join(resp) == b""
@@ -52,7 +52,7 @@ def test_304_no_body(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             assert resp.status == 304
             assert resp.header("etag") == '"x"'
@@ -73,7 +73,7 @@ def test_head_request_no_body(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="HEAD", url=f"{server.base_url()}/")
+        req = TransportRequest(method="HEAD", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             assert resp.status == 200
             assert resp.header("content-length") == "100"
@@ -94,7 +94,7 @@ def test_server_connection_close_not_pooled(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             assert b"".join(resp) == b"ok"
         assert t.pool_stats()["idle"] == 0
@@ -114,7 +114,7 @@ def test_large_chunked_response(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             body = b"".join(resp)
         assert body == b"".join(payload)
@@ -143,7 +143,7 @@ def test_sync_pool_slot_limit_queues_requests(server) -> None:
         res_lock = threading.Lock()
 
         def worker():
-            req = Request(method="GET", url=f"{server.base_url()}/")
+            req = TransportRequest(method="GET", url=f"{server.base_url()}/")
             with t.stream(req) as r:
                 out = b"".join(r)
             with res_lock:
@@ -164,7 +164,7 @@ def test_sync_pool_slot_limit_queues_requests(server) -> None:
         t.close()
 
 
-# ─── Request body: POST with explicit Content-Length ─────────────────
+# ─── TransportRequest body: POST with explicit Content-Length ─────────────────
 
 
 def test_post_with_body_host_header_correct(server) -> None:
@@ -177,7 +177,7 @@ def test_post_with_body_host_header_correct(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(
+        req = TransportRequest(
             method="POST", url=f"{server.base_url()}/v1/messages?stream=true",
             headers=[("Content-Type", "application/json")],
             body=b'{"model":"x"}',
@@ -214,7 +214,7 @@ def test_realistic_sse_stream(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="POST", url=f"{server.base_url()}/v1/messages",
+        req = TransportRequest(method="POST", url=f"{server.base_url()}/v1/messages",
                       body=b'{"x":1}')
         with t.stream(req) as resp:
             assert resp.header("content-type") == "text/event-stream"
@@ -242,7 +242,7 @@ async def test_async_realistic_sse_stream(server):
     server.ctx.handler = handler
     t = StdlibAsyncTransport()
     try:
-        req = Request(method="POST", url=f"{server.base_url()}/v1/stream",
+        req = TransportRequest(method="POST", url=f"{server.base_url()}/v1/stream",
                       body=b"{}")
         received: list[bytes] = []
         async with t.stream(req) as resp:
@@ -268,7 +268,7 @@ async def test_async_100_concurrent_sse_streams(server):
     t = StdlibAsyncTransport(max_connections=10)
     try:
         async def one() -> int:
-            req = Request(method="GET", url=f"{server.base_url()}/")
+            req = TransportRequest(method="GET", url=f"{server.base_url()}/")
             total = 0
             async with t.stream(req) as resp:
                 async for chunk in resp:
@@ -309,7 +309,7 @@ def test_body_until_close(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as resp:
             body = b"".join(resp)
         assert body == b"hello world"
@@ -331,12 +331,12 @@ def test_user_agent_override(server) -> None:
     t = StdlibTransport(user_agent="lm15-default/1.0")
     try:
         # Default UA
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with t.stream(req) as r:
             b"".join(r)
 
         # User override
-        req = Request(
+        req = TransportRequest(
             method="GET", url=f"{server.base_url()}/",
             headers=[("User-Agent", "my-app/2.0")],
         )
@@ -358,7 +358,7 @@ def test_malformed_server_response_raises_protocol_error(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with pytest.raises((ProtocolError, TransportError)):
             with t.stream(req) as resp:
                 b"".join(resp)
@@ -379,7 +379,7 @@ def test_truncated_chunked_response(server) -> None:
     server.ctx.handler = handler
     t = StdlibTransport()
     try:
-        req = Request(method="GET", url=f"{server.base_url()}/")
+        req = TransportRequest(method="GET", url=f"{server.base_url()}/")
         with pytest.raises((ProtocolError, ReadError, TransportError)):
             with t.stream(req) as resp:
                 b"".join(resp)

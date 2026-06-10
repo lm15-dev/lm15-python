@@ -2,7 +2,7 @@
 
 `lm15.transports` is the bytes-in/bytes-out HTTP layer. It does not know about
 models, messages, tools, JSON schemas, or provider error formats. It sends a
-transport `Request` and returns a streaming `Response`.
+transport `TransportRequest` and returns a streaming `TransportResponse`.
 
 The built-in transports are stdlib-only HTTP/1.1 implementations:
 
@@ -17,12 +17,12 @@ I/O yourself.
 
 ## Transport request and response models
 
-The transport-level `Request` is intentionally small:
+The transport-level `TransportRequest` is intentionally small:
 
 ```python
-from lm15.transports import Request
+from lm15.transports import TransportRequest
 
-request = Request(
+request = TransportRequest(
     method="POST",
     url="https://api.example.com/v1/messages",
     headers=[("Authorization", "Bearer sk-..."), ("Content-Type", "application/json")],
@@ -41,7 +41,7 @@ Important details:
 - Per-request timeouts are optional. `None` means use the transport default.
 - URLs must be `http://` or `https://`.
 
-A `Response` exposes status, reason, headers, HTTP version, and a streaming byte
+A `TransportResponse` exposes status, reason, headers, HTTP version, and a streaming byte
 iterator.
 
 ```python
@@ -57,10 +57,10 @@ how the underlying connection is returned to the pool or closed safely.
 ## Basic sync usage
 
 ```python
-from lm15.transports import Request, StdlibTransport
+from lm15.transports import TransportRequest, StdlibTransport
 
 with StdlibTransport() as transport:
-    req = Request(method="GET", url="https://example.com/")
+    req = TransportRequest(method="GET", url="https://example.com/")
     with transport.stream(req) as resp:
         data = resp.read()
 
@@ -80,10 +80,10 @@ with transport.stream(req) as resp:
 ## Basic async usage
 
 ```python
-from lm15.transports import Request, StdlibAsyncTransport
+from lm15.transports import TransportRequest, StdlibAsyncTransport
 
 async with StdlibAsyncTransport() as transport:
-    req = Request(method="GET", url="https://example.com/")
+    req = TransportRequest(method="GET", url="https://example.com/")
     async with transport.stream(req) as resp:
         body = await resp.read()
 ```
@@ -102,10 +102,10 @@ The transport does not have a `json=` parameter. Encode JSON explicitly.
 
 ```python
 import json
-from lm15.transports import Request
+from lm15.transports import TransportRequest
 
 payload = {"model": "demo", "input": "hello"}
-req = Request(
+req = TransportRequest(
     method="POST",
     url="https://api.example.com/v1/responses",
     headers=[("Content-Type", "application/json")],
@@ -118,7 +118,7 @@ This keeps the transport independent from any provider or serialization policy.
 ## Streaming lines and SSE
 
 HTTP chunks are arbitrary byte chunks, not necessarily newline-aligned. Use
-`Response.iter_lines()` when you need line-oriented protocols such as
+`TransportResponse.iter_lines()` when you need line-oriented protocols such as
 Server-Sent Events.
 
 ```python
@@ -150,7 +150,7 @@ port)`. Reuse a transport for many requests to get connection reuse.
 transport = StdlibTransport(max_connections=10)
 try:
     for url in urls:
-        with transport.stream(Request(method="GET", url=url)) as resp:
+        with transport.stream(TransportRequest(method="GET", url=url)) as resp:
             resp.read()
     print(transport.pool_stats())
 finally:
@@ -178,7 +178,7 @@ transport = StdlibTransport(
 A request can override any of them:
 
 ```python
-req = Request(
+req = TransportRequest(
     method="GET",
     url="https://example.com/slow-stream",
     connect_timeout=5.0,
@@ -228,7 +228,7 @@ The HTTP/1.1 codec adds defaults only when the caller did not provide them:
 Caller-provided headers win.
 
 ```python
-req = Request(
+req = TransportRequest(
     method="GET",
     url="https://example.com/",
     headers=[("User-Agent", "my-app/1.0")],

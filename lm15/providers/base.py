@@ -14,8 +14,8 @@ from ..errors import (
 from ..features import EndpointSupport, ProviderManifest
 from ..protocols import Capabilities, LiveSession
 from ..sse import SSEEvent, parse_sse
-from ..transports import Request as TransportRequest
-from ..transports import Response as TransportResponse
+from ..transports import TransportRequest
+from ..transports import TransportResponse
 from ..transports import StdlibTransport
 from ..transports import TransportError as NetworkTransportError
 from ..types import (

@@ -52,3 +52,39 @@ class TestBareMessageCoercion:
     def test_request_rejects_non_message(self):
         with pytest.raises(TypeError):
             Request(model="m", messages="hi")
+
+
+class TestTransportNaming:
+    def test_renamed_classes_exported(self):
+        from lm15 import transports
+
+        for name in ("TransportRequest", "TransportResponse", "AsyncTransportResponse"):
+            assert hasattr(transports, name)
+            assert name in transports.__all__
+
+    def test_short_names_gone(self):
+        from lm15 import transports
+
+        for name in ("Request", "Response", "AsyncResponse"):
+            assert not hasattr(transports, name)
+            assert name not in transports.__all__
+
+
+class TestTopLevelSurface:
+    FACTORY_NAMES = (
+        "text", "thinking", "refusal", "citation", "image", "audio",
+        "video", "document", "binary", "tool_call", "tool_result",
+    )
+
+    def test_factories_not_at_top_level(self):
+        import lm15
+
+        for name in self.FACTORY_NAMES:
+            assert not hasattr(lm15, name)
+            assert name not in lm15.__all__
+
+    def test_factories_stay_in_types(self):
+        import lm15.types as types
+
+        for name in self.FACTORY_NAMES:
+            assert callable(getattr(types, name))

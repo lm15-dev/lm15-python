@@ -26,7 +26,7 @@ from ..features import EndpointSupport, ProviderManifest
 from ..live import WebSocketLiveSession, require_websocket_sync_connect
 from ..protocols import Capabilities
 from ..sse import SSEEvent
-from ..transports import Request as TransportRequest
+from ..transports import TransportRequest
 from ..types import (
     AudioDelta,
     AudioGenerationRequest,

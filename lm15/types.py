@@ -1713,7 +1713,8 @@ class Request(_ModelRequest):
 
     def __post_init__(self) -> None:
         _ModelRequest.__post_init__(self)
-        object.__setattr__(self, "messages", tuple(self.messages))
+        messages = (self.messages,) if isinstance(self.messages, Message) else tuple(self.messages)
+        object.__setattr__(self, "messages", messages)
         object.__setattr__(self, "tools", tuple(self.tools))
         object.__setattr__(self, "system", _normalize_system(self.system))
         if not self.messages:

@@ -7,7 +7,7 @@ Design:
   port).  Up to `max_connections` concurrent connections per pool total (not
   per origin — keeping it simple for lm15's workload).
 - `stream(request)` takes a connection (new or reused), writes the request,
-  reads the response head, and returns a `Response` whose iteration yields
+  reads the response head, and returns a `TransportResponse` whose iteration yields
   body bytes.  The response's `__exit__`/generator teardown releases the
   connection (to the pool if reusable, otherwise closed).
 - Staleness detection: before reusing an idle connection, we peek with
@@ -42,7 +42,7 @@ from ._http11 import (
     build_request_head,
 )
 from ._ssl import make_ssl_context
-from ._types import Request, Response
+from ._types import TransportRequest, TransportResponse
 from ._url import ParsedURL, parse_url
 
 
@@ -229,8 +229,8 @@ class StdlibTransport:
 
     # ─── Main entry point ───
 
-    def stream(self, request: Request) -> Response:
-        """Open a stream to the URL, returning a Response whose iteration
+    def stream(self, request: TransportRequest) -> TransportResponse:
+        """Open a stream to the URL, returning a TransportResponse whose iteration
         yields body bytes.
 
         The response MUST be used as a context manager (or have `.close()`
@@ -290,14 +290,14 @@ class StdlibTransport:
             keep_alive = head.keep_alive()
 
             release_conn = self._make_release(conn, keep_alive)
-            # Transfer ownership of the pool slot to the Response
-            # (Response.close will trigger release_slot via _release)
+            # Transfer ownership of the pool slot to the TransportResponse
+            # (TransportResponse.close will trigger release_slot via _release)
             chunks = self._iter_body(
                 conn, decoder, initial=head.leftover,
                 read_timeout=read_timeout, on_finish=release_slot_once,
                 on_abort=release_slot_once,
             )
-            return Response(
+            return TransportResponse(
                 status=head.status,
                 reason=head.reason,
                 headers=head.headers,
@@ -354,7 +354,7 @@ class StdlibTransport:
     def _send_request(
         self,
         conn: _SyncConnection,
-        request: Request,
+        request: TransportRequest,
         parsed: ParsedURL,
         *,
         write_timeout: float,
@@ -455,7 +455,7 @@ class StdlibTransport:
                 on_finish()
 
     def _make_release(self, conn: _SyncConnection, keep_alive: bool):
-        """Create the release callback the Response invokes on close."""
+        """Create the release callback the TransportResponse invokes on close."""
         def release(body_consumed: bool) -> None:
             if body_consumed and keep_alive and not conn.closed:
                 self._pool.checkin(conn)

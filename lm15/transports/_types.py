@@ -12,7 +12,7 @@ from typing import AsyncIterator, Iterator
 
 
 @dataclass(slots=True)
-class Request:
+class TransportRequest:
     method: str
     url: str
     headers: list[tuple[str, str]] = field(default_factory=list)
@@ -23,7 +23,7 @@ class Request:
     write_timeout: float | None = None
 
 
-class Response:
+class TransportResponse:
     """Sync streaming response.
 
     Iterating yields body chunks as bytes.  Must be used as a context manager
@@ -107,14 +107,14 @@ class Response:
         except Exception:
             pass
 
-    def __enter__(self) -> "Response":
+    def __enter__(self) -> "TransportResponse":
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
 
 
-class AsyncResponse:
+class AsyncTransportResponse:
     """Async streaming response.  Async-iterate to get body chunks."""
 
     status: int
@@ -199,7 +199,7 @@ class AsyncResponse:
         except Exception:
             pass
 
-    async def __aenter__(self) -> "AsyncResponse":
+    async def __aenter__(self) -> "AsyncTransportResponse":
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:
