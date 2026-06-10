@@ -10,6 +10,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from .models import (
+    InferenceModelInfo,
+    InferencePricing,
+    ModelInfo,
+    ModelOrigin,
+    TrainingModelInfo,
+    TrainingPricing,
+)
 from .types import (
     AudioDelta,
     AudioFormat,
@@ -606,6 +614,141 @@ def response_from_dict(d: dict[str, Any]) -> Response:
         finish_reason=d["finish_reason"],
         usage=usage_from_dict(d.get("usage", {})),
         provider_data=d.get("provider_data"),
+    )
+
+
+# ─── ModelInfo ───────────────────────────────────────────────────────
+
+def _inference_pricing_to_dict(p: InferencePricing) -> dict[str, Any]:
+    return _clean_mapping({
+        "input_per_million": p.input_per_million,
+        "output_per_million": p.output_per_million,
+        "cache_read_per_million": p.cache_read_per_million,
+        "cache_write_per_million": p.cache_write_per_million,
+        "currency": p.currency,
+        "dimensions": p.dimensions,
+    })
+
+
+def _inference_pricing_from_dict(d: dict[str, Any]) -> InferencePricing:
+    return InferencePricing(
+        input_per_million=d.get("input_per_million"),
+        output_per_million=d.get("output_per_million"),
+        cache_read_per_million=d.get("cache_read_per_million"),
+        cache_write_per_million=d.get("cache_write_per_million"),
+        currency=d.get("currency", "USD"),
+        dimensions=d.get("dimensions"),
+    )
+
+
+def _training_pricing_to_dict(p: TrainingPricing) -> dict[str, Any]:
+    return _clean_mapping({
+        "training_tokens_per_million": p.training_tokens_per_million,
+        "gpu_second": p.gpu_second,
+        "currency": p.currency,
+        "dimensions": p.dimensions,
+    })
+
+
+def _training_pricing_from_dict(d: dict[str, Any]) -> TrainingPricing:
+    return TrainingPricing(
+        training_tokens_per_million=d.get("training_tokens_per_million"),
+        gpu_second=d.get("gpu_second"),
+        currency=d.get("currency", "USD"),
+        dimensions=d.get("dimensions"),
+    )
+
+
+def _inference_model_info_to_dict(i: InferenceModelInfo) -> dict[str, Any]:
+    return _clean_mapping({
+        "input_modalities": list(i.input_modalities),
+        "output_modalities": list(i.output_modalities),
+        "context_window": i.context_window,
+        "max_output_tokens": i.max_output_tokens,
+        "supports_reasoning": i.supports_reasoning or None,
+        "reasoning_efforts": list(i.reasoning_efforts),
+        "pricing": _inference_pricing_to_dict(i.pricing) if i.pricing else None,
+        "extensions": i.extensions,
+    })
+
+
+def _inference_model_info_from_dict(d: dict[str, Any]) -> InferenceModelInfo:
+    return InferenceModelInfo(
+        input_modalities=tuple(d.get("input_modalities", ["text"])),
+        output_modalities=tuple(d.get("output_modalities", ["text"])),
+        context_window=d.get("context_window"),
+        max_output_tokens=d.get("max_output_tokens"),
+        supports_reasoning=d.get("supports_reasoning", False),
+        reasoning_efforts=tuple(d.get("reasoning_efforts", [])),
+        pricing=_inference_pricing_from_dict(d["pricing"]) if isinstance(d.get("pricing"), dict) else None,
+        extensions=d.get("extensions"),
+    )
+
+
+def _training_model_info_to_dict(t: TrainingModelInfo) -> dict[str, Any]:
+    return _clean_mapping({
+        "supports_lora": t.supports_lora or None,
+        "supports_full_finetune": t.supports_full_finetune or None,
+        "trainable_modalities": list(t.trainable_modalities),
+        "pricing": _training_pricing_to_dict(t.pricing) if t.pricing else None,
+        "extensions": t.extensions,
+    })
+
+
+def _training_model_info_from_dict(d: dict[str, Any]) -> TrainingModelInfo:
+    return TrainingModelInfo(
+        supports_lora=d.get("supports_lora", False),
+        supports_full_finetune=d.get("supports_full_finetune", False),
+        trainable_modalities=tuple(d.get("trainable_modalities", [])),
+        pricing=_training_pricing_from_dict(d["pricing"]) if isinstance(d.get("pricing"), dict) else None,
+        extensions=d.get("extensions"),
+    )
+
+
+def _model_origin_to_dict(o: ModelOrigin) -> dict[str, Any]:
+    return _clean_mapping({
+        "type": o.type,
+        "id": o.id,
+        "base_model": o.base_model,
+        "provider_data": o.provider_data,
+    })
+
+
+def _model_origin_from_dict(d: dict[str, Any]) -> ModelOrigin:
+    return ModelOrigin(
+        type=d.get("type", "provider"),
+        id=d.get("id"),
+        base_model=d.get("base_model"),
+        provider_data=d.get("provider_data"),
+    )
+
+
+def model_info_to_dict(m: ModelInfo) -> dict[str, Any]:
+    origin = _model_origin_to_dict(m.origin)
+    if origin == {"type": "provider"}:  # the default origin carries no information
+        origin = {}
+    return _clean_mapping({
+        "id": m.id,
+        "provider": m.provider,
+        "api_family": m.api_family,
+        "aliases": list(m.aliases),
+        "origin": origin,
+        "inference": _inference_model_info_to_dict(m.inference) if m.inference else None,
+        "training": _training_model_info_to_dict(m.training) if m.training else None,
+        "extensions": m.extensions,
+    })
+
+
+def model_info_from_dict(d: dict[str, Any]) -> ModelInfo:
+    return ModelInfo(
+        id=d["id"],
+        provider=d["provider"],
+        api_family=d["api_family"],
+        aliases=tuple(d.get("aliases", [])),
+        origin=_model_origin_from_dict(d["origin"]) if isinstance(d.get("origin"), dict) else ModelOrigin(),
+        inference=_inference_model_info_from_dict(d["inference"]) if isinstance(d.get("inference"), dict) else None,
+        training=_training_model_info_from_dict(d["training"]) if isinstance(d.get("training"), dict) else None,
+        extensions=d.get("extensions"),
     )
 
 

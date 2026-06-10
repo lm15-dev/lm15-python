@@ -246,3 +246,54 @@ class ModelRegistry:
         for profile in profiles:
             registry.add_profile(profile)
         return registry
+
+    @classmethod
+    def from_dicts(cls, dicts: Iterable[dict]) -> "ModelRegistry":
+        """Build a registry from canonical ModelInfo dicts.
+
+        Each dict is validated through ``serde.model_info_from_dict``; the
+        ModelInfo constructors reject junk (negative prices, empty modality
+        names, missing id/provider) by raising ValueError/TypeError.
+        """
+        from .serde import model_info_from_dict
+
+        registry = cls()
+        for d in dicts:
+            registry.add(model_info_from_dict(d))
+        return registry
+
+    @classmethod
+    def discover(cls, *, group: str = "lm15.model_catalogs") -> "ModelRegistry":
+        """Hydrate a registry from installed entry-point catalogs.
+
+        Each entry point in ``group`` must load to a zero-argument callable
+        returning an iterable of canonical ModelInfo dicts
+        (docs/model-hydration.md). Catalogs are processed sorted by
+        entry-point name; on duplicate (provider, id) keys the FIRST
+        occurrence wins. A catalog that raises is skipped with a warning —
+        discovery never crashes the host application.
+
+        Hydrated data is ADVISORY metadata only: it must never change what
+        build_request produces.
+        """
+        import warnings
+        from importlib.metadata import entry_points
+
+        from .serde import model_info_from_dict
+
+        registry = cls()
+        for ep in sorted(entry_points(group=group), key=lambda e: e.name):
+            try:
+                catalog = ep.load()
+                models = [model_info_from_dict(d) for d in catalog()]
+            except Exception as exc:
+                warnings.warn(
+                    f"lm15 model catalog {ep.name!r} failed and was skipped: {exc}",
+                    stacklevel=2,
+                )
+                continue
+            for model in models:
+                if (model.provider, model.id) in registry._models:
+                    continue  # first occurrence wins
+                registry.add(model)
+        return registry

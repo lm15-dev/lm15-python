@@ -140,6 +140,8 @@ from .serde import (
     request_from_dict,
     response_to_dict,
     response_from_dict,
+    model_info_to_dict,
+    model_info_from_dict,
 )
 
 # ── Errors ───────────────────────────────────────────────────────────
@@ -169,6 +171,8 @@ from .providers import (
     OpenAILM,
     AnthropicLM,
     GeminiLM,
+    ClaudeCodeLM,
+    OpenAICodexLM,
     BaseProviderLM,
     ProviderLM,
     HttpResponse,
@@ -228,6 +232,7 @@ __all__ = [
     "error_detail_from_dict", "delta_to_dict", "delta_from_dict",
     "stream_event_to_dict", "stream_event_from_dict", "request_to_dict",
     "request_from_dict", "response_to_dict", "response_from_dict",
+    "model_info_to_dict", "model_info_from_dict",
     # errors
     "LM15Error", "TransportError", "ConfigurationError", "CapabilityError",
     "ProviderError", "AuthError", "BillingError", "RateLimitError",
@@ -236,8 +241,8 @@ __all__ = [
     "NotConfiguredError", "map_http_error", "canonical_error_code",
     "error_class_for_code",
     # providers
-    "OpenAILM", "AnthropicLM", "GeminiLM", "BaseProviderLM", "ProviderLM",
-    "HttpResponse", "SyncTransport",
+    "OpenAILM", "AnthropicLM", "GeminiLM", "ClaudeCodeLM", "OpenAICodexLM",
+    "BaseProviderLM", "ProviderLM", "HttpResponse", "SyncTransport",
     # stream assembly
     "Result", "AsyncResult", "StreamChunk", "materialize_response",
     "response_to_events",

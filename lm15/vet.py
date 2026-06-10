@@ -75,6 +75,7 @@ KIND_SERDE: dict[str, tuple[JsonToObj, ObjToJson]] = {
     "stream_event": (serde.stream_event_from_dict, serde.stream_event_to_dict),
     "request": (serde.request_from_dict, serde.request_to_dict),
     "response": (serde.response_from_dict, serde.response_to_dict),
+    "model_info": (serde.model_info_from_dict, serde.model_info_to_dict),
     "audio_format": (serde.audio_format_from_dict, serde.audio_format_to_dict),
     "live_config": (serde.live_config_from_dict, serde.live_config_to_dict),
     "live_client_event": (serde.live_client_event_from_dict, serde.live_client_event_to_dict),
