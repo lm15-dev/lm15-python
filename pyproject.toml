@@ -1,6 +1,6 @@
 [project]
 name = "lm15"
-version = "0.3.0"
+version = "1.0.0"
 description = "Provider-neutral, low-level foundation for LLM APIs: one canonical representation, exact serde, adapters for OpenAI/Anthropic/Gemini and every Chat Completions-compatible server — stdlib-only."
 readme = "README.md"
 license = { file = "LICENSE" }

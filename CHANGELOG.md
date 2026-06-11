@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.0.0 — 2026-06-11
+
+**The stability promise.** The chat core — canonical types, serde, errors,
+request building, response parsing, streaming — is frozen; all future changes
+to it are additive (enforced mechanically by the surface ratchet and spec
+drift gate). Non-chat endpoints and live sessions remain provisional; see
+`lm15-contract/spec/SCOPE.md`.
+
+What backs the promise:
+
+- **Four independent implementations** — Python (this package), Rust, Go,
+  TypeScript — each passing the identical 304-check conformance corpus
+  (`lm15-dev/lm15-contract`), each live-tested against real providers
+  including the full tool-calling round-trip.
+- **A written, ratified spec**: 61 types, 25 vocabularies, 49 numbered
+  invariants, mapping rules MAP-1..3, one omission rule, one number rule.
+- **Every fixture carries provenance**; wire fixtures change only with live
+  receipts; the reference implementation holds no oracle authority.
+- **Measured, regenerable benchmarks**: 0 dependencies, 0.5 MiB installed,
+  171 ms cold import, and faster than raw stdlib HTTP at steady state
+  (connection pooling).
+
+Changes since 0.3.0: prompt-caching fixtures recaptured (GA, no beta
+header); OpenAI file inputs send `filename` (provider drift caught by the
+live sweep); `FunctionTool.parameters` always emitted, `{}` round-trips
+verbatim; malformed nested config objects reject instead of silently
+dropping; `Result` and live sessions no longer contain any automatic
+tool-execution machinery.
+
 ## 0.3.0 — 2026-06-11
 
 Ground-up rewrite. `lm15` is now a **low-level foundation library**: one
