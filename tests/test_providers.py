@@ -562,3 +562,15 @@ def test_gemini_stream_event_can_emit_delta_and_end_from_one_sse() -> None:
     assert isinstance(parsed[1], StreamEndEvent)
     assert parsed[1].usage is not None
     assert parsed[1].usage.total_tokens == 2
+
+
+def test_input_file_data_carries_filename():
+    """OpenAI Responses rejects file_data without filename (live 2026-06-11,
+    contract changes/2026-06-11-live-sweep.md): input_file from inline data
+    must carry a deterministic filename derived from the media type."""
+    from lm15.providers.common import part_to_openai_input
+    from lm15.types import DocumentPart
+
+    payload = part_to_openai_input(DocumentPart(media_type="application/pdf", data="JVBERg=="))
+    assert payload["type"] == "input_file"
+    assert payload["filename"] == "file.pdf"

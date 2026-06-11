@@ -66,11 +66,11 @@ def run_lm15_sync(
     model: str | None,
 ) -> dict:
     t0 = time.perf_counter()
-    from lm15.transports import Request, StdlibTransport
+    from lm15.transports import TransportRequest, StdlibTransport
     t1 = time.perf_counter()
     tr = StdlibTransport()
     t2 = time.perf_counter()
-    req = Request(method="POST", url=url, headers=headers, body=body)
+    req = TransportRequest(method="POST", url=url, headers=headers, body=body)
     with tr.stream(req) as resp:
         t3 = time.perf_counter()
         t_first_byte = t_first_tok = None
@@ -105,14 +105,14 @@ def run_lm15_async(
     model: str | None,
 ) -> dict:
     t0 = time.perf_counter()
-    from lm15.transports import Request, StdlibAsyncTransport
+    from lm15.transports import TransportRequest, StdlibAsyncTransport
     import asyncio
     t1 = time.perf_counter()
 
     async def run() -> tuple:
         tr = StdlibAsyncTransport()
         ta = time.perf_counter()
-        req = Request(method="POST", url=url, headers=headers, body=body)
+        req = TransportRequest(method="POST", url=url, headers=headers, body=body)
         async with tr.stream(req) as resp:
             tb = time.perf_counter()
             t_first_byte = t_first_tok = None

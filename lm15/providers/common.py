@@ -132,7 +132,11 @@ def part_to_openai_input(part: Part) -> dict[str, Any]:
         if part.url is not None:
             return {"type": "input_file", "file_url": part.url}
         if part.data is not None:
-            return {"type": "input_file", "file_data": media_data_uri(part)}
+            # OpenAI requires a filename alongside inline file_data (live
+            # 2026-06-11: 400 missing_required_parameter without one); derive
+            # a deterministic name from the media-type subtype.
+            ext = (part.media_type or "application/octet-stream").split("/", 1)[-1].split("+", 1)[0] or "bin"
+            return {"type": "input_file", "filename": f"file.{ext}", "file_data": media_data_uri(part)}
         if part.file_id is not None:
             return {"type": "input_file", "file_id": part.file_id}
 

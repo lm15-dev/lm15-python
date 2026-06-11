@@ -26,6 +26,18 @@ lm15-python2/
 └── pyproject.toml
 ```
 
+## The contract pin (CONTRACT_PIN)
+
+CI runs the language-neutral lm15-contract harness against this repo at the
+exact contract commit recorded in `CONTRACT_PIN` (a full SHA of
+`lm15-dev/lm15-contract` main). Discipline: when a change here requires a
+contract change (new fixture, spec row, serde kind, protocol op), land the
+contract commit first — with the evidence AUTHORITY.md demands — then bump
+`CONTRACT_PIN` to that SHA in the same lm15-python2 commit as the code
+change, so both repos stay green at every pinned pair of revisions. Never
+bump the pin just to make CI green: the diff between the old and new pin is
+part of your review.
+
 ## How the fixture/conformance system works
 
 The conformance suite checks that lm15's canonical model stays aligned with real

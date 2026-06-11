@@ -58,11 +58,11 @@ def _start_server() -> tuple[_TCPServer, str]:
 
 def _bench_lm15_sync(url: str) -> tuple[float, float, float, float]:
     t0 = time.perf_counter()
-    from lm15.transports import Request, StdlibTransport
+    from lm15.transports import TransportRequest, StdlibTransport
     t1 = time.perf_counter()
     tr = StdlibTransport()
     t2 = time.perf_counter()
-    with tr.stream(Request(method="GET", url=url)) as resp:
+    with tr.stream(TransportRequest(method="GET", url=url)) as resp:
         body = resp.read()
     t3 = time.perf_counter()
     tr.close()
@@ -72,14 +72,14 @@ def _bench_lm15_sync(url: str) -> tuple[float, float, float, float]:
 
 def _bench_lm15_async(url: str) -> tuple[float, float, float, float]:
     t0 = time.perf_counter()
-    from lm15.transports import Request, StdlibAsyncTransport
+    from lm15.transports import TransportRequest, StdlibAsyncTransport
     import asyncio
     t1 = time.perf_counter()
 
     async def main() -> tuple[float, float, int, bytes]:
         tr = StdlibAsyncTransport()
         ta = time.perf_counter()
-        async with tr.stream(Request(method="GET", url=url)) as resp:
+        async with tr.stream(TransportRequest(method="GET", url=url)) as resp:
             out = b""
             async for chunk in resp:
                 out += chunk

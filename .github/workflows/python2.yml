@@ -18,6 +18,19 @@ jobs:
         run: python -m pytest tests/ -q
       - name: Conformance (strict)
         run: python conformance/run_all.py --strict
+      - name: Contract harness (pinned)
+        # Cross-repo gate: run the lm15-contract vet harness against this
+        # checkout at the SHA pinned in CONTRACT_PIN (bump discipline in
+        # CONTRIBUTING.md). The contract's shim registry expects the
+        # reference at the sibling path ../lm15-python2 with a .venv.
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq jq
+          PIN=$(tr -d '[:space:]' < CONTRACT_PIN)
+          git clone --no-checkout https://github.com/lm15-dev/lm15-contract.git ../lm15-contract
+          git -C ../lm15-contract checkout --detach "$PIN"
+          ln -sfn "$GITHUB_WORKSPACE" ../lm15-python2
+          python -m venv .venv && .venv/bin/pip install -q -e .
+          python ../lm15-contract/harness/check.py --shim python --direction all
       - name: Vet shim smoke test
         # Skips itself when the lm15-contract corpus is not checked out as a
         # sibling (its pytestmark handles that); still proves the shim imports
