@@ -1,7 +1,27 @@
 [project]
 name = "lm15"
-version = "0.0.0"
+version = "0.3.0"
+description = "Provider-neutral, low-level foundation for LLM APIs: one canonical representation, exact serde, adapters for OpenAI/Anthropic/Gemini and every Chat Completions-compatible server — stdlib-only."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Maxime Rivest", email = "mrive052@gmail.com" }]
 requires-python = ">=3.10"
+keywords = ["llm", "openai", "anthropic", "gemini", "ollama", "provider-neutral", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/MaximeRivest/lm15-python2"
+Changelog = "https://github.com/MaximeRivest/lm15-python2/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 live = ["websockets>=12"]
@@ -12,3 +32,6 @@ include = ["lm15*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.setuptools.package-data]
+lm15 = ["py.typed"]
