@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 — 2026-06-11
+## 1.0.0a1 — 2026-06-11
 
 **The stability promise.** The chat core — canonical types, serde, errors,
 request building, response parsing, streaming — is frozen; all future changes
