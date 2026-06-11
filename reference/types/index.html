@@ -1,0 +1,5487 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Provider-neutral, low-level foundation for LLM APIs — one canonical representation, exact serde, zero dependencies.">
+      
+      
+      
+        <link rel="canonical" href="https://lm15-dev.github.io/lm15-python/reference/types/">
+      
+      
+        <link rel="prev" href="../../router-portability/">
+      
+      
+        <link rel="next" href="../providers/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Types - lm15</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#types" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="lm15" class="md-header__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lm15
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Types
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="lm15" class="md-nav__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    lm15
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-the-router/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The router
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-the-type-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The type system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools-from-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools from functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-the-a-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-model-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model profiles & compat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-the-transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design-rationale/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design rationale
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cookbooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Cookbooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Essentials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Essentials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/01-first-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first request
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/02-conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-turn conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/03-system-prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System & developer prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/04-generation-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Controlling generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/05-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/06-function-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/07-builtin-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in provider tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/08-structured-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structured output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modalities
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modalities
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/09-images-and-documents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Images, PDFs & documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/10-audio-video-reasoning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio, video & reasoning models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beyond chat
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Beyond chat
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/11-caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/12-embeddings-batch-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embeddings, batch & media generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/13-live-sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live sessions (realtime)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Production
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/14-local-and-compatible-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local & OpenAI-compatible servers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/15-errors-and-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors, retries & testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/16-provider-passthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provider passthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Specification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-lm15-is-specified/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How lm15 is specified
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../serde-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mapping-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mapping rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../model-hydration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model hydration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../router-portability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Router portability (proposal)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Types
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ContinuationState" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ContinuationState
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.TextPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TextPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ImagePart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImagePart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.AudioPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AudioPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.VideoPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VideoPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.DocumentPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DocumentPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.BinaryPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BinaryPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolCallPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolCallPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolResultPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolResultPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ThinkingPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ThinkingPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.RefusalPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RefusalPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.CitationPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CitationPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Message" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Message">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.developer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        developer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.parts_of" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parts_of
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        first
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.TextDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TextDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ThinkingDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ThinkingDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.AudioDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AudioDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ImageDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImageDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolCallDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolCallDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.CitationDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CitationDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ContinuationDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ContinuationDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ErrorDetail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ErrorDetail
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.StreamStartEvent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StreamStartEvent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.StreamDeltaEvent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StreamDeltaEvent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.StreamEndEvent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StreamEndEvent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.StreamErrorEvent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StreamErrorEvent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.FunctionTool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FunctionTool
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.BuiltinTool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BuiltinTool
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Reasoning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reasoning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.CacheConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CacheConfig
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolChoice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolChoice
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ToolChoice">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.ToolChoice.from_tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Response">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Response.text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Response.json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Response.parse_json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse_json
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.FileUploadRequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FileUploadRequest
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.BatchRequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BatchRequest
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolCallInfo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolCallInfo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.continuation_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        continuation_data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        text
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.tool_result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tool_result
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../result/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles & models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ContinuationState" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ContinuationState
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.TextPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TextPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ImagePart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImagePart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.AudioPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AudioPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.VideoPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VideoPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.DocumentPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DocumentPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.BinaryPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BinaryPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolCallPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolCallPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolResultPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolResultPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ThinkingPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ThinkingPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.RefusalPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RefusalPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.CitationPart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CitationPart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Message" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Message">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.developer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        developer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.tool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.parts_of" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parts_of
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Message.first" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        first
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.TextDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TextDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ThinkingDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ThinkingDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.AudioDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AudioDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ImageDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ImageDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolCallDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolCallDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.CitationDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CitationDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ContinuationDelta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ContinuationDelta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ErrorDetail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ErrorDetail
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.StreamStartEvent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StreamStartEvent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.StreamDeltaEvent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StreamDeltaEvent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.StreamEndEvent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StreamEndEvent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.StreamErrorEvent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StreamErrorEvent
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.FunctionTool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FunctionTool
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.BuiltinTool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BuiltinTool
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Reasoning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reasoning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.CacheConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CacheConfig
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolChoice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolChoice
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ToolChoice">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.ToolChoice.from_tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_tools
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Request
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.Response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Response">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Response.text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Response.json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lm15.types.Response.parse_json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        parse_json
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.FileUploadRequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FileUploadRequest
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.BatchRequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BatchRequest
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.ToolCallInfo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ToolCallInfo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.continuation_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        continuation_data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        text
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lm15.types.tool_result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tool_result
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="types">Types<a class="headerlink" href="#types" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<a id="lm15.types"></a>
+    <div class="doc doc-contents first">
+
+        <p>lm15.types — Core vocabulary for foundation model interaction.</p>
+<p>The fundamental unit is the Part: an atomic, typed block of content.
+Parts compose into Messages (attributed to a speaker).
+Messages compose into Requests (sent to a model).
+Models produce Responses (containing a Message).</p>
+<p>Streams reveal Responses incrementally through Deltas — typed fragments
+of streamable response parts.  Not every Part is streamable; use
+StreamablePart / NonStreamablePart to make that boundary explicit.</p>
+<p>Design principles:</p>
+<ol>
+<li>
+<p>Parts, Deltas, and Events are proper discriminated unions.  Each
+   variant is an independent frozen dataclass.  Fields that don't belong
+   to a variant don't exist on it — accessing them raises AttributeError.
+   Check .type or use isinstance() before accessing variant-specific fields.</p>
+</li>
+<li>
+<p>One representation per concept.  A Delta is always a typed Delta
+   object, never a dict.  Tool call arguments are called "input"
+   everywhere — in memory, in deltas, in serialization.</p>
+</li>
+<li>
+<p>Frozen + slotted dataclasses throughout.  Dataclass attributes are
+   shallowly immutable after construction: fields cannot be rebound, while
+   caller-provided JSON containers remain ordinary mutable Python containers.</p>
+</li>
+<li>
+<p>Universal structure, provider-specific values.  The shape of a
+   Request is universal.  Provider-specific configuration flows
+   through Config.extensions — clearly separated from universal knobs.
+   Provider-specific response metadata lives in Response.provider_data.</p>
+</li>
+<li>
+<p>Runtime validation is deliberately narrow.  Constructors enforce the
+   invariants that make objects meaningful (required identities, one media
+   source, non-negative token counts, JSON-serializable extension fields)
+   while LMs remain responsible for normalizing provider quirks before
+   constructing these types.</p>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ContinuationState" class="doc doc-heading">
+            <code>ContinuationState</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ContinuationState" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Opaque provider-owned state needed to continue/replay a transcript.</p>
+<p>Continuation state is not visible model content.  It travels with the
+Message or Part it describes so provider adapters can reconstruct future
+provider requests without relying on detached response metadata.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.TextPart" class="doc doc-heading">
+            <code>TextPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.TextPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A block of text content.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ImagePart" class="doc doc-heading">
+            <code>ImagePart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ImagePart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="lm15.types._MediaMixin">_MediaMixin</span></code></p>
+
+
+
+        <p>An image, addressed by exactly one of data/url/file_id/path.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.AudioPart" class="doc doc-heading">
+            <code>AudioPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.AudioPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="lm15.types._MediaMixin">_MediaMixin</span></code></p>
+
+
+
+        <p>Audio content, addressed by exactly one of data/url/file_id/path.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.VideoPart" class="doc doc-heading">
+            <code>VideoPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.VideoPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="lm15.types._MediaMixin">_MediaMixin</span></code></p>
+
+
+
+        <p>Video content, addressed by exactly one of data/url/file_id/path.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.DocumentPart" class="doc doc-heading">
+            <code>DocumentPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.DocumentPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="lm15.types._MediaMixin">_MediaMixin</span></code></p>
+
+
+
+        <p>A document (PDF, etc.), addressed by exactly one of data/url/file_id/path.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.BinaryPart" class="doc doc-heading">
+            <code>BinaryPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.BinaryPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="lm15.types._MediaMixin">_MediaMixin</span></code></p>
+
+
+
+        <p>Arbitrary binary content, addressed by exactly one media source.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ToolCallPart" class="doc doc-heading">
+            <code>ToolCallPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ToolCallPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>The model requests an external computation.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ToolResultPart" class="doc doc-heading">
+            <code>ToolResultPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ToolResultPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>The result of an external computation, sent back to the model.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ThinkingPart" class="doc doc-heading">
+            <code>ThinkingPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ThinkingPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Model reasoning trace — may be redacted by the provider.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.RefusalPart" class="doc doc-heading">
+            <code>RefusalPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.RefusalPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Model explicitly refused to respond.</p>
+<p>Refusals require non-empty text because they are final semantic content;
+empty <code>TextPart</code>/<code>ThinkingPart</code> values remain allowed for streaming
+reassembly and provider redaction edge cases.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.CitationPart" class="doc doc-heading">
+            <code>CitationPart</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.CitationPart" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A reference to source material.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.Message" class="doc doc-heading">
+            <code>Message</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.Message" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A contribution to a conversation, attributed to a speaker.</p>
+<p>A message is a sequence of typed Parts.  Roles:</p>
+<ul>
+<li><code>user</code>      — end-user input</li>
+<li><code>assistant</code>  — model output</li>
+<li><code>tool</code>      — tool execution results</li>
+<li><code>developer</code> — high-authority instructions from the application
+                  developer.  Can appear mid-conversation to inject
+                  new instructions without invalidating the KV-cache
+                  prefix.  On OpenAI this maps to the native
+                  <code>developer</code> role; on other providers the LM
+                  converts it to a user message with a clear prefix.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="lm15.types.Message.text" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#lm15.types.Message.text" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Text only when the message contains text and nothing else.</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="lm15.types.Message.developer" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">developer</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="n">PromptContent</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Message&#39;</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#lm15.types.Message.developer" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Create a developer message.</p>
+<p>Developer messages carry instructions with higher authority than
+user messages (equivalent to OpenAI's <code>developer</code> role).  They
+can appear anywhere in the conversation — including mid-conversation
+— which is useful for injecting new instructions without
+invalidating the KV-cache prefix built from earlier turns.</p>
+<p>On providers that don't natively support a developer role
+(Anthropic, Gemini), the LM converts these to user messages
+with a clear <code>[developer]</code> prefix so the model still sees the
+instruction boundary.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="lm15.types.Message.tool" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">tool</span><span class="p">(</span><span class="n">results</span><span class="p">:</span> <span class="n">ToolResultPart</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ToolResultPart</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ToolResultContent</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s1">&#39;Message&#39;</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#lm15.types.Message.tool" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Create a tool message.</p>
+<p>Accepts a single ToolResultPart, a list of ToolResultParts, or a dict
+mapping call_id → output (str, Part, or list[Part]).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="lm15.types.Message.parts_of" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">parts_of</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">_P</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">_P</span><span class="p">]</span></code>
+
+<a href="#lm15.types.Message.parts_of" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return all parts that are instances of <code>cls</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="lm15.types.Message.first" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">first</span><span class="p">(</span><span class="bp">cls</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">_P</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">_P</span> <span class="o">|</span> <span class="kc">None</span></code>
+
+<a href="#lm15.types.Message.first" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return the first part that is an instance of <code>cls</code>, if any.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.TextDelta" class="doc doc-heading">
+            <code>TextDelta</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.TextDelta" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A text fragment arriving during streaming.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ThinkingDelta" class="doc doc-heading">
+            <code>ThinkingDelta</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ThinkingDelta" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A reasoning/thinking fragment arriving during streaming.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.AudioDelta" class="doc doc-heading">
+            <code>AudioDelta</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.AudioDelta" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>An audio fragment arriving during streaming.</p>
+<p>Media deltas are partial stream chunks, not final media parts.  They may
+carry unaligned base64 data, a URL/file id update, or metadata only; final
+media validation happens when the stream is assembled into an AudioPart.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ImageDelta" class="doc doc-heading">
+            <code>ImageDelta</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ImageDelta" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>An image fragment, addressed by exactly one of data/url/file_id.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ToolCallDelta" class="doc doc-heading">
+            <code>ToolCallDelta</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ToolCallDelta" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A tool-call input fragment, optionally carrying call identity.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.CitationDelta" class="doc doc-heading">
+            <code>CitationDelta</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.CitationDelta" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A citation fragment arriving during streaming.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ContinuationDelta" class="doc doc-heading">
+            <code>ContinuationDelta</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ContinuationDelta" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Opaque provider continuation state arriving during streaming.</p>
+<p>part_index=None attaches the state to the assistant message; otherwise it
+attaches to the completed part with that index.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ErrorDetail" class="doc doc-heading">
+            <code>ErrorDetail</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ErrorDetail" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Structured error information.  A dataclass, not a dict.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.StreamStartEvent" class="doc doc-heading">
+            <code>StreamStartEvent</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.StreamStartEvent" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>The response stream has started.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.StreamDeltaEvent" class="doc doc-heading">
+            <code>StreamDeltaEvent</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.StreamDeltaEvent" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A typed content delta arrived.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.StreamEndEvent" class="doc doc-heading">
+            <code>StreamEndEvent</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.StreamEndEvent" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>The response stream completed.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.StreamErrorEvent" class="doc doc-heading">
+            <code>StreamErrorEvent</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.StreamErrorEvent" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>The stream failed.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.FunctionTool" class="doc doc-heading">
+            <code>FunctionTool</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.FunctionTool" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Serializable function tool specification sent to the model.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.BuiltinTool" class="doc doc-heading">
+            <code>BuiltinTool</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.BuiltinTool" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A provider-native tool (web search, code execution, etc.).</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.Reasoning" class="doc doc-heading">
+            <code>Reasoning</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.Reasoning" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Extended thinking / reasoning configuration.</p>
+<p>effort controls the model's reasoning depth:
+  - "off"      → no reasoning (provider will skip/disable thinking)
+  - "adaptive" → model decides whether to think based on complexity
+  - "minimal"  → the smallest provider-supported reasoning effort
+  - "low"      → light reasoning
+  - "medium"   → moderate reasoning
+  - "high"     → deep reasoning
+  - "xhigh"    → extra-high effort where supported</p>
+<p>thinking_budget is an optional hard cap on reasoning tokens.
+When set, it limits how many tokens the model spends on internal
+reasoning — independent of the visible response length.  Budgets
+are only meaningful when reasoning is enabled: passing a budget
+together with effort="off" raises ValueError instead of silently
+discarding the budget.</p>
+<p>summary asks providers that hide raw chain-of-thought (notably
+OpenAI) to return a provider-generated reasoning summary when
+supported. It does not request or expose private/raw reasoning.</p>
+<p>total_budget caps the combined output (thinking + response tokens).
+When set alongside Config.max_tokens, both limits are enforced:
+the response won't exceed max_tokens, and the total won't exceed
+total_budget.</p>
+<p><code>Config(reasoning=None)</code> means "do not send an explicit reasoning
+preference"; <code>Config(reasoning=Reasoning())</code> means "explicitly force
+reasoning off."  This tri-state is intentional because some providers
+and models have their own defaults.</p>
+<p>Not all providers support every knob. The LM maps to the
+closest available mechanism and reports degradation via warnings.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.CacheConfig" class="doc doc-heading">
+            <code>CacheConfig</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.CacheConfig" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Universal prompt cache and session affinity configuration.</p>
+<p>This is the primary, provider-neutral way to control prompt caching
+and stable session routing.</p>
+<ul>
+<li>mode="auto": Let the provider adapter decide sensible defaults.</li>
+<li>mode="off": Explicitly disable sending cache hints.</li>
+<li>retention: Request short-lived or long-lived cache when supported.</li>
+<li>key: Stable identifier for cache/session affinity.</li>
+<li>prefix_until_index: Cache everything up to (and including) this
+  message index. Useful for stable system + tools + history prefixes.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ToolChoice" class="doc doc-heading">
+            <code>ToolChoice</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ToolChoice" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>How the model should use tools.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="lm15.types.ToolChoice.from_tools" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">from_tools</span><span class="p">(</span><span class="n">allowed</span><span class="p">:</span> <span class="n">Tool</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tool</span> <span class="o">|</span> <span class="nb">str</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="n">ToolChoiceMode</span> <span class="o">=</span> <span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">parallel</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;ToolChoice&#39;</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#lm15.types.ToolChoice.from_tools" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Create a choice by explicitly converting Tool objects to names.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.Config" class="doc doc-heading">
+            <code>Config</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.Config" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Generation parameters.</p>
+<p>Universal fields are typed.  Provider-specific settings go in
+<code>extensions</code> — a clearly-separated namespace that never pretends
+to be part of the universal schema.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.Request" class="doc doc-heading">
+            <code>Request</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.Request" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="lm15.types._ModelRequest">_ModelRequest</span></code></p>
+
+
+
+        <p>A complete request to a foundation model.</p>
+<p>The composed artifact sent to the model — conversation history,
+system instructions, available tools, and generation config.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.Usage" class="doc doc-heading">
+            <code>Usage</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.Usage" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Token usage.</p>
+<p><code>input_tokens</code> and <code>output_tokens</code> are common dimensions.
+<code>total_tokens</code> is the provider-reported or billed total when present;
+providers may include reasoning, audio, cache, or future token classes in
+totals differently, so it is not forced to equal input + output.</p>
+<p><code>reasoning_tokens</code> is populated only when the provider reports an exact
+separate reasoning/thinking token count. Some providers, notably Anthropic,
+can return <code>ThinkingPart</code> content while reporting only combined
+<code>output_tokens</code>; in that case <code>reasoning_tokens</code> remains <code>None</code>.</p>
+<p>Every counter is <code>int | None</code>: <code>None</code> means "the provider did not
+report this dimension", which is distinct from a reported <code>0</code>.
+<code>Usage()</code> with no arguments therefore means "nothing reported" and
+serializes to <code>{}</code> (omitted entirely by enclosing serializers, per
+docs/serde-rules.md).</p>
+<p><code>total_tokens</code>: an explicit value is preserved as provider telemetry.
+When omitted, it auto-computes as <code>input_tokens + output_tokens</code> only
+when BOTH are present; if either is <code>None</code> the total stays <code>None</code>.</p>
+<p>Arithmetic over usage (e.g. <code>InferencePricing.estimate</code>) must treat
+<code>None</code> as "unknown", never as zero.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.Response" class="doc doc-heading">
+            <code>Response</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.Response" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>The composed artifact returned by a foundation model.</p>
+<p><code>Response</code> keeps only minimal convenience properties.  Use
+<code>response.message.first(...)</code> and <code>response.message.parts_of(...)</code>
+for variant-specific content access.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="lm15.types.Response.text" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#lm15.types.Response.text" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Concatenated assistant text, when the response has text.</p>
+<p><code>Message.text</code> is intentionally strict and only returns text for
+pure-text messages.  For model responses, citation and thinking parts
+are metadata around the visible answer, so they do not make
+<code>Response.text</code> unavailable.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="lm15.types.Response.json" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">json</span><span class="p">:</span> <span class="n">Any</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#lm15.types.Response.json" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Parsed exact JSON text, or <code>None</code> when parsing fails.</p>
+<p>Valid JSON <code>null</code> also returns <code>None</code>; use <code>parse_json()</code> when
+parse failures should be reported distinctly.</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="lm15.types.Response.parse_json" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">parse_json</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">default</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="n">_MISSING</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span></code>
+
+<a href="#lm15.types.Response.parse_json" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Parse the response text as exact JSON.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.FileUploadRequest" class="doc doc-heading">
+            <code>FileUploadRequest</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.FileUploadRequest" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A file upload request.</p>
+<p>Unlike most endpoint requests, <code>model</code> is optional because some
+providers scope file uploads to the account, not a specific model.
+Uploads can be backed by in-memory bytes or by a local path.  Path-backed
+uploads are lazy: LMs can stream from disk instead of forcing the
+whole file into memory at construction time.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.BatchRequest" class="doc doc-heading">
+            <code>BatchRequest</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.BatchRequest" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>A batch of model requests.</p>
+<p>Each nested Request carries its own model.  The optional top-level model is
+only a routing/default convenience; when omitted, it is inferred from the
+first nested request and does not constrain the rest of the batch.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="lm15.types.ToolCallInfo" class="doc doc-heading">
+            <code>ToolCallInfo</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#lm15.types.ToolCallInfo" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Callback view of a tool call without the part discriminator.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="lm15.types.continuation_data" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">continuation_data</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Message</span> <span class="o">|</span> <span class="n">Part</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ContinuationState</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">provider</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JsonObject</span> <span class="o">|</span> <span class="kc">None</span></code>
+
+<a href="#lm15.types.continuation_data" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return provider-owned continuation data from a Message or Part.</p>
+<p>This is a convenience helper for provider adapters and advanced callers.
+It returns the opaque JSON object attached to the first matching
+ContinuationState, or None when no match exists.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="lm15.types.text" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">text</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">continuation</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ContinuationState</span><span class="p">]</span> <span class="o">|</span> <span class="n">ContinuationState</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TextPart</span></code>
+
+<a href="#lm15.types.text" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Create a text part.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="lm15.types.tool_result" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">tool_result</span><span class="p">(</span><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="n">ToolResultContent</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">is_error</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">continuation</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ContinuationState</span><span class="p">]</span> <span class="o">|</span> <span class="n">ContinuationState</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ToolResultPart</span></code>
+
+<a href="#lm15.types.tool_result" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Create a tool result part.</p>
+<p>content can be a sequence of parts, a single part, or a string
+(which becomes a TextPart).  Raw bytes should be wrapped in a media part;
+use BinaryPart for arbitrary bytes that are not image/audio/video/document.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
