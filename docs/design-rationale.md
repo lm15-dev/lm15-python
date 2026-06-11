@@ -4,9 +4,6 @@ Short, honest answers to the questions newcomers ask first. These are
 deliberate choices, not accidents; if one stops being right we will change it
 and say why here.
 
-(Linking this doc from the README is pending — the README is currently under
-maintainer revision.)
-
 ## Why `config=Config(...)` instead of kwargs?
 
 `lm15` is the foundation layer, not the DSL. Convenience surfaces like

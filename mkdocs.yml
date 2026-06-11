@@ -1,0 +1,74 @@
+site_name: lm15
+site_description: "Provider-neutral, low-level foundation for LLM APIs — one canonical representation, exact serde, zero dependencies."
+site_url: https://lm15-dev.github.io/lm15-python/
+repo_url: https://github.com/lm15-dev/lm15-python
+repo_name: lm15-dev/lm15-python
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      toggle:
+        icon: material/brightness-7
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      toggle:
+        icon: material/brightness-4
+        name: Light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.details
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            members_order: source
+            docstring_style: google
+            show_signature_annotations: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Guides:
+      - The type system: using-the-type-system.md
+      - Providers: using-the-a-provider.md
+      - Model profiles & compat: using-model-profiles.md
+      - Transports: using-the-transports.md
+      - Design rationale: design-rationale.md
+  - Cookbooks:
+      - All features, three providers: cookbook-all-features.md
+      - Gemini Live sessions: cookbook-gemini-live.md
+  - Specification:
+      - How lm15 is specified: how-lm15-is-specified.md
+      - Serde rules: serde-rules.md
+      - Mapping rules: mapping-rules.md
+      - Model hydration: model-hydration.md
+  - API reference:
+      - Types: reference/types.md
+      - Providers: reference/providers.md
+      - Streaming results: reference/result.md
+      - Errors: reference/errors.md
+      - Serde: reference/serde.md
+      - Profiles & models: reference/profiles.md
+      - Transports: reference/transports.md
+  - Benchmarks: benchmarks.md
+  - Roadmap: roadmap.md

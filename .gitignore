@@ -10,3 +10,4 @@ build/
 .ruff_cache/
 benchmarks/__pycache__/
 conformance/reports/
+site/
