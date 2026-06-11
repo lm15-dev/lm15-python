@@ -1,0 +1,402 @@
+{
+  "config": {
+    "hotpath_n": 2000,
+    "hotpath_warmup": 200,
+    "import_n": 10,
+    "quick": false,
+    "rss_n": 5,
+    "ttfr_n": 9
+  },
+  "environment": {
+    "cpu": "Intel(R) Core(TM) i7-1065G7 CPU @ 1.30GHz",
+    "cpu_count": 8,
+    "os": "Linux 6.8.0-124-generic",
+    "python": "3.13.3",
+    "uv": "0.9.26"
+  },
+  "generated_at": "2026-06-11T01:33:43+00:00",
+  "hotpath": {
+    "build_request": {
+      "anthropic": {
+        "median_ns": 16081.5,
+        "n": 2000,
+        "ops_per_sec": 62183.3,
+        "warmup": 200
+      },
+      "gemini": {
+        "median_ns": 27304.0,
+        "n": 2000,
+        "ops_per_sec": 36624.7,
+        "warmup": 200
+      },
+      "openai": {
+        "median_ns": 48521.0,
+        "n": 2000,
+        "ops_per_sec": 20609.6,
+        "warmup": 200
+      },
+      "openai_chat": {
+        "median_ns": 16079.0,
+        "n": 2000,
+        "ops_per_sec": 62192.9,
+        "warmup": 200
+      }
+    },
+    "parse_response": {
+      "anthropic": {
+        "median_ns": 52163.5,
+        "n": 2000,
+        "ops_per_sec": 19170.5,
+        "warmup": 200
+      },
+      "gemini": {
+        "median_ns": 94214.0,
+        "n": 2000,
+        "ops_per_sec": 10614.1,
+        "warmup": 200
+      },
+      "openai": {
+        "median_ns": 155507.0,
+        "n": 2000,
+        "ops_per_sec": 6430.6,
+        "warmup": 200
+      },
+      "openai_chat": {
+        "median_ns": 93499.5,
+        "n": 2000,
+        "ops_per_sec": 10695.2,
+        "warmup": 200
+      }
+    },
+    "serde_roundtrip_midsize_request": {
+      "median_ns": 354187.0,
+      "n": 2000,
+      "ops_per_sec": 2823.4,
+      "warmup": 200,
+      "wire_bytes": 1804
+    },
+    "stream_pipeline": {
+      "events_per_sec": 49135.4,
+      "median_ns_per_pass": 122111.5,
+      "mib_per_sec": 10.27,
+      "n": 200,
+      "sse_bytes": 1315,
+      "stream_events_per_pass": 6,
+      "transcript": "anthropic.streaming",
+      "warmup": 20
+    }
+  },
+  "packages": {
+    "anthropic": {
+      "footprint": {
+        "install_bytes": 17878762,
+        "install_mib": 17.05,
+        "package_count": 16,
+        "packages": [
+          "annotated-types",
+          "anthropic",
+          "anyio",
+          "certifi",
+          "distro",
+          "docstring-parser",
+          "h11",
+          "httpcore",
+          "httpx",
+          "idna",
+          "jiter",
+          "pydantic",
+          "pydantic-core",
+          "sniffio",
+          "typing-extensions",
+          "typing-inspection"
+        ],
+        "transitive_deps": 15
+      },
+      "import": {
+        "best_s": 0.7254456820010091,
+        "interpreter_baseline_s": 0.016017207999539096,
+        "median_s": 0.9477740864986117,
+        "n": 10
+      },
+      "import_stmt": "import anthropic",
+      "install_target": "anthropic",
+      "ok": true,
+      "rss": {
+        "baseline_kib": 15356,
+        "delta_kib": 42092,
+        "n": 5,
+        "with_import_kib": 57448
+      }
+    },
+    "google-genai": {
+      "footprint": {
+        "install_bytes": 39032666,
+        "install_mib": 37.22,
+        "package_count": 25,
+        "packages": [
+          "annotated-types",
+          "anyio",
+          "certifi",
+          "cffi",
+          "charset-normalizer",
+          "cryptography",
+          "distro",
+          "google-auth",
+          "google-genai",
+          "h11",
+          "httpcore",
+          "httpx",
+          "idna",
+          "pyasn1",
+          "pyasn1-modules",
+          "pycparser",
+          "pydantic",
+          "pydantic-core",
+          "requests",
+          "sniffio",
+          "tenacity",
+          "typing-extensions",
+          "typing-inspection",
+          "urllib3",
+          "websockets"
+        ],
+        "transitive_deps": 24
+      },
+      "import": {
+        "best_s": 1.4658775540010538,
+        "interpreter_baseline_s": 0.022935600001801504,
+        "median_s": 1.776426841999637,
+        "n": 10
+      },
+      "import_stmt": "from google import genai",
+      "install_target": "google-genai",
+      "ok": true,
+      "rss": {
+        "baseline_kib": 15360,
+        "delta_kib": 62240,
+        "n": 5,
+        "with_import_kib": 77600
+      }
+    },
+    "langchain-openai": {
+      "footprint": {
+        "install_bytes": 66337931,
+        "install_mib": 63.26,
+        "package_count": 36,
+        "packages": [
+          "annotated-types",
+          "anyio",
+          "certifi",
+          "charset-normalizer",
+          "distro",
+          "h11",
+          "httpcore",
+          "httpx",
+          "idna",
+          "jiter",
+          "jsonpatch",
+          "jsonpointer",
+          "langchain-core",
+          "langchain-openai",
+          "langchain-protocol",
+          "langsmith",
+          "openai",
+          "orjson",
+          "packaging",
+          "pydantic",
+          "pydantic-core",
+          "pyyaml",
+          "regex",
+          "requests",
+          "requests-toolbelt",
+          "sniffio",
+          "tenacity",
+          "tiktoken",
+          "tqdm",
+          "typing-extensions",
+          "typing-inspection",
+          "urllib3",
+          "uuid-utils",
+          "websockets",
+          "xxhash",
+          "zstandard"
+        ],
+        "transitive_deps": 35
+      },
+      "import": {
+        "best_s": 0.9828682949992071,
+        "interpreter_baseline_s": 0.016403577999881236,
+        "median_s": 1.392817849498897,
+        "n": 10
+      },
+      "import_stmt": "import langchain_openai",
+      "install_target": "langchain-openai",
+      "ok": true,
+      "rss": {
+        "baseline_kib": 15352,
+        "delta_kib": 62416,
+        "n": 5,
+        "with_import_kib": 77768
+      }
+    },
+    "litellm": {
+      "footprint": {
+        "install_bytes": 139478933,
+        "install_mib": 133.02,
+        "package_count": 55,
+        "packages": [
+          "aiohappyeyeballs",
+          "aiohttp",
+          "aiosignal",
+          "annotated-doc",
+          "annotated-types",
+          "anyio",
+          "attrs",
+          "certifi",
+          "charset-normalizer",
+          "click",
+          "distro",
+          "fastuuid",
+          "filelock",
+          "frozenlist",
+          "fsspec",
+          "h11",
+          "hf-xet",
+          "httpcore",
+          "httpx",
+          "huggingface-hub",
+          "idna",
+          "importlib-metadata",
+          "jinja2",
+          "jiter",
+          "jsonschema",
+          "jsonschema-specifications",
+          "litellm",
+          "markdown-it-py",
+          "markupsafe",
+          "mdurl",
+          "multidict",
+          "openai",
+          "packaging",
+          "propcache",
+          "pydantic",
+          "pydantic-core",
+          "pygments",
+          "python-dotenv",
+          "pyyaml",
+          "referencing",
+          "regex",
+          "requests",
+          "rich",
+          "rpds-py",
+          "shellingham",
+          "sniffio",
+          "tiktoken",
+          "tokenizers",
+          "tqdm",
+          "typer",
+          "typing-extensions",
+          "typing-inspection",
+          "urllib3",
+          "yarl",
+          "zipp"
+        ],
+        "transitive_deps": 54
+      },
+      "import": {
+        "best_s": 2.568530697000824,
+        "interpreter_baseline_s": 0.026280546000634786,
+        "median_s": 2.903412344499884,
+        "n": 10
+      },
+      "import_stmt": "import litellm",
+      "install_target": "litellm",
+      "ok": true,
+      "rss": {
+        "baseline_kib": 15360,
+        "delta_kib": 164852,
+        "n": 5,
+        "with_import_kib": 180212
+      }
+    },
+    "lm15": {
+      "footprint": {
+        "install_bytes": 566070,
+        "install_mib": 0.54,
+        "package_count": 1,
+        "packages": [
+          "lm15"
+        ],
+        "transitive_deps": 0
+      },
+      "import": {
+        "best_s": 0.17146718999720179,
+        "interpreter_baseline_s": 0.015437739999470068,
+        "median_s": 0.18657005849854613,
+        "n": 10
+      },
+      "import_stmt": "import lm15",
+      "install_target": "/home/maxime/Projects/lm15-dev/lm15-python2/dist/lm15-0.3.0-py3-none-any.whl",
+      "ok": true,
+      "rss": {
+        "baseline_kib": 15340,
+        "delta_kib": 16976,
+        "n": 5,
+        "with_import_kib": 32316
+      }
+    },
+    "openai": {
+      "footprint": {
+        "install_bytes": 18915734,
+        "install_mib": 18.04,
+        "package_count": 16,
+        "packages": [
+          "annotated-types",
+          "anyio",
+          "certifi",
+          "distro",
+          "h11",
+          "httpcore",
+          "httpx",
+          "idna",
+          "jiter",
+          "openai",
+          "pydantic",
+          "pydantic-core",
+          "sniffio",
+          "tqdm",
+          "typing-extensions",
+          "typing-inspection"
+        ],
+        "transitive_deps": 15
+      },
+      "import": {
+        "best_s": 0.4792996040014259,
+        "interpreter_baseline_s": 0.014756576998479431,
+        "median_s": 0.5162137460010854,
+        "n": 10
+      },
+      "import_stmt": "import openai",
+      "install_target": "openai",
+      "ok": true,
+      "rss": {
+        "baseline_kib": 15336,
+        "delta_kib": 36168,
+        "n": 5,
+        "with_import_kib": 51504
+      }
+    }
+  },
+  "ttfr": {
+    "lm15_total_ms": 1417.8,
+    "lm15_ttfb_ms": 623.91,
+    "lm15_ttfb_spread_ms": 572.9,
+    "model": "qwen3.5:0.8b",
+    "n": 9,
+    "skipped": false,
+    "ttfb_tax_ms": -84.46,
+    "urllib_total_ms": 1708.44,
+    "urllib_ttfb_ms": 708.37,
+    "urllib_ttfb_spread_ms": 656.25
+  }
+}

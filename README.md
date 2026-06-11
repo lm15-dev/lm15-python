@@ -22,6 +22,21 @@ Transport plumbing stays under `lm15.transports`, live sessions under
 The code blocks below are documentation that runs: every ```output``` block is
 the real, captured output of the example above it.
 
+<!-- footprint:generated:start -->
+## Footprint
+
+Measured by [`benchmarks/suite/run.py`](benchmarks/suite/run.py) on Python 3.13.3 — methodology and full results in [benchmarks/BENCHMARKS.md](benchmarks/BENCHMARKS.md):
+
+| package | install size | transitive deps | cold import | import RSS |
+|---|---:|---:|---:|---:|
+| **lm15** | 0.5 MiB | 0 | 171 ms | 16.6 MiB |
+| openai | 18.0 MiB | 15 | 479 ms | 35.3 MiB |
+| anthropic | 17.1 MiB | 15 | 725 ms | 41.1 MiB |
+| google-genai | 37.2 MiB | 24 | 1466 ms | 60.8 MiB |
+| litellm | 133.0 MiB | 54 | 2569 ms | 161.0 MiB |
+| langchain-openai | 63.3 MiB | 35 | 983 ms | 61.0 MiB |
+<!-- footprint:generated:end -->
+
 ## Install
 
 ```bash
