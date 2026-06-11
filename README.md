@@ -28,7 +28,7 @@ The package name is `lm15`. It is not on PyPI yet — publishing 1.0 there is
 the plan. Until then, install from source:
 
 ```bash
-git clone https://github.com/MaximeRivest/lm15-python2 && cd lm15-python2
+git clone https://github.com/lm15-dev/lm15-python && cd lm15-python2
 python3 -m pip install -e .
 # Optional extra for websocket live sessions:
 python3 -m pip install -e '.[live]'

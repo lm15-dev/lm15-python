@@ -20,8 +20,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/MaximeRivest/lm15-python2"
-Changelog = "https://github.com/MaximeRivest/lm15-python2/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/lm15-dev/lm15-python"
+Changelog = "https://github.com/lm15-dev/lm15-python/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 live = ["websockets>=12"]
