@@ -46,9 +46,11 @@ canonical behavior, enforced by a cross-language conformance contract.
   [providers](using-the-a-provider.md),
   [model profiles](using-model-profiles.md), and
   [transports](using-the-transports.md).
-- **Cookbooks** — [69 features across three providers](cookbook-all-features.md)
-  and [Gemini Live sessions](cookbook-gemini-live.md), with real captured
-  output.
+- **[Cookbook](cookbooks/index.md)** — sixteen recipes from
+  [first request](cookbooks/01-first-request.md) to
+  [live sessions](cookbooks/13-live-sessions.md) and
+  [provider passthrough](cookbooks/16-provider-passthrough.md), with real
+  captured output.
 - **[How lm15 is specified](how-lm15-is-specified.md)** — the
   cross-language contract, the authority model, and what "frozen" means
   here. The part of lm15 you won't find anywhere else.

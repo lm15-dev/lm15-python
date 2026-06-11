@@ -45,6 +45,9 @@ plugins:
             docstring_style: google
             show_signature_annotations: true
 
+not_in_nav: |
+  cookbooks/STYLE.md
+
 nav:
   - Home: index.md
   - Getting started: getting-started.md
@@ -57,8 +60,28 @@ nav:
       - Transports: using-the-transports.md
       - Design rationale: design-rationale.md
   - Cookbooks:
-      - All features, three providers: cookbook-all-features.md
-      - Gemini Live sessions: cookbook-gemini-live.md
+      - Overview: cookbooks/index.md
+      - Essentials:
+          - Your first request: cookbooks/01-first-request.md
+          - Multi-turn conversations: cookbooks/02-conversations.md
+          - System & developer prompts: cookbooks/03-system-prompts.md
+          - Controlling generation: cookbooks/04-generation-config.md
+          - Streaming: cookbooks/05-streaming.md
+      - Tools:
+          - Function tools: cookbooks/06-function-tools.md
+          - Built-in provider tools: cookbooks/07-builtin-tools.md
+          - Structured output: cookbooks/08-structured-output.md
+      - Modalities:
+          - Images, PDFs & documents: cookbooks/09-images-and-documents.md
+          - Audio, video & reasoning models: cookbooks/10-audio-video-reasoning.md
+      - Beyond chat:
+          - Prompt caching: cookbooks/11-caching.md
+          - Embeddings, batch & media generation: cookbooks/12-embeddings-batch-generation.md
+          - Live sessions (realtime): cookbooks/13-live-sessions.md
+      - Production:
+          - Local & OpenAI-compatible servers: cookbooks/14-local-and-compatible-servers.md
+          - Errors, retries & testing: cookbooks/15-errors-and-testing.md
+          - Provider passthrough: cookbooks/16-provider-passthrough.md
   - Specification:
       - How lm15 is specified: how-lm15-is-specified.md
       - Serde rules: serde-rules.md

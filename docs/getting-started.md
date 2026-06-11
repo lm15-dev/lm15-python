@@ -108,7 +108,7 @@ response = await lm.complete(request)
 ## Where next
 
 - Multimodal input, tools, structured output, reasoning, caching, batch,
-  embeddings: the [all-features cookbook](cookbook-all-features.md) shows
-  all of it, with real captured output.
+  embeddings: the [cookbook](cookbooks/index.md) covers all of it in
+  sixteen recipes, with real captured output.
 - The canonical types in depth: [Using the type system](using-the-type-system.md).
 - Why the API looks the way it does: [Design rationale](design-rationale.md).
