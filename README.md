@@ -531,7 +531,15 @@ are byte-identical with or without it. See
   invariants (MAP-1, MAP-2, MAP-3, ...).
 - Behavior is pinned by a cross-language conformance corpus: the sibling
   `lm15-contract` repository is the spec; this package is the reference
-  implementation, not the authority.
+  implementation, not the authority — the full story is in
+  [How lm15 is specified](https://lm15-dev.github.io/lm15-python/how-lm15-is-specified/).
+
+## Documentation
+
+The full documentation site — getting started, guides, runnable cookbooks,
+API reference, the specification pages, benchmarks, and the
+[roadmap](https://lm15-dev.github.io/lm15-python/roadmap/) — lives at
+**[lm15-dev.github.io/lm15-python](https://lm15-dev.github.io/lm15-python/)**.
 
 ## Contributing
 
