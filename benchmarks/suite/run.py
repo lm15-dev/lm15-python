@@ -28,9 +28,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # hot-path benchmarks import lm15 from the repo checkout
 sys.path.insert(1, str(Path(__file__).resolve().parents[2]))
 
+import bench_concurrency
 import bench_footprint
 import bench_hotpath
 import bench_import
+import bench_live
+import bench_steady_state
 import bench_ttfr
 import report
 import venvs
@@ -70,6 +73,8 @@ def main() -> None:
     rss_n = 3 if args.quick else 5
     hot_n, hot_w = (300, 30) if args.quick else (2000, 200)
     ttfr_n = 3 if args.quick else 9
+    steady_n = 4 if args.quick else 10
+    conc_n = 12 if args.quick else 50
 
     res: dict = {
         "generated_at": datetime.datetime.now(datetime.timezone.utc)
@@ -77,7 +82,8 @@ def main() -> None:
         "environment": environment(),
         "config": {"import_n": import_n, "rss_n": rss_n,
                    "hotpath_n": hot_n, "hotpath_warmup": hot_w,
-                   "ttfr_n": ttfr_n, "quick": args.quick},
+                   "ttfr_n": ttfr_n, "steady_state_n": steady_n,
+                   "concurrency_calls": conc_n, "quick": args.quick},
         "packages": {},
     }
 
@@ -117,6 +123,32 @@ def main() -> None:
     res["ttfr"] = bench_ttfr.run(n=ttfr_n)
     if res["ttfr"].get("skipped"):
         print(f"  skipped: {res['ttfr']['reason']}", flush=True)
+
+    print("== steady state: pooled lm15 vs fresh-connection urllib ==", flush=True)
+    res["steady_state"] = bench_steady_state.run(n=steady_n)
+    for target, st in res["steady_state"].items():
+        if st.get("skipped"):
+            print(f"  {target}: skipped: {st['reason']}", flush=True)
+        else:
+            print(f"  {target}: lm15 {st['lm15_median_ms']:.1f} ms vs urllib "
+                  f"{st['urllib_median_ms']:.1f} ms (delta {st['delta_ms']:+.1f} ms)",
+                  flush=True)
+
+    print("== concurrency: async gather vs sequential sync (local ollama) ==",
+          flush=True)
+    res["concurrency"] = bench_concurrency.run(n_calls=conc_n)
+    if res["concurrency"].get("skipped"):
+        print(f"  skipped: {res['concurrency']['reason']}", flush=True)
+    else:
+        c = res["concurrency"]
+        print(f"  {c['n_calls']} calls: async {c['async_gather_wall_s']:.2f}s vs "
+              f"sync {c['sync_sequential_wall_s']:.2f}s ({c['speedup_x']}x)",
+              flush=True)
+
+    print("== live session round trip (Gemini Live) ==", flush=True)
+    res["live"] = bench_live.run()
+    if res["live"].get("skipped"):
+        print(f"  skipped: {res['live']['reason']}", flush=True)
 
     out = BENCH_DIR / "RESULTS.json"
     out.write_text(json.dumps(res, indent=2, sort_keys=True) + "\n")

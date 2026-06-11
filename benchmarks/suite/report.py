@@ -87,6 +87,18 @@ def render_markdown(res: dict) -> str:
     a("- **TTFR tax** = time-to-first-byte of a streaming generate request to")
     a("  local ollama, lm15's `StdlibTransport` vs raw `urllib.request`,")
     a("  identical request bytes, interleaved runs, median of N.")
+    a("- **Steady state** = per-call wall time of repeated tiny non-streaming")
+    a("  chat completions (`max_tokens=4`): one reused lm15 adapter (pooled")
+    a("  keep-alive transport) vs raw `urllib.request` opening a fresh")
+    a("  connection — and on Groq a fresh TLS handshake — every call; 1 warmup")
+    a(f"  pair then {res['config'].get('steady_state_n', '?')} interleaved pairs, medians.")
+    a("- **Concurrency** = N tiny calls to local ollama: `AsyncOpenAIChatLM`")
+    a("  under one `asyncio.gather` vs the sync adapter run sequentially;")
+    a("  `threading.active_count()` recorded around the gather proves no")
+    a("  hidden thread pool.")
+    a("- **Live** = one Gemini Live WebSocket session (optional `websockets`")
+    a("  extra): connect+setup, then one tiny text turn timed to the first")
+    a("  server event and to turn end. Best-effort; skips recorded honestly.")
     a("")
     a("## Footprint (install size · dependencies · import)")
     a("")
@@ -139,6 +151,79 @@ def render_markdown(res: dict) -> str:
               f"urllib {tt['urllib_ttfb_spread_ms']:.0f} ms — the model server's")
             a("own jitter dwarfs any difference between the two clients; the tax")
             a("is indistinguishable from zero.")
+        a("")
+
+    ss = res.get("steady_state")
+    if ss:
+        a("## Steady state: pooled lm15 vs fresh-connection urllib")
+        a("")
+        a("Per-call wall time of repeated tiny chat completions. lm15 reuses")
+        a("one pooled keep-alive connection; raw `urllib.request` opens a new")
+        a("connection (and on Groq, a new TLS handshake) for every call.")
+        a("")
+        groq = ss.get("groq", {})
+        groq_wins = not groq.get("skipped") and groq.get("delta_ms", 0) < 0
+        for target in ("groq", "ollama"):
+            st = ss.get(target)
+            if st is None:
+                continue
+            label = "Groq (remote, TLS)" if target == "groq" else "ollama (localhost, plain HTTP)"
+            if st.get("skipped"):
+                a(f"**{label}** — skipped: {st['reason']}.")
+                a("")
+                continue
+            a(f"**{label}** — model `{st['model']}`, median of {st['n']} interleaved pairs:")
+            a("")
+            a("| client | per-call wall time |")
+            a("|---|---:|")
+            a(f"| lm15 (pooled keep-alive) | {st['lm15_median_ms']:.1f} ms |")
+            a(f"| raw urllib (new connection per call) | {st['urllib_median_ms']:.1f} ms |")
+            a("")
+            a(f"Delta: **{st['delta_ms']:+.1f} ms** per call (negative = lm15 faster). "
+              f"Spread: lm15 {st['lm15_spread_ms']:.0f} ms, urllib {st['urllib_spread_ms']:.0f} ms.")
+            a("")
+        if groq_wins:
+            a(f"At steady state lm15 is **{-groq['delta_ms']:.0f} ms/call faster than")
+            a("raw HTTP** against Groq — connection pooling amortizes the TLS")
+            a("handshake that urllib pays on every call.")
+            a("")
+
+    cc = res.get("concurrency")
+    if cc:
+        a("## Concurrency: asyncio.gather vs sequential sync (local ollama)")
+        a("")
+        if cc.get("skipped"):
+            a(f"Skipped: {cc['reason']}.")
+        else:
+            a(f"{cc['n_calls']} tiny calls (`max_tokens=4`) to `{cc['model']}`:")
+            a("")
+            a("| mode | wall time | calls/sec |")
+            a("|---|---:|---:|")
+            a(f"| AsyncOpenAIChatLM, asyncio.gather | {cc['async_gather_wall_s']:.2f} s | {cc['async_calls_per_sec']:.1f} |")
+            a(f"| OpenAIChatLM, sequential | {cc['sync_sequential_wall_s']:.2f} s | {cc['sync_calls_per_sec']:.1f} |")
+            a("")
+            threads = ("unchanged" if cc["threads_unchanged"] else
+                       f"{cc['threads_before_gather']} -> {cc['threads_after_gather']}")
+            a(f"Speedup: **{cc['speedup_x']}x**. Thread count across the gather: "
+              f"**{threads}** ({cc['threads_before_gather']} before, "
+              f"{cc['threads_after_gather']} after) — the overlap is pure asyncio")
+            a("sockets, not a hidden thread pool.")
+        a("")
+
+    lv = res.get("live")
+    if lv:
+        a("## Live session round trip (Gemini Live, best-effort)")
+        a("")
+        if lv.get("skipped"):
+            a(f"Skipped: {lv['reason']}.")
+        else:
+            a(f"Model `{lv['model']}`, one WebSocket session, one tiny text turn:")
+            a("")
+            a("| phase | time |")
+            a("|---|---:|")
+            a(f"| connect + setupComplete | {lv['connect_setup_ms']:.0f} ms |")
+            a(f"| text turn -> first server event | {lv['first_event_ms']:.0f} ms |")
+            a(f"| text turn -> turn complete | {lv['turn_total_ms']:.0f} ms |")
         a("")
 
     a("## Why lm15 is small and fast")

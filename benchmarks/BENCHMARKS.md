@@ -6,7 +6,7 @@ from `benchmarks/RESULTS.json` — nothing in this file is hand-typed.
 ## Methodology
 
 - Machine: Intel(R) Core(TM) i7-1065G7 CPU @ 1.30GHz (8 CPUs), Linux 6.8.0-124-generic
-- Python: 3.13.3 · uv 0.9.26 · run at 2026-06-11T01:33:43+00:00
+- Python: 3.13.3 · uv 0.9.26 · run at 2026-06-11T02:54:35+00:00
 - Each competitor is installed into its own scratch venv under
   `/tmp/lm15-bench-venvs/` (`uv venv` + `uv pip install`); lm15 is
   installed from the locally built wheel. Failures are recorded and the
@@ -27,17 +27,29 @@ from `benchmarks/RESULTS.json` — nothing in this file is hand-typed.
 - **TTFR tax** = time-to-first-byte of a streaming generate request to
   local ollama, lm15's `StdlibTransport` vs raw `urllib.request`,
   identical request bytes, interleaved runs, median of N.
+- **Steady state** = per-call wall time of repeated tiny non-streaming
+  chat completions (`max_tokens=4`): one reused lm15 adapter (pooled
+  keep-alive transport) vs raw `urllib.request` opening a fresh
+  connection — and on Groq a fresh TLS handshake — every call; 1 warmup
+  pair then 10 interleaved pairs, medians.
+- **Concurrency** = N tiny calls to local ollama: `AsyncOpenAIChatLM`
+  under one `asyncio.gather` vs the sync adapter run sequentially;
+  `threading.active_count()` recorded around the gather proves no
+  hidden thread pool.
+- **Live** = one Gemini Live WebSocket session (optional `websockets`
+  extra): connect+setup, then one tiny text turn timed to the first
+  server event and to turn end. Best-effort; skips recorded honestly.
 
 ## Footprint (install size · dependencies · import)
 
 | package | install size | transitive deps | cold import | import RSS |
 |---|---:|---:|---:|---:|
-| **lm15** | 0.5 MiB | 0 | 171 ms | 16.6 MiB |
-| openai | 18.0 MiB | 15 | 479 ms | 35.3 MiB |
-| anthropic | 17.1 MiB | 15 | 725 ms | 41.1 MiB |
-| google-genai | 37.2 MiB | 24 | 1466 ms | 60.8 MiB |
-| litellm | 133.0 MiB | 54 | 2569 ms | 161.0 MiB |
-| langchain-openai | 63.3 MiB | 35 | 983 ms | 61.0 MiB |
+| **lm15** | 0.5 MiB | 0 | 152 ms | 16.6 MiB |
+| openai | 18.0 MiB | 15 | 468 ms | 35.3 MiB |
+| anthropic | 17.1 MiB | 15 | 589 ms | 41.2 MiB |
+| google-genai | 37.2 MiB | 24 | 934 ms | 60.8 MiB |
+| litellm | 133.0 MiB | 54 | 2298 ms | 161.0 MiB |
+| langchain-openai | 63.3 MiB | 35 | 930 ms | 61.0 MiB |
 
 Bare interpreter start (`python -c pass`): 15 ms — subtract it from every
 row to get the library's own share of the cold import.
@@ -46,16 +58,16 @@ row to get the library's own share of the cold import.
 
 | operation | median | ops/sec |
 |---|---:|---:|
-| build_request (anthropic) | 16.1 µs | 62,183 |
-| build_request (gemini) | 27.3 µs | 36,625 |
-| build_request (openai) | 48.5 µs | 20,610 |
-| build_request (openai_chat) | 16.1 µs | 62,193 |
-| parse_response (anthropic, pinned body) | 52.2 µs | 19,170 |
-| parse_response (gemini, pinned body) | 94.2 µs | 10,614 |
-| parse_response (openai, pinned body) | 155.5 µs | 6,431 |
-| parse_response (openai_chat, pinned body) | 93.5 µs | 10,695 |
-| Request serde round-trip (1804 B wire) | 354.2 µs | 2,823 |
-| stream pipeline (anthropic.streaming, 6 events) | 122.1 µs/transcript | 49,135 events/s |
+| build_request (anthropic) | 6.8 µs | 146,951 |
+| build_request (gemini) | 6.7 µs | 150,116 |
+| build_request (openai) | 12.0 µs | 83,029 |
+| build_request (openai_chat) | 5.9 µs | 169,162 |
+| parse_response (anthropic, pinned body) | 21.8 µs | 45,845 |
+| parse_response (gemini, pinned body) | 24.9 µs | 40,144 |
+| parse_response (openai, pinned body) | 37.0 µs | 27,050 |
+| parse_response (openai_chat, pinned body) | 22.3 µs | 44,926 |
+| Request serde round-trip (1804 B wire) | 139.9 µs | 7,146 |
+| stream pipeline (anthropic.streaming, 6 events) | 54.7 µs/transcript | 109,778 events/s |
 
 ## TTFR tax vs raw urllib (local ollama)
 
@@ -63,13 +75,63 @@ Model `qwen3.5:0.8b`, median of 9 interleaved runs:
 
 | client | TTFB | total |
 |---|---:|---:|
-| lm15 StdlibTransport | 623.9 ms | 1417.8 ms |
-| raw urllib.request | 708.4 ms | 1708.4 ms |
+| lm15 StdlibTransport | 589.6 ms | 1302.3 ms |
+| raw urllib.request | 592.4 ms | 1313.2 ms |
 
-lm15 transport tax over raw stdlib HTTP: **-84.5 ms** TTFB.
-Run-to-run TTFB spread: lm15 573 ms, urllib 656 ms — the model server's
+lm15 transport tax over raw stdlib HTTP: **-2.8 ms** TTFB.
+Run-to-run TTFB spread: lm15 38 ms, urllib 54 ms — the model server's
 own jitter dwarfs any difference between the two clients; the tax
 is indistinguishable from zero.
+
+## Steady state: pooled lm15 vs fresh-connection urllib
+
+Per-call wall time of repeated tiny chat completions. lm15 reuses
+one pooled keep-alive connection; raw `urllib.request` opens a new
+connection (and on Groq, a new TLS handshake) for every call.
+
+**Groq (remote, TLS)** — model `llama-3.1-8b-instant`, median of 10 interleaved pairs:
+
+| client | per-call wall time |
+|---|---:|
+| lm15 (pooled keep-alive) | 99.4 ms |
+| raw urllib (new connection per call) | 177.6 ms |
+
+Delta: **-78.3 ms** per call (negative = lm15 faster). Spread: lm15 328 ms, urllib 614 ms.
+
+**ollama (localhost, plain HTTP)** — model `qwen3.5:0.8b`, median of 10 interleaved pairs:
+
+| client | per-call wall time |
+|---|---:|
+| lm15 (pooled keep-alive) | 821.7 ms |
+| raw urllib (new connection per call) | 833.7 ms |
+
+Delta: **-12.0 ms** per call (negative = lm15 faster). Spread: lm15 355 ms, urllib 292 ms.
+
+At steady state lm15 is **78 ms/call faster than
+raw HTTP** against Groq — connection pooling amortizes the TLS
+handshake that urllib pays on every call.
+
+## Concurrency: asyncio.gather vs sequential sync (local ollama)
+
+50 tiny calls (`max_tokens=4`) to `qwen3.5:0.8b`:
+
+| mode | wall time | calls/sec |
+|---|---:|---:|
+| AsyncOpenAIChatLM, asyncio.gather | 38.17 s | 1.3 |
+| OpenAIChatLM, sequential | 40.98 s | 1.2 |
+
+Speedup: **1.07x**. Thread count across the gather: **unchanged** (3 before, 3 after) — the overlap is pure asyncio
+sockets, not a hidden thread pool.
+
+## Live session round trip (Gemini Live, best-effort)
+
+Model `gemini-3.1-flash-live-preview`, one WebSocket session, one tiny text turn:
+
+| phase | time |
+|---|---:|
+| connect + setupComplete | 273 ms |
+| text turn -> first server event | 452 ms |
+| text turn -> turn complete | 1168 ms |
 
 ## Why lm15 is small and fast
 

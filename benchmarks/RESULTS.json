@@ -1,10 +1,25 @@
 {
+  "concurrency": {
+    "async_calls_per_sec": 1.31,
+    "async_gather_wall_s": 38.169,
+    "model": "qwen3.5:0.8b",
+    "n_calls": 50,
+    "skipped": false,
+    "speedup_x": 1.07,
+    "sync_calls_per_sec": 1.22,
+    "sync_sequential_wall_s": 40.982,
+    "threads_after_gather": 3,
+    "threads_before_gather": 3,
+    "threads_unchanged": true
+  },
   "config": {
+    "concurrency_calls": 50,
     "hotpath_n": 2000,
     "hotpath_warmup": 200,
     "import_n": 10,
     "quick": false,
     "rss_n": 5,
+    "steady_state_n": 10,
     "ttfr_n": 9
   },
   "environment": {
@@ -14,77 +29,84 @@
     "python": "3.13.3",
     "uv": "0.9.26"
   },
-  "generated_at": "2026-06-11T01:33:43+00:00",
+  "generated_at": "2026-06-11T02:54:35+00:00",
   "hotpath": {
     "build_request": {
       "anthropic": {
-        "median_ns": 16081.5,
+        "median_ns": 6805.0,
         "n": 2000,
-        "ops_per_sec": 62183.3,
+        "ops_per_sec": 146950.8,
         "warmup": 200
       },
       "gemini": {
-        "median_ns": 27304.0,
+        "median_ns": 6661.5,
         "n": 2000,
-        "ops_per_sec": 36624.7,
+        "ops_per_sec": 150116.3,
         "warmup": 200
       },
       "openai": {
-        "median_ns": 48521.0,
+        "median_ns": 12044.0,
         "n": 2000,
-        "ops_per_sec": 20609.6,
+        "ops_per_sec": 83028.9,
         "warmup": 200
       },
       "openai_chat": {
-        "median_ns": 16079.0,
+        "median_ns": 5911.5,
         "n": 2000,
-        "ops_per_sec": 62192.9,
+        "ops_per_sec": 169161.8,
         "warmup": 200
       }
     },
     "parse_response": {
       "anthropic": {
-        "median_ns": 52163.5,
+        "median_ns": 21812.5,
         "n": 2000,
-        "ops_per_sec": 19170.5,
+        "ops_per_sec": 45845.3,
         "warmup": 200
       },
       "gemini": {
-        "median_ns": 94214.0,
+        "median_ns": 24910.5,
         "n": 2000,
-        "ops_per_sec": 10614.1,
+        "ops_per_sec": 40143.7,
         "warmup": 200
       },
       "openai": {
-        "median_ns": 155507.0,
+        "median_ns": 36968.0,
         "n": 2000,
-        "ops_per_sec": 6430.6,
+        "ops_per_sec": 27050.4,
         "warmup": 200
       },
       "openai_chat": {
-        "median_ns": 93499.5,
+        "median_ns": 22259.0,
         "n": 2000,
-        "ops_per_sec": 10695.2,
+        "ops_per_sec": 44925.6,
         "warmup": 200
       }
     },
     "serde_roundtrip_midsize_request": {
-      "median_ns": 354187.0,
+      "median_ns": 139944.0,
       "n": 2000,
-      "ops_per_sec": 2823.4,
+      "ops_per_sec": 7145.7,
       "warmup": 200,
       "wire_bytes": 1804
     },
     "stream_pipeline": {
-      "events_per_sec": 49135.4,
-      "median_ns_per_pass": 122111.5,
-      "mib_per_sec": 10.27,
+      "events_per_sec": 109778.5,
+      "median_ns_per_pass": 54655.5,
+      "mib_per_sec": 22.95,
       "n": 200,
       "sse_bytes": 1315,
       "stream_events_per_pass": 6,
       "transcript": "anthropic.streaming",
       "warmup": 20
     }
+  },
+  "live": {
+    "connect_setup_ms": 272.9,
+    "first_event_ms": 451.8,
+    "model": "gemini-3.1-flash-live-preview",
+    "skipped": false,
+    "turn_total_ms": 1167.9
   },
   "packages": {
     "anthropic": {
@@ -113,19 +135,19 @@
         "transitive_deps": 15
       },
       "import": {
-        "best_s": 0.7254456820010091,
-        "interpreter_baseline_s": 0.016017207999539096,
-        "median_s": 0.9477740864986117,
+        "best_s": 0.5890882200037595,
+        "interpreter_baseline_s": 0.014837533002719283,
+        "median_s": 0.5983527979988139,
         "n": 10
       },
       "import_stmt": "import anthropic",
       "install_target": "anthropic",
       "ok": true,
       "rss": {
-        "baseline_kib": 15356,
-        "delta_kib": 42092,
+        "baseline_kib": 15340,
+        "delta_kib": 42152,
         "n": 5,
-        "with_import_kib": 57448
+        "with_import_kib": 57492
       }
     },
     "google-genai": {
@@ -163,19 +185,19 @@
         "transitive_deps": 24
       },
       "import": {
-        "best_s": 1.4658775540010538,
-        "interpreter_baseline_s": 0.022935600001801504,
-        "median_s": 1.776426841999637,
+        "best_s": 0.934334706995287,
+        "interpreter_baseline_s": 0.015303701999073382,
+        "median_s": 0.9494182760026888,
         "n": 10
       },
       "import_stmt": "from google import genai",
       "install_target": "google-genai",
       "ok": true,
       "rss": {
-        "baseline_kib": 15360,
-        "delta_kib": 62240,
+        "baseline_kib": 15336,
+        "delta_kib": 62256,
         "n": 5,
-        "with_import_kib": 77600
+        "with_import_kib": 77592
       }
     },
     "langchain-openai": {
@@ -224,9 +246,9 @@
         "transitive_deps": 35
       },
       "import": {
-        "best_s": 0.9828682949992071,
-        "interpreter_baseline_s": 0.016403577999881236,
-        "median_s": 1.392817849498897,
+        "best_s": 0.9299004369968316,
+        "interpreter_baseline_s": 0.015095245995325968,
+        "median_s": 0.9341515354972216,
         "n": 10
       },
       "import_stmt": "import langchain_openai",
@@ -234,9 +256,9 @@
       "ok": true,
       "rss": {
         "baseline_kib": 15352,
-        "delta_kib": 62416,
+        "delta_kib": 62424,
         "n": 5,
-        "with_import_kib": 77768
+        "with_import_kib": 77776
       }
     },
     "litellm": {
@@ -304,19 +326,19 @@
         "transitive_deps": 54
       },
       "import": {
-        "best_s": 2.568530697000824,
-        "interpreter_baseline_s": 0.026280546000634786,
-        "median_s": 2.903412344499884,
+        "best_s": 2.297642106001149,
+        "interpreter_baseline_s": 0.015491726000618655,
+        "median_s": 2.3488826700049685,
         "n": 10
       },
       "import_stmt": "import litellm",
       "install_target": "litellm",
       "ok": true,
       "rss": {
-        "baseline_kib": 15360,
-        "delta_kib": 164852,
+        "baseline_kib": 15356,
+        "delta_kib": 164884,
         "n": 5,
-        "with_import_kib": 180212
+        "with_import_kib": 180240
       }
     },
     "lm15": {
@@ -330,19 +352,19 @@
         "transitive_deps": 0
       },
       "import": {
-        "best_s": 0.17146718999720179,
-        "interpreter_baseline_s": 0.015437739999470068,
-        "median_s": 0.18657005849854613,
+        "best_s": 0.1519270740027423,
+        "interpreter_baseline_s": 0.01468452499830164,
+        "median_s": 0.1588825069993618,
         "n": 10
       },
       "import_stmt": "import lm15",
       "install_target": "/home/maxime/Projects/lm15-dev/lm15-python2/dist/lm15-0.3.0-py3-none-any.whl",
       "ok": true,
       "rss": {
-        "baseline_kib": 15340,
-        "delta_kib": 16976,
+        "baseline_kib": 15348,
+        "delta_kib": 17016,
         "n": 5,
-        "with_import_kib": 32316
+        "with_import_kib": 32364
       }
     },
     "openai": {
@@ -371,32 +393,54 @@
         "transitive_deps": 15
       },
       "import": {
-        "best_s": 0.4792996040014259,
-        "interpreter_baseline_s": 0.014756576998479431,
-        "median_s": 0.5162137460010854,
+        "best_s": 0.4684542179966229,
+        "interpreter_baseline_s": 0.014675866994366515,
+        "median_s": 0.4770120505017985,
         "n": 10
       },
       "import_stmt": "import openai",
       "install_target": "openai",
       "ok": true,
       "rss": {
-        "baseline_kib": 15336,
-        "delta_kib": 36168,
+        "baseline_kib": 15340,
+        "delta_kib": 36172,
         "n": 5,
-        "with_import_kib": 51504
+        "with_import_kib": 51512
       }
     }
   },
+  "steady_state": {
+    "groq": {
+      "delta_ms": -78.27,
+      "lm15_median_ms": 99.37,
+      "lm15_spread_ms": 328.13,
+      "model": "llama-3.1-8b-instant",
+      "n": 10,
+      "skipped": false,
+      "urllib_median_ms": 177.64,
+      "urllib_spread_ms": 613.94
+    },
+    "ollama": {
+      "delta_ms": -12.02,
+      "lm15_median_ms": 821.7,
+      "lm15_spread_ms": 354.96,
+      "model": "qwen3.5:0.8b",
+      "n": 10,
+      "skipped": false,
+      "urllib_median_ms": 833.71,
+      "urllib_spread_ms": 291.53
+    }
+  },
   "ttfr": {
-    "lm15_total_ms": 1417.8,
-    "lm15_ttfb_ms": 623.91,
-    "lm15_ttfb_spread_ms": 572.9,
+    "lm15_total_ms": 1302.33,
+    "lm15_ttfb_ms": 589.6,
+    "lm15_ttfb_spread_ms": 38.09,
     "model": "qwen3.5:0.8b",
     "n": 9,
     "skipped": false,
-    "ttfb_tax_ms": -84.46,
-    "urllib_total_ms": 1708.44,
-    "urllib_ttfb_ms": 708.37,
-    "urllib_ttfb_spread_ms": 656.25
+    "ttfb_tax_ms": -2.77,
+    "urllib_total_ms": 1313.19,
+    "urllib_ttfb_ms": 592.36,
+    "urllib_ttfb_spread_ms": 54.13
   }
 }
