@@ -27,7 +27,8 @@ lm15 brings every provider.
 
 ```text
 Message parts → Message → Request → ProviderLM → Response
-                              │
+                              │          ▲
+                              │          └── LMRouter("provider:model" → LM)
                               └── stream() → StreamEvent → materialized Response
 ```
 
@@ -39,7 +40,9 @@ canonical behavior, enforced by a cross-language conformance contract.
 ## Where to go
 
 - **[Getting started](getting-started.md)** — install and first requests.
-- **Guides** — the [type system](using-the-type-system.md),
+- **Guides** — the [router](using-the-router.md), the
+  [type system](using-the-type-system.md),
+  [tools from functions](tools-from-functions.md),
   [providers](using-the-a-provider.md),
   [model profiles](using-model-profiles.md), and
   [transports](using-the-transports.md).

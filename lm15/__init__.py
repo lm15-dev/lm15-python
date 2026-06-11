@@ -201,6 +201,32 @@ from .protocols import Capabilities, LiveSession
 from .features import EndpointSupport, ProviderManifest
 from .sse import SSEEvent, parse_sse
 
+# ── Router (lm15.router) ─────────────────────────────────────────────
+from .router import (
+    ADAPTERS,
+    ASYNC_ADAPTERS,
+    DEFAULT_RULES,
+    AmbiguousModelError,
+    AsyncLMRouter,
+    LMRouter,
+    MissingCredentialError,
+    Resolution,
+    RouteRule,
+    RouterConfig,
+    RouterError,
+    UnknownModelError,
+)
+
+# ── Tool derivation (lm15.tools) ─────────────────────────────────────
+from .tools import (
+    DerivedParam,
+    ToolConfig,
+    ToolDerivation,
+    ToolDerivationError,
+    derive,
+    tool,
+)
+
 __all__ = [
     "__version__",
     # core
@@ -258,4 +284,12 @@ __all__ = [
     "LiveSession", "EndpointSupport", "ProviderManifest",
     # sse
     "SSEEvent", "parse_sse",
+    # router (lm15.router)
+    "LMRouter", "AsyncLMRouter", "RouterConfig", "RouteRule", "Resolution",
+    "DEFAULT_RULES", "ADAPTERS", "ASYNC_ADAPTERS",
+    "RouterError", "UnknownModelError",
+    "AmbiguousModelError", "MissingCredentialError",
+    # tool derivation (lm15.tools)
+    "tool", "derive", "ToolConfig", "ToolDerivation", "DerivedParam",
+    "ToolDerivationError",
 ]

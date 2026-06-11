@@ -14,6 +14,12 @@ same discipline as the code — see
 - Non-chat endpoints (embeddings, files, batch, image/audio generation) and
   live sessions work and are live-tested, but remain **provisional**: their
   shapes may still change before they are frozen.
+- **Shipped in the alpha** (additive, outside the frozen core, not yet
+  contract-governed): the [model-string router](using-the-router.md)
+  (`LMRouter`/`AsyncLMRouter`) and
+  [tool derivation from functions](tools-from-functions.md)
+  (`lm15.tool`/`derive`). A cross-language porting spec is
+  [proposed](router-portability.md), pending ratification.
 - Rust, Go, and TypeScript implementations pass the identical conformance
   corpus. Julia is planned.
 
@@ -55,7 +61,9 @@ code second.
 ## Layers above the foundation
 
 lm15 is deliberately low-level: no automatic tool loop, no retries, no
-routing, no cost ledger. Several companion pieces are under consideration
+cost ledger, no *policy* routing (the shipped
+[router](using-the-router.md) is a lookup table — no fallbacks, no
+ranking). Several companion pieces are under consideration
 once the foundation's user experience is validated — each as a separate
 package built on the frozen core, none of them contract-governed:
 

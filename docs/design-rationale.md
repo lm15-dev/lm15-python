@@ -83,3 +83,74 @@ remain sync-only for now; the async classes implement them as methods that
 raise `UnsupportedFeatureError` ("use the sync adapter for this endpoint
 (async endpoints planned)") so the surface is honest rather than silently
 absent.
+
+## Why does a "no routing" library now ship a router?
+
+Because every program that uses lm15 was writing the same eight lines —
+map a model name to a class, find the env var, construct, cache — and a
+mapping table is foundation-shaped, while *policy* routing (retries,
+fallbacks, cost-based selection) is not. `LMRouter` is deliberately the
+former and refuses to be the latter: three fixed resolution rungs
+(explicit `provider:` prefix, opt-in catalog, built-in prefix rules),
+first match wins, no callbacks, no fallback chains, no configurable rung
+order. `resolve()` is pure and its `Resolution` return value is the
+explanation — there is no hidden state to ask about.
+
+The honest trade-offs:
+
+- **The built-in rule table goes stale.** A brand-new model family won't
+  match until a release ships — by design. The mitigations are all
+  user-visible data: the explicit prefix always works, a catalog
+  (e.g. `aimo` via `ModelRegistry.discover()`) is opt-in, and
+  `DEFAULT_RULES` is replaceable as plain tuples.
+- **Ambiguity is an error, not a preference.** When a catalog offers one
+  id under two providers we raise `AmbiguousModelError` instead of
+  ranking them. Ranking is policy; the foundation doesn't have one.
+- **No `base_url`/transport syntax in model strings.** Encoding endpoint
+  configuration into strings is where stringly-typed routers rot.
+  `router.lm()` returns the ordinary provider LM, so the escape hatch to
+  direct construction is the return value itself — both paths are
+  first-class, and the cookbook cases (ollama, vLLM, Azure, OpenRouter)
+  stay on the direct path.
+
+Cross-language: the algorithm is pure data + three rungs precisely so
+Rust/Go/TS/Julia can port it idiomatically (a struct table, an exported
+slice, a sync `resolve()` everywhere). The porting spec is in
+[router-portability](router-portability.md) — a proposal until ratified.
+
+## Why `tool(fn)` and not a `@tool` decorator?
+
+A decorator replaces or wraps the function — magic, and an invitation to
+attach execution machinery to it later. `tool(fn)` is a pure function:
+callable in, plain frozen `FunctionTool` out, and you keep `fn` yourself
+(dispatch is `{f.__name__: f for f in (...)}`, in your code, with your
+sandboxing). lm15 still never executes tools.
+
+Derivation is eager and conservative: errors at definition time, and
+anything not obviously JSON-Schema-able raises `ToolDerivationError`
+rather than guess — soft on prose (missing docstring descriptions are
+fine), hard on types. Required-ness comes solely from defaults;
+`Optional[X]` is value nullability (`anyOf` with null) — orthogonal axes
+that most generators conflate.
+
+The honest trade-offs:
+
+- **Hand-written JSON Schema stays primary.** `tool()` covers the
+  common 90%; `format`, `pattern`, `minimum`, recursive `$ref` schemas
+  do not derive. The escape hatches are surgical
+  (`ToolConfig(overrides=...)` per parameter) or total (write the
+  `FunctionTool`).
+- **Docstring parsing is line-marker pragmatism, not a parser.** Google,
+  NumPy, and Sphinx markers are detected best-effort; weird formatting
+  silently yields no descriptions. We accepted that over a docstring
+  dependency (lm15 has zero) or strictness (failing a request because of
+  prose would be absurd).
+- **No `$ref` in v1** means recursion is an error — which makes adding
+  `$ref` later an extension rather than a behavior change.
+
+Cross-language: only the schema *invariants* are meant to port; the
+mechanism is per-language (derive macro in Rust, struct tags in Go,
+builders or structural schema acceptance in TS, reflection in Julia) —
+TypeScript can't even read erased annotations at runtime, which is why
+the diagnostic `derive()`/`ToolDerivation` surface is Python-only. See
+[router-portability](router-portability.md), part 2.

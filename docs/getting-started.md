@@ -14,14 +14,16 @@ pre-release; it will be unnecessary at 1.0 stable.)
 
 ## First request
 
+The recommended front door is the router: it maps a model string to the
+right provider and picks up the standard env var
+(`OPENAI_API_KEY` here):
+
 ```python
-import os
+from lm15 import Config, LMRouter, Message, Request
 
-from lm15 import Config, Message, OpenAILM, Request
+router = LMRouter()
 
-lm = OpenAILM(api_key=os.environ["OPENAI_API_KEY"])
-
-response = lm.complete(
+response = router.complete(
     Request(
         model="gpt-4.1-mini",
         system="You are terse.",
@@ -33,6 +35,22 @@ response = lm.complete(
 print(response.text)            # Hello there, friend.
 print(response.finish_reason)   # stop
 print(response.usage.total_tokens)
+```
+
+Resolution is explainable, not magic — `router.resolve("gpt-4.1-mini")`
+returns the full answer (provider, rule matched, env var consulted); see
+[Using the router](using-the-router.md).
+
+The direct LM classes are equally first-class — no router, everything
+explicit:
+
+```python
+import os
+
+from lm15 import Message, OpenAILM, Request
+
+lm = OpenAILM(api_key=os.environ["OPENAI_API_KEY"])
+response = lm.complete(Request(model="gpt-4.1-mini", messages=(Message.user("Hi!"),)))
 ```
 
 ## The same Request, other providers

@@ -99,6 +99,10 @@ request = Request(
 )
 ```
 
+`parameters` is opaque JSON Schema, always written by you or derived for
+you — `lm15.tool(fn)` produces the same `FunctionTool` from a typed
+Python function; see [Tools from functions](tools-from-functions.md).
+
 Reasoning is explicit and optional: `Config(reasoning=None)` means "do not send
 a preference"; `Config(reasoning=Reasoning())` explicitly turns reasoning off.
 
