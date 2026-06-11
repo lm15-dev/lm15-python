@@ -6,6 +6,14 @@
 [![Python 3.10+](https://img.shields.io/pypi/pyversions/lm15.svg)](https://pypi.org/project/lm15/)
 [![MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+> **⚠️ This is the legacy 0.2.x codebase.** Starting with `lm15 >= 0.3.0`, the
+> package is a ground-up rewrite — a low-level, provider-neutral foundation
+> library developed at
+> [MaximeRivest/lm15-python2](https://github.com/MaximeRivest/lm15-python2).
+> The 0.2.x high-level API documented below (`lm15.call()`, `Model`,
+> `Conversation`, cost tracking) does not exist in 0.3.0+. If you depend on
+> it, pin `lm15==0.2.*`. This repository is frozen.
+
 One interface for OpenAI, Anthropic, and Gemini. Zero dependencies.
 
 | | lm15 | google-genai | litellm |
