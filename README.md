@@ -24,13 +24,16 @@ the real, captured output of the example above it.
 
 ## Install
 
-The package name is `lm15`. It is not on PyPI yet — publishing 1.0 there is
-the plan. Until then, install from source:
+```bash
+python3 -m pip install lm15
+# Optional extra for websocket live sessions:
+python3 -m pip install 'lm15[live]'
+```
+
+Or from source, for development:
 
 ```bash
-git clone https://github.com/lm15-dev/lm15-python && cd lm15-python2
-python3 -m pip install -e .
-# Optional extra for websocket live sessions:
+git clone https://github.com/lm15-dev/lm15-python && cd lm15-python
 python3 -m pip install -e '.[live]'
 ```
 
