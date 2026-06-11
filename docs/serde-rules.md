@@ -36,8 +36,10 @@ Consequences:
   payloads, absent and empty are distinct and significant.
 
 Required fields are always emitted, even when empty — e.g. `TextPart.text` is
-emitted as `""` when empty, and `ToolResultPart.content` is emitted as `[]`
-when empty, because those fields are part of the type's shape, not optional.
+emitted as `""` when empty, `ToolResultPart.content` is emitted as `[]`
+when empty, and `FunctionTool.parameters` is emitted as `{}` when it is the
+explicit empty object (INV-033: it is an opaque payload, so `{}` round-trips
+verbatim) — because those fields are part of the type's shape, not optional.
 
 ## Number rule
 

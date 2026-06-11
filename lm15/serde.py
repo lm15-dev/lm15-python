@@ -296,12 +296,16 @@ def messages_from_json(data: list[dict[str, Any]]) -> list[Message]:
 
 def tool_to_dict(t: Tool) -> dict[str, Any]:
     if isinstance(t, FunctionTool):
-        return _clean_mapping({
+        out = _clean_mapping({
             "type": "function",
             "name": t.name,
             "description": t.description,
-            "parameters": t.parameters,
         })
+        # parameters is required-with-shape (INV-033): always emitted, even
+        # when it is the opaque literal {} — opaque payloads round-trip
+        # verbatim and are never subject to the omission rule.
+        out["parameters"] = t.parameters
+        return out
     if isinstance(t, BuiltinTool):
         return _clean_mapping({
             "type": "builtin",
@@ -406,7 +410,24 @@ def config_to_dict(c: Config) -> dict[str, Any]:
     })
 
 
+def _config_nest(d: dict[str, Any], key: str) -> dict[str, Any] | None:
+    """Return config.<key> as a dict, None when absent/null.
+
+    A present non-dict value is malformed canonical JSON and raises
+    TypeError (INV-042): an error, never silent data loss.
+    """
+    value = d.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise TypeError(f"config.{key} must be a JSON object, got {type(value).__name__}")
+    return value
+
+
 def config_from_dict(d: dict[str, Any]) -> Config:
+    tool_choice = _config_nest(d, "tool_choice")
+    reasoning = _config_nest(d, "reasoning")
+    cache = _config_nest(d, "cache")
     return Config(
         max_tokens=d.get("max_tokens"),
         temperature=d.get("temperature"),
@@ -414,9 +435,9 @@ def config_from_dict(d: dict[str, Any]) -> Config:
         top_k=d.get("top_k"),
         stop=tuple(d.get("stop", [])),
         response_format=d.get("response_format"),
-        tool_choice=tool_choice_from_dict(d["tool_choice"]) if isinstance(d.get("tool_choice"), dict) else None,
-        reasoning=reasoning_from_dict(d["reasoning"]) if isinstance(d.get("reasoning"), dict) else None,
-        cache=cache_config_from_dict(d["cache"]) if isinstance(d.get("cache"), dict) else None,
+        tool_choice=tool_choice_from_dict(tool_choice) if tool_choice is not None else None,
+        reasoning=reasoning_from_dict(reasoning) if reasoning is not None else None,
+        cache=cache_config_from_dict(cache) if cache is not None else None,
         extensions=d.get("extensions"),
     )
 

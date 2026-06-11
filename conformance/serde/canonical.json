@@ -18,6 +18,7 @@
 
     {"id": "tool.function", "kind": "tool", "value": {"type": "function", "name": "lookup", "description": "Look up data", "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}}},
     {"id": "tool.builtin", "kind": "tool", "value": {"type": "builtin", "name": "web_search", "config": {"context_size": "low"}}},
+    {"id": "tool.function.empty_parameters", "kind": "tool", "value": {"type": "function", "name": "noop", "parameters": {}}},
     {"id": "tool_choice.required", "kind": "tool_choice", "value": {"mode": "required", "allowed": ["lookup"], "parallel": false}},
     {"id": "reasoning.medium", "kind": "reasoning", "value": {"effort": "medium", "thinking_budget": 128, "total_budget": 256}},
     {"id": "config.full", "kind": "config", "value": {"max_tokens": 64, "temperature": 0.2, "top_p": 0.9, "top_k": 20, "stop": ["END"], "response_format": {"type": "json_object"}, "tool_choice": {"mode": "required", "allowed": ["lookup"]}, "reasoning": {"effort": "low"}, "extensions": {"store": false}}},
