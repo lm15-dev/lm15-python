@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: python -m pip install -e . pytest pytest-asyncio
+        run: python -m pip install -e . pytest pytest-asyncio pyyaml
       - name: Tests
         run: python -m pytest tests/ -q
       - name: Conformance (strict)
