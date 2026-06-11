@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare lm15-python2 provider requests against live-tested curl fixtures."""
+"""Compare lm15-python provider requests against live-tested curl fixtures."""
 
 from __future__ import annotations
 

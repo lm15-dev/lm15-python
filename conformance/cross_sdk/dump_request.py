@@ -160,7 +160,7 @@ def normalize_legacy_messages(messages: list[JsonObject]) -> list[JsonObject]:
         for part in msg.get("parts", []):
             source = part.pop("source", None)
             if isinstance(source, dict):
-                # Older fixtures used source.type=url/base64/file. lm15-python2 serde
+                # Older fixtures used source.type=url/base64/file. lm15-python serde
                 # uses direct media fields: url/data/file_id/media_type/detail.
                 source.pop("type", None)
                 part.update(source)

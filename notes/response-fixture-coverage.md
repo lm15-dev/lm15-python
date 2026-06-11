@@ -26,7 +26,7 @@ fixture tests that exercise them.
 
 The corresponding structural expectations live in `curl-fixtures/cases/*/*.json`
 under `expect_lm15`. The Python offline runner is
-`lm15-python2/tests/test_response_fixtures.py`.
+`lm15-python/tests/test_response_fixtures.py`.
 
 Complete-response parsers attach unexpected provider shapes to
 `response.provider_data["_lm15_unmapped"]`; the fixture runner fails if that

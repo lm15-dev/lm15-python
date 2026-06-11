@@ -1,4 +1,4 @@
-# Contributing to lm15-python2
+# Contributing to lm15-python
 
 This document covers the maintainer-facing machinery: the fixture/conformance
 system, the doc-drift checker, the provider adapter development guide, and the
@@ -7,7 +7,7 @@ day-to-day commands.
 ## Repository layout
 
 ```text
-lm15-python2/
+lm15-python/
 ├── lm15/
 │   ├── types.py              # canonical dataclasses: Request, Response, Parts, tools, endpoints
 │   ├── providers/            # OpenAI, Anthropic, Gemini adapters (+ compat, subscription, async)
@@ -33,7 +33,7 @@ exact contract commit recorded in `CONTRACT_PIN` (a full SHA of
 `lm15-dev/lm15-contract` main). Discipline: when a change here requires a
 contract change (new fixture, spec row, serde kind, protocol op), land the
 contract commit first — with the evidence AUTHORITY.md demands — then bump
-`CONTRACT_PIN` to that SHA in the same lm15-python2 commit as the code
+`CONTRACT_PIN` to that SHA in the same lm15-python commit as the code
 change, so both repos stay green at every pinned pair of revisions. Never
 bump the pin just to make CI green: the diff between the old and new pin is
 part of your review.
@@ -48,7 +48,7 @@ logical lm15 case
   conformance/cross_sdk/test_cases.json
         │
         ▼
-lm15-python2 provider adapter builds HTTP request
+lm15-python provider adapter builds HTTP request
         │
         ▼
 expected provider fixture

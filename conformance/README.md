@@ -1,4 +1,4 @@
-# lm15-python2 conformance
+# lm15-python conformance
 
 This directory is the active foundation for lm15 compatibility work.
 
@@ -8,7 +8,7 @@ This directory is the active foundation for lm15 compatibility work.
 > then, fixture edits land in BOTH places or not at all. See
 > `lm15-contract/changes/2026-06-09-initial-migration.md`.
 
-For now, **lm15-python2 is the reference implementation**. Other language ports
+For now, **lm15-python is the reference implementation**. Other language ports
 are frozen until this conformance suite is stable. Future ports should be built
 against the `lm15-contract` fixtures and only considered compatible when they
 pass the same checks.
@@ -27,7 +27,7 @@ conformance/
 ├── check_doc_drift.py            # unmapped doc params vs feature inventory
 ├── cross_sdk/
 │   ├── test_cases.json           # canonical logical lm15 cases
-│   └── dump_request.py           # lm15-python2 logical case → HTTP request
+│   └── dump_request.py           # lm15-python logical case → HTTP request
 ├── provider_requests/
 │   ├── cases/                    # live-tested provider curl fixtures
 │   ├── features.yaml             # feature inventory + lm15/provider scope
@@ -62,7 +62,7 @@ Each script writes both JSON and Markdown reports under
 ## What each check covers
 
 - **request_fixtures**
-  Compares the provider HTTP request built by lm15-python2 against the
+  Compares the provider HTTP request built by lm15-python against the
   live-tested provider curl fixture for every logical case.
 
 - **response_fixtures**
@@ -108,7 +108,7 @@ It must emit normalized JSON of this shape:
 ```
 
 The conformance runner can then compare each port against the same provider
-fixtures and against lm15-python2.
+fixtures and against lm15-python.
 
 ## Canonical JSON
 

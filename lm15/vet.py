@@ -7,7 +7,7 @@ JSON reply per stdout line, same order, one output per input. The shim only
 transforms — the harness performs all comparison and runs the shim inside a
 no-network sandbox, so this module must never open a connection.
 
-Run as: ``python -m lm15.vet`` (cwd: lm15-python2).
+Run as: ``python -m lm15.vet`` (cwd: lm15-python).
 """
 
 from __future__ import annotations

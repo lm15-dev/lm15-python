@@ -1,10 +1,10 @@
 # lm15 Cookbook: Using All 69 Features (Runnable)
 
-This document is designed to be run as a notebook or script (e.g., using a tool like Quarto or by copying into Jupyter). It demonstrates how to use the 69 cross-SDK features supported by `lm15-python2` across OpenAI, Anthropic, and Gemini.
+This document is designed to be run as a notebook or script (e.g., using a tool like Quarto or by copying into Jupyter). It demonstrates how to use the 69 cross-SDK features supported by `lm15-python` across OpenAI, Anthropic, and Gemini.
 
 ## Setup & Initialization
 
-First, initialize the providers. This notebook looks for `.env` in the current working directory and its parents, so it works whether you run it from the repo root or from `lm15-python2/docs/`. We'll also define a handy `execute()` function that runs a request across all three providers (and lets us toggle between streaming and completion).
+First, initialize the providers. This notebook looks for `.env` in the current working directory and its parents, so it works whether you run it from the repo root or from `lm15-python/docs/`. We'll also define a handy `execute()` function that runs a request across all three providers (and lets us toggle between streaming and completion).
 
 ```python
 import os
@@ -20,9 +20,9 @@ def find_dotenv(filename=".env"):
     start = Path.cwd().resolve()
     candidates = [start, *start.parents]
 
-    # If your runner executes from lm15-python2/docs, this catches the repo root.
+    # If your runner executes from lm15-python/docs, this catches the repo root.
     try:
-        doc_dir = Path("lm15-python2/docs").resolve()
+        doc_dir = Path("lm15-python/docs").resolve()
         candidates.extend([doc_dir, *doc_dir.parents])
     except Exception:
         pass

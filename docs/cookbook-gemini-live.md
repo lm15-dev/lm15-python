@@ -1,6 +1,6 @@
 # lm15 Cookbook: Gemini Live (Runnable)
 
-This notebook demonstrates Gemini Live with `lm15-python2` using the lower-level provider API directly. It follows the same runnable Markdown style as `docs/cookbook-all-features.md`, but focuses on live WebSocket interactions:
+This notebook demonstrates Gemini Live with `lm15-python` using the lower-level provider API directly. It follows the same runnable Markdown style as `docs/cookbook-all-features.md`, but focuses on live WebSocket interactions:
 
 - one-shot live completion with `GeminiLM.stream(Request(...))`
 - persistent bidirectional sessions with `GeminiLM.live(LiveConfig(...))`
@@ -9,7 +9,7 @@ This notebook demonstrates Gemini Live with `lm15-python2` using the lower-level
 - function calling/tool results
 - interruption
 
-`lm15-python2` intentionally exposes the live API close to the provider layer. The examples below do **not** use the older high-level `lm15.call()` / `lm15.live()` interface from `lm15-python`.
+`lm15-python` intentionally exposes the live API close to the provider layer. The examples below do **not** use the older high-level `lm15.call()` / `lm15.live()` interface from `lm15-python`.
 
 ## Setup & Initialization
 
@@ -20,10 +20,10 @@ pip install -e '.[live]'
 ```
 ```output
 Defaulting to user installation because normal site-packages is not writeable
-Obtaining file:///home/maxime/Projects/lm15-dev/lm15-python2
+Obtaining file:///home/maxime/Projects/lm15-dev/lm15-python
   Installing build dependencies ... - \ | / - \ | done
   Checking if build backend supports build_editable ... done
-ERROR: Project file:///home/maxime/Projects/lm15-dev/lm15-python2 has a 'pyproject.toml' and its build backend is missing the 'build_editable' hook. Since it does not have a 'setup.py' nor a 'setup.cfg', it cannot be installed in editable mode. Consider using a build backend that supports PEP 660.
+ERROR: Project file:///home/maxime/Projects/lm15-dev/lm15-python has a 'pyproject.toml' and its build backend is missing the 'build_editable' hook. Since it does not have a 'setup.py' nor a 'setup.cfg', it cannot be installed in editable mode. Consider using a build backend that supports PEP 660.
 Command exited with code 1
 ```
 
