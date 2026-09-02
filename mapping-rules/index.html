@@ -1,0 +1,2792 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Provider-neutral, low-level foundation for LLM APIs — one canonical representation, exact serde, zero dependencies.">
+      
+      
+      
+        <link rel="canonical" href="https://lm15-dev.github.io/lm15-python/mapping-rules/">
+      
+      
+        <link rel="prev" href="../serde-rules/">
+      
+      
+        <link rel="next" href="../model-hydration/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Mapping rules - lm15</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#canonical-mapping-rules" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="lm15" class="md-header__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lm15
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Mapping rules
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="lm15" class="md-nav__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    lm15
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers-and-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers & models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-router/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The router
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-type-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The type system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools-from-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools from functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-a-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-model-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model profiles & compat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design-rationale/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design rationale
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-assessment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security assessment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cookbooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Cookbooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Essentials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Essentials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/01-first-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first request
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/02-conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-turn conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/03-system-prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System & developer prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/04-generation-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Controlling generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/05-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/06-function-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/07-builtin-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in provider tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/08-structured-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structured output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modalities
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modalities
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/09-images-and-documents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Images, PDFs & documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/10-audio-video-reasoning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio, video & reasoning models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beyond chat
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Beyond chat
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/11-caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/12-batch-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batch jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/13-media-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Media generation (images & speech)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/14-video-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/15-live-sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live sessions (realtime)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Production
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/16-local-and-compatible-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local & OpenAI-compatible servers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/17-errors-and-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors, retries & testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/18-provider-passthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provider passthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/19-prompt-caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Specification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-lm15-is-specified/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How lm15 is specified
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serde-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mapping rules
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mapping rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#map-1-parts-are-what-the-application-must-act-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-1 — Parts are what the application must act on
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-2-a-response-message-is-never-empty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-2 — A response message is never empty
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-3-a-stream-yields-exactly-one-end-event-and-it-is-final" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-3 — A stream yields exactly one end event, and it is final
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-4-a-stream-opens-with-exactly-one-start-event" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-4 — A stream opens with exactly one start event
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-5-explicit-reasoning-off-reaches-the-wire-or-fails-loudly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-5 — Explicit reasoning-off reaches the wire or fails loudly
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-6-caching-one-model-for-every-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-6 — Caching: one model for every provider
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-7-reasoning-one-dial-two-spellings-no-silent-drops" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-7 — Reasoning: one dial, two spellings, no silent drops
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-8-tool-choice-and-structured-output-no-silent-cells-one-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-8 — Tool choice and structured output: no silent cells, one shape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-9-stream-assembly-never-invents-a-tool-call-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-9 — Stream assembly never invents a tool-call name
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-hydration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model hydration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../router-portability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Router portability (proposal)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/result/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/serde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles & models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#map-1-parts-are-what-the-application-must-act-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-1 — Parts are what the application must act on
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-2-a-response-message-is-never-empty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-2 — A response message is never empty
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-3-a-stream-yields-exactly-one-end-event-and-it-is-final" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-3 — A stream yields exactly one end event, and it is final
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-4-a-stream-opens-with-exactly-one-start-event" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-4 — A stream opens with exactly one start event
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-5-explicit-reasoning-off-reaches-the-wire-or-fails-loudly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-5 — Explicit reasoning-off reaches the wire or fails loudly
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-6-caching-one-model-for-every-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-6 — Caching: one model for every provider
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-7-reasoning-one-dial-two-spellings-no-silent-drops" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-7 — Reasoning: one dial, two spellings, no silent drops
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-8-tool-choice-and-structured-output-no-silent-cells-one-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-8 — Tool choice and structured output: no silent cells, one shape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#map-9-stream-assembly-never-invents-a-tool-call-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAP-9 — Stream assembly never invents a tool-call name
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="canonical-mapping-rules">Canonical mapping rules<a class="headerlink" href="#canonical-mapping-rules" title="Permanent link">&para;</a></h1>
+<p>Normative rules for mapping provider responses into the canonical lm15
+representation. Companion to <code>serde-rules.md</code> (which governs the JSON wire
+format); these govern WHAT becomes a canonical part. Goldens and conformance
+fixtures cite these rules by number.</p>
+<h2 id="map-1-parts-are-what-the-application-must-act-on">MAP-1 — Parts are what the application must act on<a class="headerlink" href="#map-1-parts-are-what-the-application-must-act-on" title="Permanent link">&para;</a></h2>
+<p>A canonical message part is something the application must handle or display:
+text, thinking, citations, media, a client-side tool call (which obligates the
+caller to execute it and return a tool_result), or a tool result.</p>
+<p>Provider-executed builtin tool activity is <strong>not</strong> represented as parts. This
+includes Anthropic <code>server_tool_use</code> / <code>code_execution_tool_result</code> blocks and
+container metadata, OpenAI <code>code_interpreter_call</code> / <code>web_search_call</code> items,
+and Gemini <code>executableCode</code> / <code>codeExecutionResult</code> parts. The user-relevant
+<em>outputs</em> of such tools (answer text, citations, generated media) are mapped
+to parts as usual; the execution mechanics remain available verbatim in
+<code>provider_data</code>.</p>
+<p><strong>Why:</strong> a <code>tool_call</code> part is a contract — "the caller must execute this."
+Agent loops iterate tool_call parts and run them. Surfacing provider-executed
+calls as tool_call parts would cause every agent loop to re-execute work the
+provider already performed. If canonical access to execution traces is needed
+later, it must be a NEW part type (additive), never a reinterpretation of
+tool_call.</p>
+<h2 id="map-2-a-response-message-is-never-empty">MAP-2 — A response message is never empty<a class="headerlink" href="#map-2-a-response-message-is-never-empty" title="Permanent link">&para;</a></h2>
+<p>When a provider response yields no canonical parts (e.g. the model spent its
+entire output budget on hidden reasoning and was truncated), the canonical
+message is a single empty <code>TextPart</code> (<code>text: ""</code>).</p>
+<p><strong>Why:</strong> <code>Message.parts</code> is non-empty by invariant, everywhere, for every
+producer — relaxing it for one edge case would weaken a guarantee all ports
+and consumers rely on. Erroring would turn a legitimate provider response into
+a crash. With the empty part, <code>response.text == ""</code> plus the finish_reason
+(e.g. <code>"length"</code>) reads as exactly what happened.</p>
+<h2 id="map-3-a-stream-yields-exactly-one-end-event-and-it-is-final">MAP-3 — A stream yields exactly one end event, and it is final<a class="headerlink" href="#map-3-a-stream-yields-exactly-one-end-event-and-it-is-final" title="Permanent link">&para;</a></h2>
+<p>An lm15 stream yields EXACTLY ONE <code>StreamEndEvent</code>, as the final event of the
+stream, carrying the <code>finish_reason</code> and <code>usage</code> accumulated across all of the
+provider's terminal frames.</p>
+<p>Providers split their terminal data across multiple frames: OpenAI-compatible
+servers (vLLM, SGLang, ollama, Groq) send a <code>finish_reason</code>-bearing chunk,
+then — with <code>stream_options.include_usage</code> — a usage-only chunk, then
+<code>[DONE]</code>; Anthropic sends <code>message_delta</code> (stop_reason + usage) followed by a
+bare <code>message_stop</code>. Adapters stay stateless and may emit one per-frame end
+event for each such terminal frame, but that is an internal detail: a
+provider-agnostic coalescer (<code>lm15.result.coalesce_stream</code>) absorbs every
+adapter end event — later non-<code>None</code> fields fill gaps, a non-<code>None</code> field is
+never overwritten by <code>None</code> — and emits the single merged end event once the
+underlying iterator is exhausted. The canonical event trace (goldens, the vet
+shim's <code>replay_stream</code>, conformance <code>parse_stream</code>) is the POST-coalesce
+trace.</p>
+<p><strong>Why:</strong> multiple end events made every consumer's merge semantics
+load-bearing, and they failed in live testing. <code>Result</code> treated the first end
+event as terminal (<code>break</code> on <code>type == "end"</code>), so the post-finish usage-only
+chunk that vLLM/SGLang/ollama send was never applied and the materialized
+<code>Response.usage</code> came out all zeros (pinned as a known-bug baseline in the
+streaming_vllm/streaming_sglang draft goldens before this rule). With exactly
+one final end event, "the end event" and "the stream's finish_reason and
+usage" are the same thing by construction, in every port.</p>
+<p><strong>Terminal frames that say nothing say nothing.</strong> A bare terminator (<code>[DONE]</code>
+on either OpenAI dialect, Anthropic <code>message_stop</code>) maps to an end event with
+<code>finish_reason=None</code> and <code>usage=None</code>. It must not claim <code>stop</code>: the merge
+rule lets a later non-<code>None</code> value replace an earlier one, so a <code>[DONE]</code>
+carrying <code>stop</code> would overwrite the <code>tool_call</code> that <code>response.completed</code>
+had already established. The event trace would then contradict the
+materialized <code>Response</code>.</p>
+<p><strong>Usage counters at the wire boundary (INV-029).</strong> An adapter never invents
+<code>0</code> for a counter the provider did not send; absent stays <code>None</code> and
+<code>Usage</code> auto-sums <code>total_tokens</code> only when both primaries are present. One
+stated exception: Gemini's proto3-JSON wire omits zero-valued fields, so
+inside a present <code>usageMetadata</code> an absent <code>promptTokenCount</code> or
+<code>candidatesTokenCount</code> is a reported <code>0</code> (pinned by the reviewed golden
+<code>gemini.max_output_tokens</code>: <code>candidatesTokenCount</code> absent, <code>totalTokenCount</code>
+= prompt + thoughts). When <code>usageMetadata</code> itself is absent, every counter
+is <code>None</code>. Secondary Gemini counters (cache, thoughts) stay verbatim: absent
+is "not reported".</p>
+<hr />
+<h2 id="map-4-a-stream-opens-with-exactly-one-start-event">MAP-4 — A stream opens with exactly one start event<a class="headerlink" href="#map-4-a-stream-opens-with-exactly-one-start-event" title="Permanent link">&para;</a></h2>
+<p>An lm15 stream that yields any delta or end event yields EXACTLY ONE
+<code>StreamStartEvent</code>, before all of them. Dialects with a real start frame
+(OpenAI Responses <code>response.created</code>, Anthropic <code>message_start</code>) pass it
+through with its <code>id</code> and <code>model</code>; dialects without one (chat completions,
+Gemini SSE) get a synthesized start carrying the request's model, added by
+the same coalescer that enforces MAP-3. Duplicate starts collapse to the
+first. Error events never force a start: a stream that fails to open has no
+start.</p>
+<p><strong>Why:</strong> live testing (dspy-greenfield <code>tests/live</code>, 2026-08-16) showed the
+event vocabulary split by dialect — Responses API streams began with a start
+event, chat-completions and Gemini streams began with a bare delta — so any
+consumer that keyed on the start event worked on one provider and broke on
+the next. One vocabulary means the trace shape is provider-independent.</p>
+<h2 id="map-5-explicit-reasoning-off-reaches-the-wire-or-fails-loudly">MAP-5 — Explicit reasoning-off reaches the wire or fails loudly<a class="headerlink" href="#map-5-explicit-reasoning-off-reaches-the-wire-or-fails-loudly" title="Permanent link">&para;</a></h2>
+<p><code>Config(reasoning=Reasoning(effort="off"))</code> is an explicit instruction, not
+a default (the tri-state is defined in spec/types.md §Reasoning). Every
+adapter must translate it into the provider's native disable mechanism:</p>
+<ul>
+<li>OpenAI Responses dialect: <code>reasoning: {"effort": "none"}</code></li>
+<li>Chat Completions <code>reasoning_effort</code> servers (incl. Groq, vLLM, SGLang):
+  <code>reasoning_effort: "none"</code></li>
+<li>OpenRouter: <code>reasoning: {"enabled": false}</code></li>
+<li>DeepSeek: <code>thinking: {"type": "disabled"}</code></li>
+<li>Qwen/DashScope, Z.AI: <code>enable_thinking: false</code></li>
+<li>Gemini: <code>thinkingConfig: {"thinkingBudget": 0}</code></li>
+<li>Anthropic and Claude Code: omit <code>thinking</code> — thinking is opt-in there,
+  so absence IS the native off switch.</li>
+<li>xAI: RAISES <code>UnsupportedFeatureError</code>. Grok reasoning models have no
+  off switch and api.x.ai silently ignores disable-shaped fields.</li>
+</ul>
+<p>When the selected model cannot honor the disable (gpt-5-mini's floor is
+<code>"minimal"</code>; gemini-2.5-pro rejects budget 0), the provider's 400 surfaces
+unchanged. An adapter must never omit the field and let the model reason at
+its default — that is a silent paid no-op.</p>
+<p><strong>Why:</strong> live testing (2026-09-01) showed omission was not off:
+gpt-5-mini spent 64 hidden reasoning tokens, Groq gpt-oss-20b spent 45,
+and grok-4.6 spent 158 while accepting <code>thinking: {"type": "disabled"}</code>
+without effect. Reasoning tokens are billed output; an explicit off that
+silently does nothing charges the caller for what they disabled.</p>
+<h2 id="map-6-caching-one-model-for-every-provider">MAP-6 — Caching: one model for every provider<a class="headerlink" href="#map-6-caching-one-model-for-every-provider" title="Permanent link">&para;</a></h2>
+<p>Every provider caches prompt prefixes in up to three tiers; 13 providers
+were studied on 2026-09-01, six of them measured live (OpenAI both
+dialects, Anthropic, Gemini, xAI, Groq) and seven from documentation only
+(lm15-contract/research/caching/):</p>
+<ul>
+<li><strong>automatic</strong> — nothing to send, best-effort, no user-visible state
+  (OpenAI all classes, Gemini implicit, xAI, Groq, DeepSeek, Fireworks,
+  vLLM, SGLang);</li>
+<li><strong>breakpoint</strong> — a mark on a block, guaranteed above a per-model
+  minimum, 1.25x write price (Anthropic; OpenAI gpt-5.6 and later);</li>
+<li><strong>resource</strong> — a stored, named object with a lifetime and a storage
+  price per token-hour, pinned to one model (Gemini <code>cachedContents</code>,
+  Vertex; any future provider with the same shape).</li>
+</ul>
+<p><code>CacheConfig</code> names INTENTS. Each adapter maps an intent to the best tier
+it has; the outcome is always visible in <code>Usage.cache_read_tokens</code> /
+<code>cache_write_tokens</code>.</p>
+<ol>
+<li><strong>No <code>config.cache</code>: send nothing.</strong> Automatic tiers apply server-side.</li>
+<li><strong><code>mode="off"</code>: send nothing, and disable cache WRITES where a switch
+   exists</strong> — OpenAI gpt-5.6+ <code>prompt_cache_options: {"mode":
+   "explicit"}</code> with no marks. Pre-5.6 OpenAI models reject the option and
+   write for free, so they get nothing (option 2, ratified 2026-09-01).</li>
+<li><strong><code>mode="auto"</code> with no prefix: the cheapest safe instruction.</strong>
+   Anthropic marks the system block; every other provider sends nothing.
+   Never the trailing marker: with a changing last message it wrote the
+   full prefix at 1.25x on every call and read nothing (measured on both
+   Anthropic top-level <code>cache_control</code> and OpenAI implicit mode).</li>
+<li><strong>Prefix intents are marks where marks exist, and fall back to the
+   automatic tier where they do not.</strong> <code>prefix="stable"</code> marks the end of
+   system + tools (Anthropic: the system block; OpenAI: the system prompt
+   is rendered as the first developer/system message with the mark,
+   because top-level <code>instructions</code> cannot carry one). <code>prefix="history"</code>
+   marks the last block of the last message (Anthropic); on OpenAI 5.6+
+   implicit mode already does exactly that, so nothing is sent.
+   <code>prefix_until_index=N</code> marks the last block of message N (Anthropic:
+   any block; OpenAI: a text block, else RAISE). On the OpenAI 5.6+ class
+   a placed mark travels with <code>prompt_cache_options: {mode: "explicit"}</code>:
+   without the mode the warm call still wrote the volatile suffix at
+   1.25x (pinned 18 tokens after reading 3066); with it the warm call
+   writes 0 and the cold write shrinks to exactly the marked prefix
+   (3088 → 3070). Amended 2026-09-02 on the independent review's probe
+   3; no mark, no mode (explicit mode with no mark caches nothing).
+   Providers without marks
+   (Gemini, xAI, Groq, older OpenAI, compat servers with
+   <code>cache_control="none"</code>) send nothing. The fallback is permitted by two
+   conditions, both required: it spends nothing, and its outcome is
+   observable in usage. It must not be extended to fields that fail
+   either condition.</li>
+<li><strong><code>retention="long"</code></strong> names a specific mechanism: Anthropic <code>ttl:
+   "1h"</code> (2x write); OpenAI, every class, <code>prompt_cache_retention:
+   "24h"</code>; Gemini (lifetime belongs to the stored object) RAISES. The
+   5.6+ class used to RAISE on a doc line about <code>prompt_cache_options.ttl</code>
+   (30m only) — a different field. Every pinned 5.6 body already echoes
+   <code>prompt_cache_retention: "24h"</code> as its default, and sending it answers
+   200 with the same echo (review probe 2, 2026-09-02). Amended.</li>
+<li><strong><code>key</code></strong> is a best-effort affinity hint: OpenAI and OpenRouter
+   <code>prompt_cache_key</code>; Anthropic and Gemini RAISE.</li>
+<li><strong><code>resource</code></strong> is a <code>CacheInfo.id</code> from the resource tier. The adapter
+   references the object and sends only what the object does not hold —
+   Gemini: <code>cachedContent</code> + the messages after <code>prefix_until_index</code>, no
+   <code>systemInstruction</code>/<code>tools</code>/<code>toolConfig</code> (the server rejects them next
+   to a cache). Providers without the tier RAISE.</li>
+<li><strong>The resource tier is a surface</strong>, shaped like files: <code>cache_create
+   (prefix: Request, ttl_seconds, label)</code>, <code>cache_get</code>, <code>cache_list</code>,
+   <code>cache_delete</code>, <code>cache_update(id, ttl_seconds)</code>, pure hooks, async
+   mirrors, the <code>cache</code> harness direction, <code>EndpointSupport.caches</code>.
+   <code>lm.cache(prefix)</code> returns a <code>CachedPrefix</code>: on the resource tier it
+   creates the object (one explicit, billed call); elsewhere it is pure.
+   <code>cached + messages</code> builds the Request with the boundary at the seam.</li>
+<li><strong>No hidden network calls.</strong> An adapter's <code>build_request</code> never
+   creates cache state. (Removed 2026-09-02: the Gemini adapter's
+   per-request <code>cachedContents</code> POST, which made a billed object per
+   turn and reused none.)</li>
+<li><strong>Docs state the fan-out trap</strong>: on OpenAI 5.6+ with no config, one
+    document and many questions writes at 1.25x every time and never
+    reads; <code>prefix="stable"</code> or <code>lm.cache(prefix)</code> is the one-line fix.
+    A tools change is a miss everywhere.</li>
+</ol>
+<p><strong>Why:</strong> the caching design pass (lm15-contract/changes/2026-09-01-caching-design.md,
+research/caching/). Provider agnosticism is defined as: the same code
+runs everywhere, does the best thing the provider offers, and shows the
+result — not identical bytes saved everywhere.</p>
+<h2 id="map-7-reasoning-one-dial-two-spellings-no-silent-drops">MAP-7 — Reasoning: one dial, two spellings, no silent drops<a class="headerlink" href="#map-7-reasoning-one-dial-two-spellings-no-silent-drops" title="Permanent link">&para;</a></h2>
+<p>Measured 2026-09-02 across OpenAI, Anthropic, Gemini, xAI, Groq (134
+cells) and 17 sources (lm15-contract/research/reasoning/).</p>
+<ol>
+<li><strong>Absent <code>config.reasoning</code> sends nothing</strong>: the model decides. Every
+   provider's default is adaptive now; "adaptive" is not a level.</li>
+<li><strong><code>effort</code> is the one dial</strong>, required, vocabulary <code>off, minimal, low,
+   medium, high, xhigh, max</code>. Providers with levels get the word
+   verbatim (OpenAI; Anthropic adaptive class as <code>output_config.effort</code>;
+   Gemini 3.x as <code>thinkingLevel</code>; xAI and Groq as <code>reasoning_effort</code>).
+   Model-unsupported words fail with the server's 400. Words with no
+   native level on a provider RAISE client-side: Anthropic <code>minimal</code>,
+   Gemini 3.x <code>xhigh</code>/<code>max</code>.</li>
+<li><strong>Budget-only model classes express effort as a budget</strong> through one
+   grading table — minimal 1024, low 2048, medium 8192, high 16384,
+   xhigh 24576, max 32768 — Anthropic's manual class (4.5 and earlier:
+   <code>budget_tokens</code>) and Gemini 2.5 (<code>thinkingBudget</code>). The design's one
+   invented mapping; stated, receipted on both.</li>
+<li><strong><code>effort="off"</code></strong> sends the native disable (OpenAI <code>none</code>; Anthropic
+   omits <code>thinking</code>; Gemini 2.5 <code>thinkingBudget: 0</code>; compat disable
+   forms) and RAISES where the provider cannot disable or accepts the
+   disable without honouring it: xAI, Gemini 3.x (3.7 Flash took
+   <code>thinkingBudget: 0</code> and spent 58 tokens). MAP-5, extended.</li>
+<li><strong><code>thinking_budget</code></strong> maps where the wire has a budget (Anthropic
+   manual class; Gemini, both classes) and RAISES elsewhere (OpenAI,
+   Anthropic adaptive class, xAI, the chat dialect). On budget classes
+   the budget is the spelling and <code>effort</code> stays the intent; they are
+   not a conflict.</li>
+<li><strong><code>total_budget</code> is gone.</strong> <code>Config.max_tokens</code> is the ceiling: on
+   Anthropic's manual class the adapter adds the thinking budget to it;
+   on the adaptive class it is the total (provider semantics).</li>
+<li><strong><code>summary</code></strong> is visibility: <code>None</code> = provider default; <code>"auto"</code> =
+   show the thinking where a knob exists (OpenAI <code>summary: auto</code>; Gemini
+   <code>includeThoughts: true</code>; Groq preset <code>reasoning_format: parsed</code> —
+   receipted 2026-09-02 on qwen3.6-27b: the default leaks a raw
+   <code>&lt;think&gt;</code> block into <code>content</code>, <code>parsed</code> returns <code>message.reasoning</code>
+   and clean content) and
+   is satisfied silently where thinking is always returned (Anthropic,
+   xAI); <code>"concise"</code>/<code>"detailed"</code> verbatim on OpenAI Responses, RAISE
+   elsewhere. Gemini gets <code>includeThoughts</code> only when asked.</li>
+<li><strong>Replay.</strong> Native when the continuation state is present: Anthropic
+   signed blocks, Gemini signatures (required on 3.x function calls —
+   400 without), OpenAI reasoning items (<code>openai:reasoning_item</code> with
+   <code>id</code> and <code>encrypted_content</code>, replayed as <code>{"type": "reasoning",
+   "summary": [...]}</code> — <code>summary</code> is required even when empty, 400
+   without). Without state, a <code>ThinkingPart</code> is replayed as assistant
+   text on every provider (decision G); the chat dialect's
+   <code>thinking_replay</code> default is <code>as_text</code>.</li>
+<li><strong>An OpenAI reasoning item with no summary is an empty <code>ThinkingPart</code></strong>
+   carrying its replay state, never dropped. <code>Usage.reasoning_tokens</code>
+   comes from every provider's exact field.</li>
+<li><strong>Model-class detection</strong> (Anthropic adaptive vs manual; Gemini 2.5
+    vs 3.x) is by model-name table — a table that rots; the server 400s
+    loudly when wrong; <code>extensions</code> overrides.</li>
+</ol>
+<p><strong>Why:</strong> the reference knew one Anthropic class and one Gemini class, so
+every <code>Reasoning</code> on Sonnet 5 was a 400 and every one on Gemini 3.x used
+a deprecated field; it silently dropped budgets, summaries, and OpenAI
+reasoning items; and it downgraded <code>xhigh</code> to <code>high</code>. The design pass
+record: lm15-contract/changes/2026-09-02-reasoning-design.md.</p>
+<h2 id="map-8-tool-choice-and-structured-output-no-silent-cells-one-shape">MAP-8 — Tool choice and structured output: no silent cells, one shape<a class="headerlink" href="#map-8-tool-choice-and-structured-output-no-silent-cells-one-shape" title="Permanent link">&para;</a></h2>
+<p>Measured 2026-09-02 (141 cells; lm15-contract/research/tool-choice/,
+research/structured-output/). The 2026-09-01 kind-aware <code>ToolChoice</code>
+mapping holds; three cells were silent, and <code>response_format</code> had no
+canonical shape.</p>
+<ol>
+<li><strong>xAI ignores allowlists.</strong> <code>tool_choice.allowed</code> subsets RAISE on
+   xAI; a single name with <code>mode="required"</code> maps to the forced-function
+   form, which held. The single cell of 2026-09-02 was repeated five
+   times with fresh nonces on the review's request: 5/5 called the
+   disallowed tool (<code>research/review-2026-09-02/</code>).</li>
+<li><strong>Gemini has no parallel knob.</strong> <code>parallel=False</code> RAISES on Gemini
+   (two calls came back regardless). The MAP-6 fallback exception does
+   not apply: the outcome is not observable from usage.</li>
+<li><strong>xAI drops a forced tool next to a <code>response_format</code></strong> (JSON text,
+   no call): the pair RAISES on xAI. Elsewhere the server decides —
+   Gemini and Groq 400, OpenAI and Anthropic let the call win.</li>
+<li><strong>INV-050: <code>response_format</code> is <code>{"type": "json_object"}</code> or
+   <code>{"type": "json_schema", "schema", "name"?, "strict"?}</code></strong>, validated at
+   <code>Config</code> construction. Provider-native spellings belong in
+   <code>extensions</code>. <code>schema</code> is verbatim: lm15 never rewrites a keyword to
+   make a request pass (Anthropic rejects <code>minimum</code>; OpenAI and Groq
+   strict mode need every property required — their 400s are the
+   contract).</li>
+<li>Mapping: OpenAI Responses <code>text.format</code> (<code>name</code> defaults to
+   <code>"response"</code>); chat dialect, xAI, Groq, compat <code>response_format
+   .json_schema {name, schema, strict}</code>; Anthropic <code>output_config.format
+   {type: json_schema, schema}</code> — <code>json_object</code> RAISES (no any-JSON
+   mode); Gemini <code>responseMimeType</code> + <code>responseJsonSchema</code> or
+   <code>responseSchema</code> by the <code>additionalProperties</code> rule.</li>
+<li><code>strict</code> goes verbatim where the wire has it and is satisfied where
+   enforcement is always on (Anthropic, Gemini). <code>name</code> is a label, not
+   a control: dropped where there is no slot.</li>
+</ol>
+<p><strong>Why:</strong> two canonical spellings for one intent, with the wire deciding
+which, violates principle 2 of types.py; and a restriction that widens
+silently is the worst failure a tool-using loop can have.</p>
+<hr />
+<h2 id="map-9-stream-assembly-never-invents-a-tool-call-name">MAP-9 — Stream assembly never invents a tool-call name<a class="headerlink" href="#map-9-stream-assembly-never-invents-a-tool-call-name" title="Permanent link">&para;</a></h2>
+<p>When a stream's tool-call fragments for one part index never carry a
+<code>name</code>, the assembler (<code>lm15.result.StreamAccumulator.response</code>) does not
+guess. It raises <code>StreamAssemblyError</code> (ErrorCode <code>stream_assembly</code>) whose
+<code>partial</code> is the Response assembled from everything else that arrived —
+text, thinking, media, citations, named calls, usage, the provider's finish
+reason — with the unnamed call(s) left out, and whose <code>part_index</code> is the
+first offending part. Wrappers surface it at the earliest point the defect
+is known: <code>materialize_response</code> when called, <code>ResponseStream</code> at the end
+of iteration (text already yielded stays yielded).</p>
+<p>What lm15 does mint: a missing <code>id</code> becomes <code>tool_call_&lt;index&gt;</code>. That is an
+lm15-owned correlator, stated, needed because Gemini sends no call ids; it
+is not a guess about what the model meant.</p>
+<p><strong>Assembly algorithm</strong> (the same in every port; written down 2026-09-02
+after the independent review found it lived only in code):</p>
+<ol>
+<li><code>part_index</code> names a <strong>slot</strong>, not a part. A slot may accumulate
+   several kinds at once, because the chat dialect indexes text, thinking,
+   and tool calls independently (a text delta and a tool-call delta both
+   arrive at index 0 — pinned by <code>openai_chat.tool_call_unnamed</code> and
+   <code>xai.streaming</code>).</li>
+<li>Per slot, per kind, fragments concatenate in arrival order: text and
+   thinking by string, audio by base64 chunk, tool-call input by string
+   (parsed as JSON at the end, best-effort), tool-call <code>id</code>/<code>name</code> last
+   non-<code>None</code> wins, image and citation parts replace.</li>
+<li>At materialization, slots are visited in ascending index; within one
+   slot the parts are emitted in this fixed kind order: <strong>thinking, text,
+   image, audio, citations, tool call</strong>. Continuation state attached to
+   the slot goes on every part emitted from it.</li>
+<li>A slot that received only continuation state (no content of any kind)
+   emits one empty <code>TextPart</code> carrying that state, so the state is not
+   lost. A message with no parts at all emits one empty <code>TextPart</code>
+   (MAP-2).</li>
+<li><code>finish_reason</code>: the end event's word wins; <code>None</code> becomes <code>tool_call</code>
+   when a tool call was assembled, else <code>stop</code>; a provider <code>stop</code> next to
+   an assembled tool call becomes <code>tool_call</code>.</li>
+<li>The stream's <code>id</code> is the start event's id when the dialect has a start
+   frame (Anthropic <code>message_start</code>, Responses <code>response.created</code>); the
+   chat dialect has no start frame and its per-chunk <code>id</code> is <strong>not</strong>
+   lifted into the Response (pinned by the reviewed <code>openai_chat.streaming</code>
+   and by <code>xai.streaming</code>; a wire fact dropped by rule, stated here).</li>
+</ol>
+<p><strong>Why:</strong> an unnamed call is not actionable (MAP-1), and every shipped
+dialect names a call on its first fragment — pinned 2026-09-02 as four
+stream cases, <code>&lt;dialect&gt;.streaming_tool_call</code> on OpenAI Responses, OpenAI
+Chat, Anthropic, and Gemini — so a missing name is an adapter defect, not
+model behaviour. The previous rule filled the name from
+<code>Request.tools</code> by position — one declared tool, else the tool at the
+part's rank among all parts, else the literal <code>"tool"</code>. That guess flipped
+when the model emitted text before the call, and an agent loop dispatching
+on the guessed name would run the wrong function with no error. That is the
+silent failure MAP-8 refuses on the wire; MAP-9 refuses it in assembly.
+<code>partial</code> exists so a caller who wants the turn's text can still have it,
+on the same principle as the MAP-3 coalescer: never fabricate, never
+discard what arrived.</p>
+<p>Pinned by <code>lm15-contract/cases/openai_chat/tool_call_unnamed.json</code>, a
+hand-built degraded OpenAI-compatible stream (arguments and id, no
+<code>function.name</code>), whose golden pins the raise, the salvaged partial, and
+the event trace. The <code>partial.finish_reason</code> is the provider's <code>tool_call</code>,
+kept as reported even though the partial holds no call: the caller is
+holding the error and knows why.</p>
+<hr />
+<p>History: MAP-1 and MAP-2 were implicit in the reference adapters; they were
+ratified as written rules on 2026-06-10 after the adversarial golden review
+flagged anthropic.container, openai.code_interpreter (MAP-1) and
+gemini.max_output_tokens (MAP-2) — see
+<code>lm15-contract/goldens/REVIEW-2026-06-10.md</code>. MAP-3 was written on 2026-06-10
+after live vLLM/SGLang/ollama testing showed the multi-end merge losing usage.
+MAP-5 was written on 2026-09-01 after a reasoning-off audit found four
+adapters silently omitting the disable (see
+<code>lm15-contract/changes/2026-09-01-reasoning-off.md</code>). MAP-6 was written on
+2026-09-01/02 from the first design pass, MAP-7 and MAP-8 on 2026-09-02 from the second, third, and fourth (<code>lm15-contract/playbooks/design-pass.md</code>).
+MAP-9 was first written on 2026-09-02 as a transcription of the
+positional name guess that had lived in the accumulator since its first
+version, then replaced the same day by the refusal rule after the
+maintainer chose it over the guess
+(<code>lm15-contract/changes/2026-09-02-stream-assembly-no-guess.md</code>).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

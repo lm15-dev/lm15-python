@@ -1,0 +1,2680 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Provider-neutral, low-level foundation for LLM APIs — one canonical representation, exact serde, zero dependencies.">
+      
+      
+      
+        <link rel="canonical" href="https://lm15-dev.github.io/lm15-python/drafts/logprobs-and-builtin-tool-forcing/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Design draft: logprobs and builtin-tool forcing - lm15</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#design-draft-logprobs-and-builtin-tool-forcing" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="lm15" class="md-header__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lm15
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Design draft: logprobs and builtin-tool forcing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="lm15" class="md-nav__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    lm15
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../providers-and-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers & models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-the-router/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The router
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-the-type-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The type system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tools-from-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools from functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-the-a-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-model-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model profiles & compat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-the-transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design-rationale/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design rationale
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security-assessment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security assessment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cookbooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Cookbooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Essentials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Essentials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/01-first-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first request
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/02-conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-turn conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/03-system-prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System & developer prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/04-generation-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Controlling generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/05-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/06-function-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/07-builtin-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in provider tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/08-structured-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structured output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modalities
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modalities
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/09-images-and-documents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Images, PDFs & documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/10-audio-video-reasoning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio, video & reasoning models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beyond chat
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Beyond chat
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/11-caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/12-batch-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batch jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/13-media-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Media generation (images & speech)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/14-video-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/15-live-sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live sessions (realtime)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Production
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/16-local-and-compatible-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local & OpenAI-compatible servers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/17-errors-and-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors, retries & testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/18-provider-passthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provider passthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbooks/19-prompt-caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Specification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-lm15-is-specified/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How lm15 is specified
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../serde-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mapping-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mapping rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../model-hydration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model hydration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../router-portability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Router portability (proposal)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/result/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/serde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles & models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#part-1-logprobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Part 1 — Logprobs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 1 — Logprobs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-what-providers-offer-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 What providers offer (evidence)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-canonical-request-knob" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Canonical request knob
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-canonical-output-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Canonical output shape
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#14-placement-responselogprobs-not-a-part-field" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4 Placement: Response.logprobs, not a Part field
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#15-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5 Streaming
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#16-serde-and-contract-impact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6 Serde and contract impact
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-2-builtin-tool-forcing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Part 2 — Builtin-tool forcing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 2 — Builtin-tool forcing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-what-providers-offer-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 What providers offer (evidence)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-design-no-new-field-kind-aware-name-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Design: no new field — kind-aware name resolution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-provider-mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Provider mappings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-serde-and-contract-impact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Serde and contract impact
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-questions-for-ratification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Open questions for ratification
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="design-draft-logprobs-and-builtin-tool-forcing">Design draft: logprobs and builtin-tool forcing<a class="headerlink" href="#design-draft-logprobs-and-builtin-tool-forcing" title="Permanent link">&para;</a></h1>
+<p>Status: RATIFIED 2026-09-01 ("yes good, go!") and IMPLEMENTED — see
+<code>lm15-contract/changes/2026-09-01-logprobs-and-builtin-tool-forcing.md</code>
+for the authoritative record, including three findings the live probes
+added after this draft was written:</p>
+<ol>
+<li><strong>Anthropic server-tool forcing WORKS</strong> (<code>tool_choice
+   {"type":"tool","name":"web_search"}</code> — live-captured). §2.3's
+   "raise pending probe" for Anthropic became real support; instead,
+   Anthropic raises on proper-subset allowlists, which its wire truly
+   cannot express.</li>
+<li><strong>Gemini rejects logprobs on every currently served model</strong>
+   ("Logprobs is not enabled"). The request mapping shipped doc-based;
+   rejection surfaces as the provider's own InvalidRequestError.</li>
+<li><strong>Gemini <code>VALIDATED</code> mode</strong> maps canonical <code>mode="auto"</code> + allowed
+   exactly; <code>allowedFunctionNames</code> under <code>AUTO</code> was doc-illegal and is
+   fixed.</li>
+</ol>
+<p>Open question 3 (openai_chat multi-name raise) resolved as: the dialect
+HAS a nested <code>allowed_tools</code> form — mapped, no raise needed. Builtin
+forcing raises on the dialect.</p>
+<p>Date: 2026-09-01
+Evidence: <code>lm15-contract/scrapes/{openai,anthropic,gemini}/pages</code>,
+live captures under <code>lm15-contract/receipts/2026-09-01-logprobs-toolchoice/</code> and
+<code>lm15-contract/bodies/{openai.tool_choice_builtin,openai.tool_choice_allowed,anthropic.tool_choice_builtin,openai_chat.logprobs}/</code></p>
+<p>This draft covers two features:</p>
+<ol>
+<li><strong>Logprobs</strong> — a canonical shape for token probabilities.</li>
+<li><strong>Builtin-tool forcing</strong> — forcing the model to use a provider-native
+   tool (web search, code execution, ...).</li>
+</ol>
+<hr />
+<h2 id="part-1-logprobs">Part 1 — Logprobs<a class="headerlink" href="#part-1-logprobs" title="Permanent link">&para;</a></h2>
+<h3 id="11-what-providers-offer-evidence">1.1 What providers offer (evidence)<a class="headerlink" href="#11-what-providers-offer-evidence" title="Permanent link">&para;</a></h3>
+<p><strong>Request side</strong></p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Wire knobs</th>
+<th>Range</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI Responses</td>
+<td><code>top_logprobs: int</code> + <code>include: ["message.output_text.logprobs"]</code></td>
+<td>0–20</td>
+</tr>
+<tr>
+<td>OpenAI Chat dialect</td>
+<td><code>logprobs: true</code> + <code>top_logprobs: int</code></td>
+<td>0–20</td>
+</tr>
+<tr>
+<td>Gemini</td>
+<td><code>generationConfig.responseLogprobs: true</code> + <code>generationConfig.logprobs: int</code></td>
+<td>0–20</td>
+</tr>
+<tr>
+<td>Anthropic</td>
+<td><strong>no logprobs support</strong></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>All three supporting wires express the same two facts:
+"return logprobs" and "return N top alternatives per position".</p>
+<p><strong>Response side</strong></p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Wire shape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI Responses</td>
+<td>per <code>output_text</code> block: <code>logprobs: [{token, bytes, logprob, top_logprobs: [{token, bytes, logprob}]}]</code></td>
+</tr>
+<tr>
+<td>OpenAI Chat dialect</td>
+<td>per choice: <code>logprobs.content: [{token, logprob, bytes, top_logprobs: [...]}]</code> (plus a separate <code>refusal</code> array)</td>
+</tr>
+<tr>
+<td>Gemini</td>
+<td>per candidate: <code>logprobsResult: {chosenCandidates: [{token, tokenId, logProbability}], topCandidates: [{candidates: [...]}], logProbabilitySum}</code> plus <code>avgLogprobs</code></td>
+</tr>
+</tbody>
+</table>
+<p>Shared semantic core: <strong>for each decoding step, the chosen token with its
+log probability, plus a ranked list of top alternative candidates.</strong></p>
+<p>Provider-only extras:</p>
+<ul>
+<li>OpenAI reports <code>bytes</code> (UTF-8 byte values of the token).</li>
+<li>Gemini reports <code>tokenId</code> (vocabulary id).</li>
+<li>Gemini reports <code>logProbabilitySum</code> and <code>avgLogprobs</code> — both are
+  derivable from the per-token values.</li>
+<li>Neither provider guarantees that the chosen token appears in the
+  top-alternatives list.</li>
+</ul>
+<h3 id="12-canonical-request-knob">1.2 Canonical request knob<a class="headerlink" href="#12-canonical-request-knob" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Config gains one field:</span>
+<span class="n">logprobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div>
+<ul>
+<li><code>None</code> — do not request logprobs (omit from wire).</li>
+<li><code>0</code> — request logprobs for the chosen tokens only.</li>
+<li><code>n &gt; 0</code> — also request the top-<code>n</code> alternatives per position.</li>
+</ul>
+<p>Validation: <code>&gt;= 0</code>, float-coerced like other int knobs. lm15 does <strong>not</strong>
+hard-code the 0–20 cap; the cap is provider-owned and may change. A
+too-large value maps to the provider's own <code>InvalidRequestError</code>.</p>
+<p><strong>Rejected alternative — a <code>LogprobsConfig</code> object.</strong> The concept has
+exactly one degree of freedom on every wire that supports it (the number
+of alternatives). An object with one field is ceremony without meaning.
+Pre-1.0, if a second knob ever appears with provider evidence, we make a
+clean break then. Trade-off taken: <code>0</code> carries meaning ("chosen only"),
+which must be documented; the alternative (<code>bool</code> + <code>int</code> pair) creates
+two fields for one concept.</p>
+<p><strong>Rejected alternative — extensions-only.</strong> Three of four wire dialects
+support the same semantics; that is a genuinely portable concept and per
+project principle it must be typed.</p>
+<p>Provider mappings:</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Mapping for <code>logprobs=n</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI Responses</td>
+<td><code>top_logprobs: n</code>, add <code>"message.output_text.logprobs"</code> to <code>include</code></td>
+</tr>
+<tr>
+<td>OpenAI Chat dialect</td>
+<td><code>logprobs: true</code>, <code>top_logprobs: n</code> (omit <code>top_logprobs</code> when <code>n == 0</code>)</td>
+</tr>
+<tr>
+<td>Gemini</td>
+<td><code>responseLogprobs: true</code>, <code>logprobs: n</code></td>
+</tr>
+<tr>
+<td>Anthropic</td>
+<td><strong>raise <code>UnsupportedFeatureError</code></strong> — never silently drop</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-canonical-output-shape">1.3 Canonical output shape<a class="headerlink" href="#13-canonical-output-shape" title="Permanent link">&para;</a></h3>
+<p>Two small value types (mirrors the OpenAI SDK precedent of
+<code>ChatCompletionTokenLogprob</code> / <code>TopLogprob</code>, which ports cleanly):</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TopLogprob</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One scored alternative token at a decoding step."""</span>
+    <span class="n">token</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">logprob</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="nb">bytes</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>   <span class="c1"># OpenAI only</span>
+    <span class="n">token_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>            <span class="c1"># Gemini only</span>
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TokenLogprob</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The chosen token at one decoding step, with alternatives."""</span>
+    <span class="n">token</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">logprob</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="nb">bytes</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">token_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">top</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">TopLogprob</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>       <span class="c1"># ranked desc; chosen not guaranteed present</span>
+</code></pre></div>
+<p><strong>Rejected alternative — one recursive type.</strong> A self-referencing <code>top</code>
+field that must be empty at depth 1 is an invariant the type system
+cannot state. Two flat types say exactly what the wire guarantees.</p>
+<h3 id="14-placement-responselogprobs-not-a-part-field">1.4 Placement: <code>Response.logprobs</code>, not a Part field<a class="headerlink" href="#14-placement-responselogprobs-not-a-part-field" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Response gains one field:</span>
+<span class="n">logprobs</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">TokenLogprob</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div>
+<ul>
+<li><code>None</code> — provider did not report logprobs (the <code>Usage</code> convention).</li>
+<li>Present — the full decoding sequence, in generation order.</li>
+</ul>
+<p>Reasoning: logprobs are <strong>decoding telemetry</strong>, the same category as
+<code>usage</code> and <code>finish_reason</code>, which already live on <code>Response</code> and not on
+<code>Message</code>. They are never sent back to a provider in history. Two of the
+three wire shapes (Chat dialect, Gemini) are message-level already.</p>
+<p><strong>Trade-off stated:</strong> OpenAI Responses attaches logprobs per
+<code>output_text</code> block. When a response contains more than one text block
+(rare), materializing to <code>Response</code> concatenates the block lists in
+document order and loses the block boundary. The boundary survives in
+<code>provider_data</code> (raw payload) and in the stream (deltas carry
+<code>part_index</code>). We accept this loss because putting output-only telemetry
+on <code>TextPart</code> would pollute the request-side atom vocabulary for every
+port and every serializer.</p>
+<p>Derived stats (<code>avgLogprobs</code>, <code>logProbabilitySum</code>) stay in
+<code>provider_data</code>: classification "intentionally ignored — derivable".
+Chat-dialect <code>refusal</code> logprobs stay in <code>provider_data</code>: no canonical
+refusal-text concept exists.</p>
+<h3 id="15-streaming">1.5 Streaming<a class="headerlink" href="#15-streaming" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># TextDelta gains one field:</span>
+<span class="n">logprobs</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">TokenLogprob</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+</code></pre></div>
+<ul>
+<li>OpenAI Responses: <code>response.output_text.delta</code> events carry <code>logprobs</code>
+  when requested; map per delta.</li>
+<li>OpenAI Chat dialect: chunk <code>choices[].logprobs.content</code> maps per delta.</li>
+<li>Gemini: per-chunk <code>logprobsResult</code> maps to that chunk's text delta.</li>
+</ul>
+<p>Stream materialization (blocking response = fully consumed stream)
+concatenates delta logprobs by arrival order into <code>Response.logprobs</code>.
+Empty tuple on a delta means "none in this chunk" — cheap default, no
+tri-state needed because the request knob already says whether logprobs
+were asked for.</p>
+<h3 id="16-serde-and-contract-impact">1.6 Serde and contract impact<a class="headerlink" href="#16-serde-and-contract-impact" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>spec/types.md</code>: rows for <code>Config.logprobs</code>, <code>Response.logprobs</code>,
+  <code>TextDelta.logprobs</code>; new <code>TokenLogprob</code> / <code>TopLogprob</code> tables.
+  Omission rule: omit-empty everywhere.</li>
+<li><code>serde.py</code>: <code>token_logprob_to/from_dict</code>; wired into config, response,
+  and stream-event serializers. Canonical JSON uses the same field
+  names (<code>token</code>, <code>logprob</code>, <code>bytes</code>, <code>token_id</code>, <code>top</code>).</li>
+<li><code>support-matrix.json</code>: <code>logprobs</code> row — openai: full; openai_chat:
+  full; gemini: full; anthropic: raise.</li>
+<li>Conformance: request-direction fixtures (knob → 3 wire forms +
+  anthropic raise); response-direction fixtures from captured bodies;
+  one streaming fixture per wire.</li>
+<li>Live captures needed under <code>lm15-contract/receipts/</code>: OpenAI Responses with
+  <code>include</code>, Gemini with <code>responseLogprobs</code> (verify the exact shape of
+  <code>chosenCandidates</code> — the reference doc reuses the name <code>Candidate</code>).</li>
+</ul>
+<hr />
+<h2 id="part-2-builtin-tool-forcing">Part 2 — Builtin-tool forcing<a class="headerlink" href="#part-2-builtin-tool-forcing" title="Permanent link">&para;</a></h2>
+<h3 id="21-what-providers-offer-evidence">2.1 What providers offer (evidence)<a class="headerlink" href="#21-what-providers-offer-evidence" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Force a builtin?</th>
+<th>Wire</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI Responses</td>
+<td>yes</td>
+<td><code>tool_choice: {"type": "web_search_preview"}</code> (ToolChoiceTypes); mixed allowlist via <code>{"type": "allowed_tools", "mode": "auto"\|"required", "tools": [...]}</code></td>
+</tr>
+<tr>
+<td>Anthropic</td>
+<td>not documented</td>
+<td><code>tool_choice {"type":"tool","name":...}</code> is documented for client tools; server tools "have their own behavior"</td>
+</tr>
+<tr>
+<td>Gemini</td>
+<td>no</td>
+<td><code>functionCallingConfig</code> / <code>allowedFunctionNames</code> apply to function declarations only</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-design-no-new-field-kind-aware-name-resolution">2.2 Design: no new field — kind-aware name resolution<a class="headerlink" href="#22-design-no-new-field-kind-aware-name-resolution" title="Permanent link">&para;</a></h3>
+<p><code>ToolChoice</code> already carries everything needed:</p>
+<div class="highlight"><pre><span></span><code><span class="n">ToolChoice</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">"required"</span><span class="p">,</span> <span class="n">allowed</span><span class="o">=</span><span class="p">(</span><span class="s2">"web_search"</span><span class="p">,))</span>
+</code></pre></div>
+<p><code>BuiltinTool</code> instances have canonical names (<code>web_search</code>,
+<code>code_execution</code>, ...), and INV-031 already forces every <code>allowed</code> entry
+to name a tool present in <code>Request.tools</code>. The design change is a
+<strong>semantic clarification, not a new type</strong>:</p>
+<blockquote>
+<p><code>ToolChoice.allowed</code> entries may name tools of either kind. Adapters
+resolve each name against <code>Request.tools</code> and emit the kind-correct
+wire form, or raise when the wire cannot express it.</p>
+</blockquote>
+<p><strong>Rejected alternative — a <code>builtin:</code> field on ToolChoice.</strong> It would
+create two ways to say "restrict to this tool", split by a distinction
+(function vs builtin) that the request's tool list already encodes.
+One concept, one name.</p>
+<p><strong>Rejected alternative — extensions passthrough.</strong> OpenAI's builtin
+forcing is typed, documented, and requested by users; the concept
+("force this declared tool") is already canonical. Only reach for
+extensions where the concept itself is provider-specific.</p>
+<h3 id="23-provider-mappings">2.3 Provider mappings<a class="headerlink" href="#23-provider-mappings" title="Permanent link">&para;</a></h3>
+<p><strong>OpenAI Responses</strong> (resolve each allowed name against <code>Request.tools</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Canonical</th>
+<th>Wire</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>single allowed name → FunctionTool, mode=required</td>
+<td><code>{"type": "function", "name": ...}</code></td>
+</tr>
+<tr>
+<td>single allowed name → BuiltinTool, mode=required</td>
+<td><code>{"type": &lt;mapped type&gt;}</code> e.g. <code>web_search_preview</code></td>
+</tr>
+<tr>
+<td>multiple allowed names (any mix), or single with mode=auto</td>
+<td><code>{"type": "allowed_tools", "mode": &lt;mode&gt;, "tools": [{"type":"function","name":...}, {"type":"web_search_preview"}, ...]}</code></td>
+</tr>
+</tbody>
+</table>
+<p>Builtin name → wire type reuses <code>_OPENAI_BUILTIN_MAP</code> (web_search →
+<code>web_search_preview</code>, code_execution → <code>code_interpreter</code>, file_search,
+computer_use → <code>computer_use_preview</code>, plus passthrough for unmapped
+names such as <code>image_generation</code>).</p>
+<p>This <strong>fixes a live correctness bug</strong>: today a single allowed function
+with <code>mode="auto"</code> emits <code>{"type":"function","name":...}</code>, which forces
+the call. <code>mode="auto"</code> means "the model may also answer in text"; the
+correct wire is now expressible via <code>allowed_tools</code> and the adapter
+comment claiming "no portable multi-tool allowlist in Responses" is
+stale — <code>ToolChoiceAllowed</code> exists.</p>
+<p><strong>Anthropic</strong>: an allowed name that resolves to a <code>BuiltinTool</code> raises
+<code>UnsupportedFeatureError</code>. The API reference documents <code>tool_choice:
+{"type":"tool"}</code> for client tools and explicitly defers server-tool
+behavior to per-tool docs; no capture proves forcing works. Per project
+principle, absence of evidence means raise, not hope. A cheap live probe
+(<code>tool_choice: {"type":"tool","name":"web_search"}</code>) should be captured;
+if it succeeds, flip the matrix entry with the capture as provenance.</p>
+<p><strong>Gemini</strong>: an allowed name that resolves to a <code>BuiltinTool</code> raises
+<code>UnsupportedFeatureError</code> — <code>allowedFunctionNames</code> accepts function
+declaration names only, and builtins (<code>googleSearch</code>, <code>codeExecution</code>)
+are not addressable by <code>toolConfig</code>.</p>
+<p><strong>openai_chat dialect</strong>: Chat Completions has no hosted-tool forcing;
+builtin names in <code>allowed</code> raise. Function allowlists &gt;1 name have no
+wire form either (only single <code>{"type":"function"}</code>) — today's silent
+degradation should become a raise for consistency (separate decision,
+flagged here).</p>
+<h3 id="24-serde-and-contract-impact">2.4 Serde and contract impact<a class="headerlink" href="#24-serde-and-contract-impact" title="Permanent link">&para;</a></h3>
+<ul>
+<li>No serde change — <code>ToolChoice</code> shape is unchanged.</li>
+<li><code>spec/types.md</code>: extend the ToolChoice section with the kind-resolution
+  rule and the per-provider support note.</li>
+<li><code>spec/support-matrix.json</code>: <code>tool_choice_builtin</code> row — openai: full;
+  anthropic: raise (pending probe); gemini: raise; openai_chat: raise.</li>
+<li>Conformance fixtures: openai single-builtin forcing; openai mixed
+  allowed_tools; anthropic and gemini raise cases; regression fixture for
+  the mode="auto" single-function fix.</li>
+<li>Live capture: one OpenAI Responses run with <code>tool_choice:
+  {"type":"web_search_preview"}</code>; one Anthropic probe for server-tool
+  forcing.</li>
+</ul>
+<hr />
+<h2 id="open-questions-for-ratification">Open questions for ratification<a class="headerlink" href="#open-questions-for-ratification" title="Permanent link">&para;</a></h2>
+<ol>
+<li><code>Config.logprobs: int | None</code> with <code>0</code> = "chosen only" — accept, or
+   prefer a named object despite single degree of freedom?</li>
+<li><code>Response.logprobs</code> placement (telemetry) vs <code>TextPart.logprobs</code>
+   (block association) — accept the stated multi-block trade-off?</li>
+<li>Should the openai_chat dialect's silent degradation of multi-name
+   allowlists become a raise in the same change?</li>
+<li>Anthropic server-tool forcing: probe live before or after landing the
+   raise behavior?</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
