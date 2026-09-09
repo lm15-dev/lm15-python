@@ -8,10 +8,10 @@ environment variables in order, borrowed local CLI credentials for OAuth
 providers, a local server's placeholder key — and reports the state of every
 rung, including rungs that are set but shadowed by an earlier one.
 
-Purity note, stated because it is a real trade-off: the router's
-``resolve()`` records WHICH env var would be read and never touches values.
-``explain_auth`` must go one step further and test env vars for presence
-(``env.get(key)`` truthiness), so secret values do transit process memory.
+Purity note: both the router's lookup and ``explain_auth`` check
+configured keys and environment presence, so secret values transit process
+memory. Neither invokes credential providers during inspection. The doctor
+also reads local credential files to report stored-login availability.
 They are never stored on the report, never included in ``describe()``, and
 never part of any repr.
 """
@@ -37,7 +37,8 @@ from .providers import Credential
 from .router import (
     ADAPTERS,
     RouterConfig,
-    _api_keys_entry,
+    Resolution,
+    _api_keys_source,
     _canonical_provider,
     _credential_policy,
     _declared_env_keys,
@@ -166,7 +167,7 @@ def _xai_oauth_step(path_override: str | None, shadowed: bool) -> AuthStep:
 
 
 def explain_auth(
-    provider: str,
+    provider: str | Resolution,
     *,
     env: Mapping[str, str] | None = None,
     api_keys: Mapping[str, Credential] | None = None,
@@ -179,6 +180,10 @@ def explain_auth(
     config: RouterConfig | None = None,
 ) -> AuthReport:
     """Explain, rung by rung, how ``provider``'s credential resolves.
+
+    Accepts a provider name or a router ``Resolution``. A resolution
+    supplies only the provider identity, not credentials: pass
+    ``config=router.config`` to inspect that router's explicit settings.
 
     Mirrors the router's construction chain exactly; divergence between this
     report and ``lm()`` behavior is a bug. ``env`` defaults to
@@ -193,6 +198,10 @@ def explain_auth(
     """
     import os
 
+    if isinstance(provider, Resolution):
+        provider = provider.provider
+    if not isinstance(provider, str):
+        raise TypeError("provider must be a provider name or Resolution")
     canonical = _canonical_provider(provider)
     if config is not None:
         if env is None:
@@ -222,12 +231,12 @@ def explain_auth(
     steps: list[AuthStep] = []
     selected = False
 
-    _entry_value, has_entry = _api_keys_entry(config, canonical)
-    if has_entry:
+    entry = _api_keys_source(config, canonical)
+    if entry is not None:
         steps.append(
             AuthStep(
                 kind="api_keys",
-                source="explicit api_keys entry",
+                source=_entry_source(canonical, entry),
                 detail="provided (value never shown)",
                 state="selected",
             )
@@ -281,6 +290,13 @@ def explain_auth(
     return AuthReport(provider=canonical, steps=tuple(steps), configured=selected)
 
 
+def _entry_source(provider: str, entry: str | None) -> str:
+    source = "explicit api_keys entry"
+    if entry is not None and _canonical_provider(entry) != provider:
+        source += f" (via {entry!r}, shared env-key declarations)"
+    return source
+
+
 def _bound_definition(canonical: str):
     from .registry import PROVIDERS
 
@@ -308,7 +324,8 @@ def _explain_cloud(
     policy = definition.access
     environment = env if env is not None else os.environ
     config = RouterConfig(env=env, api_keys=api_keys)
-    _value, has_entry = _api_keys_entry(config, canonical)
+    entry = _api_keys_source(config, canonical)
+    has_entry = entry is not None
     resolved: dict[str, str] = {}
     setting_error: str | None = None
     ctx = ChainContext(
@@ -323,10 +340,11 @@ def _explain_cloud(
     ctx.settings = resolved
     if policy.cloud_chain:
         steps, configured = explain(policy, ctx, explicit=has_entry)
-        out = [AuthStep(kind=s.kind, source=s.source, detail=s.detail, state=s.state) for s in steps]
+        out = [AuthStep(kind=s.kind, source=_entry_source(canonical, entry) if s.kind == "api_keys" else s.source,
+                        detail=s.detail, state=s.state) for s in steps]
     else:
         # A hosted door with the ordinary key chain (vertex-express).
-        out = [AuthStep("api_keys", "explicit api_keys entry",
+        out = [AuthStep("api_keys", _entry_source(canonical, entry),
                         "provided (value never shown)" if has_entry else "not provided",
                         "selected" if has_entry else "absent")]
         configured = has_entry

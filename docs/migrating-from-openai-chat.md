@@ -2,9 +2,9 @@
 
 You have code that calls `client.chat.completions.create(...)` or `litellm.completion(...)`: a model string, a list of `{"role", "content"}` dictionaries, a few keyword arguments. This page moves that code to lm15 one line at a time. Each step shows the line you have, the line it becomes, and what happened underneath — so that when the two differ, you know why and can decide for yourself.
 
-The rule the whole page follows: **keep your messages and your model string; change the call.** `LMRouter.complete_from_openai_chat(model, messages, **kwargs)` takes the same arguments as both libraries and answers with an lm15 `Response`. Anything lm15 cannot carry is refused by name; nothing is silently dropped. It is a migration, not a drop-in: the answer is `response.text`, not `choices[0].message.content`.
+The rule the whole page follows: **keep your messages and your model string; change the call.** `LMRouter.complete_from_openai_chat(model, messages, **kwargs)` reads their model, messages and supported request options, and answers with an lm15 `Response`. Add `stream=True` to receive text as it arrives instead. Anything lm15 cannot carry is refused by name; nothing is silently dropped. It is a migration, not a drop-in: the answer is `response.text`, not `choices[0].message.content`.
 
-You need Python 3.10+, `pip install --pre lm15`, and the API keys you already have — as you will see in a moment, they do not move. Every output below is real captured output.
+You need Python 3.10+, `pip install --pre lm15`, and the API keys you already have — as you will see in a moment, they do not move. The model replies below were captured from earlier calls; your wording and token counts will vary. Examples containing placeholder keys or server addresses need your own values.
 
 ## Setup
 
@@ -114,12 +114,12 @@ litellm.completion(model="gpt-4o-mini", …)   # reads $OPENAI_API_KEY
 router = lm15.LMRouter()       # reads $OPENAI_API_KEY
 ```
 
-All three read the same variable, chosen by the provider the model string resolves to. That is the whole story for a bare `gpt-…` name. For every other string, the variable is the one you already have set for that provider. The middle column is the **provider name** — the string lm15 uses whenever it asks you *which* provider: in `api_keys`, in `base_urls`, in `explain_auth`, in errors.
+All three read the same variable, chosen by the provider the model string resolves to. That is the whole story for a bare `gpt-…` name. For every other string, the variable is the one you already have set for that provider. The middle column shows a name you can use in `api_keys`. One `openai` entry covers both OpenAI APIs; you do not need to learn their endpoint names just to supply your key.
 
-| your model string | lm15 provider name | key read from |
+| your model string | name in `api_keys` | key read from |
 |---|---|---|
-| `gpt-4o-mini`, `openai/…` | `openai-chat` (Chat Completions) | `OPENAI_API_KEY` |
-| `openai:…` | `openai` (Responses API) | `OPENAI_API_KEY` |
+| `gpt-4o-mini`, `openai/…` | `openai` | `OPENAI_API_KEY` |
+| `openai:…` | `openai` | `OPENAI_API_KEY` |
 | `anthropic/…`, `claude-…` | `anthropic` | `ANTHROPIC_API_KEY` |
 | `gemini/…` | `gemini` | `GEMINI_API_KEY`, then `GOOGLE_API_KEY` |
 | `groq/…` | `groq` | `GROQ_API_KEY` |
@@ -131,7 +131,7 @@ All three read the same variable, chosen by the provider the model string resolv
 | `hosted_vllm/…` | `vllm` | nothing (a placeholder) |
 | `azure/…` | `azure-chat` | `AZURE_OPENAI_API_KEY`, then the Azure identity chain |
 
-Rather than trust a table, ask. `resolve_openai_chat` reads a model string exactly as the call would and reports the provider and the variable — a pure lookup, with no key needed and no value read:
+Rather than trust a table, ask. `resolve_openai_chat` reads a model string exactly as the call would and reports the provider and the variable — an offline lookup, with no key required, no credential renewal, and no secret shown:
 
 ```python
 where = router.resolve_openai_chat("anthropic/claude-sonnet-4-5")
@@ -146,12 +146,12 @@ anthropic ANTHROPIC_API_KEY
 
 (For a bare `gpt-4o-mini` it answers `openai-chat`, `OPENAI_API_KEY`. Plain `router.resolve("gpt-4o-mini")` would say `openai` — that is the Responses door `router.complete` takes, not this one.)
 
-That provider name is what `explain_auth` wants. It walks the same chain `lm()` will walk, marks the rung that wins, and never prints a value:
+Pass that lookup result straight to `explain_auth`; no string to copy or guess. Include `config=router.config` so the report checks this router's keys and settings, not just the process environment. It walks the credential chain, marks the source that wins, and never prints a secret:
 
 ```python
 from lm15.doctor import explain_auth
 
-print(explain_auth(where.provider).describe())
+print(explain_auth(where, config=router.config).describe())
 ```
 
 ```output
@@ -198,27 +198,17 @@ response = litellm.completion(
 
 **After — lm15**
 
-The dictionary is keyed by provider name, so first ask which name each of your model strings uses — the same lookup as above, on any router:
+Use the provider names you already know. Here, the names are `openai` and `anthropic`; the values are your existing keys. Replace the placeholders below, or keep loading keys from the environment as before. Never commit real keys to source control.
 
 ```python
-router.resolve_openai_chat("gpt-4o-mini").provider
-router.resolve_openai_chat("anthropic/claude-sonnet-4-5").provider
-```
-
-```output
-'openai-chat'
-'anthropic'
-```
-
-Then build the router with those names, once:
-
-```python
-router = lm15.LMRouter(lm15.RouterConfig(api_keys={
-    "openai-chat": "sk-…",
+keyed_router = lm15.LMRouter(lm15.RouterConfig(api_keys={
+    "openai": "sk-…",
     "anthropic": "sk-ant-…",
 }))
-response = router.complete_from_openai_chat("anthropic/claude-sonnet-4-5", messages)
+response = keyed_router.complete_from_openai_chat("anthropic/claude-sonnet-4-5", messages)
 ```
+
+An `openai` entry also supplies the key when you call `gpt-4o-mini` through Chat Completions. The same rule covers the alternate APIs of Meta, Moonshot and DeepSeek: endpoints with identical, non-empty environment-key lists share an explicit key. This shares credentials only — it never changes which API receives your request.
 
 A name lm15 does not route to is refused when the router is built, with the nearest real one — never ignored, because an ignored entry would mean the request quietly goes out on whatever key the environment holds:
 
@@ -233,17 +223,20 @@ NotConfiguredError: RouterConfig(api_keys=...): 'antropic' is not a provider lm1
 An explicit entry beats the environment, and `explain_auth` shows the environment variable being shadowed:
 
 ```python
-print(explain_auth("openai-chat", config=router.config).describe())
+where = keyed_router.resolve_openai_chat("gpt-4o-mini")
+print(explain_auth(where, config=keyed_router.config).describe())
 ```
 
 ```output
 auth for provider 'openai-chat':
-  => explicit api_keys entry: provided (value never shown)
+  => explicit api_keys entry (via 'openai', shared env-key declarations): provided (value never shown)
    ~ env $OPENAI_API_KEY: set (value never shown)
-  configured: yes — explicit api_keys entry
+  configured: yes — explicit api_keys entry (via 'openai', shared env-key declarations)
 ```
 
-One name the check cannot catch for you: `openai` **and** `openai-chat` are both real providers, so an entry under the wrong one is valid and simply does not apply here. Note `openai-chat`, not `openai`: on this door a bare `gpt-…` string goes to Chat Completions, and lm15 treats that endpoint as its own provider with its own entry (`openai_chat` is accepted too). An entry under `openai` would cover `openai:…` strings — the Responses API — and leave this call reading the environment. A value may also be a zero-argument callable that returns a fresh token, for credentials that rotate.
+Need different accounts for the two OpenAI APIs? Set both `"openai"` and `"openai-chat"`: the exact endpoint entry always wins. If several shared entries could supply a third endpoint, lm15 asks for an exact entry rather than choosing an account. Empty environment-key lists do not connect unrelated local servers or subscription logins; partially overlapping lists do not connect Gemini to Vertex Express. A value may also be a zero-argument callable returning a fresh credential, for keys or tokens that rotate.
+
+For an unfamiliar endpoint, `router.resolve_openai_chat(model).provider` still gives you an exact name accepted by `api_keys`, `base_urls` and `explain_auth`. Unlike keys, URLs and cloud settings remain endpoint-specific.
 
 If you keep `api_key=` on the call out of habit, lm15 tells you where it went rather than guessing:
 
@@ -255,7 +248,7 @@ router.complete_from_openai_chat("gpt-4o-mini", messages, api_key="sk-…")
 NotConfiguredError: 'api_key' configures the client, not the request; in lm15 it lives in LMRouter(RouterConfig(api_keys={provider: key})) or the environment
 ```
 
-**Why not per call?** The router builds one adapter per provider and reuses it — that is where the connection pool lives. A key on the call would either rebuild the adapter every time or silently rebind a shared one to a different account. Neither is what you meant. Need two accounts on one provider? Two routers.
+**Why configure keys once?** This router keeps credentials on reusable provider clients. Per-call credentials could be designed safely, but this API deliberately keeps account selection separate from generation options. Need two accounts on the same endpoint? Use two routers.
 
 ### A different server
 
@@ -281,12 +274,12 @@ response = litellm.completion(
 **After — lm15**
 
 ```python
-router = lm15.LMRouter(lm15.RouterConfig(base_urls={
+server_router = lm15.LMRouter(lm15.RouterConfig(base_urls={
     "openai-chat": "https://gw.example/v1",
     "vllm": "http://gpu-box:8000/v1",
 }))
-router.complete_from_openai_chat("gpt-4o-mini", messages)
-router.complete_from_openai_chat("hosted_vllm/meta-llama/Llama-3.1-8B-Instruct", messages)
+server_router.complete_from_openai_chat("gpt-4o-mini", messages)
+server_router.complete_from_openai_chat("hosted_vllm/meta-llama/Llama-3.1-8B-Instruct", messages)
 ```
 
 The URL replaces the adapter's default (or the preset's: `vllm`, `ollama`, `groq`, … each know their own) while the preset's dialect stays. The cloud doors are the exception: Azure's and Bedrock's URLs are *built* from a resource name or a region, so an entry for `azure-chat` is refused and points you to `RouterConfig(settings=…)` — see [Cloud hosts](cloud-hosts.md).
@@ -383,7 +376,7 @@ Their `null`-valued keys and empty `annotations` read as absent; non-empty `anno
 
 ## Streaming
 
-`stream=True` is refused on `complete_from_openai_chat` — a boolean that changes the return type is exactly the kind of thing lm15 makes explicit. The streaming twin yields lm15's typed events, not OpenAI-shaped chunks; `ResponseStream` assembles them into text and, at the end, into the same `Response` the non-streaming call returns.
+Keep `stream=True`. The difference is what you iterate: lm15 gives you text fragments directly, not OpenAI-shaped chunks. The returned `ResponseStream` also assembles the reply, so usage, tool calls and other parts remain available afterwards.
 
 **Before**
 
@@ -395,11 +388,14 @@ for chunk in client.chat.completions.create(model="gpt-4o-mini", messages=messag
 **After**
 
 ```python
-request, lm = router.request_from_openai_chat("gpt-4o-mini", messages, max_completion_tokens=100)
-result = lm15.ResponseStream(lm.stream(request), request)
-for text in result:
-    print(text, end="", flush=True)
-result.response.usage.output_tokens
+result = router.complete_from_openai_chat(
+    "gpt-4o-mini", messages, max_completion_tokens=100, stream=True,
+)
+with result:
+    for text in result:
+        print(text, end="", flush=True)
+print()
+print(result.response.usage.output_tokens)
 ```
 
 ```output
@@ -407,7 +403,28 @@ The sky appears blue due to the scattering of sunlight by the Earth's atmosphere
 26
 ```
 
-`router.stream_from_openai_chat(model, messages, **kwargs)` is the same events without the assembly, for when you want tool calls and thinking as they arrive.
+The same call works with `"anthropic/claude-sonnet-4-5"` and the other supported model strings. Without `stream=True` (or with `stream=False`), the call returns a completed `Response` as before.
+
+The request starts when you iterate, not when you create `result`. The `with` block closes the stream even if you break early or your code raises. A closed, unfinished stream cannot provide a completed response; closing does not guarantee that the provider stops billing immediately. Reading `result.response` before closing instead consumes the remaining stream.
+
+For thinking and tool-call fragments as they arrive, iterate `result.events()` instead of `result`; neither executes tools. `router.stream_from_openai_chat(...)` remains available for raw typed events without assembly. The native `router.complete(Request(...))` and `router.stream(Request(...))` APIs are unchanged.
+
+**Async Python** uses the same flag. Await the call, then use `async for`:
+
+```python
+async def stream_answer():
+    async_router = lm15.AsyncLMRouter()
+    result = await async_router.complete_from_openai_chat(
+        "anthropic/claude-sonnet-4-5", messages, stream=True,
+    )
+    async with result:
+        async for text in result:
+            print(text, end="", flush=True)
+    response = await result.response()
+    return response
+```
+
+The trade-off is deliberate: this migration helper has two return types, selected by `stream`. Its type annotations distinguish `True` and `False`; a boolean decided at runtime requires handling either result.
 
 ## Client settings: each one has a place
 

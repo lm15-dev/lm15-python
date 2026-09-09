@@ -40,7 +40,11 @@ rung-by-rung credential resolution, no secrets rendered), and
 
 Migrating from the OpenAI SDK or litellm:
 `LMRouter().complete_from_openai_chat(model, messages, **kwargs)` takes
-their call as-is (their model strings too) and answers with a `Response`.
+their supported request options (their model strings too) and answers with
+a `Response`. With `stream=True` it returns a lazy `ResponseStream`:
+iterate text, then read `.response`; use `with` for early-exit cleanup.
+`RouterConfig(api_keys={"openai": key})` supplies both OpenAI APIs;
+exact endpoint entries still override shared credentials.
 Underneath: `request_from_openai_chat(body, compat=...)` reads the JSON a
 client would POST to `/chat/completions` into a `Request`, or refuses
 with the key named (MAP-12), and

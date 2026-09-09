@@ -2,11 +2,73 @@
   "provenance": {
     "source": "hand-authored",
     "date": "2026-08-31",
-    "evidence": "changes/2026-08-31-auth-contract-draft.md; spec/auth.md AUTH-1, AUTH-7 (ratified 2026-08-31); changes/2026-09-01-credential-policy.md (xai cases); changes/2026-09-01-subscription-first.md (xai oauth-unless-explicit reorder, superseding the same-day key-then-oauth cases before any port consumed them); changes/2026-09-03-provider-registry.md (deepseek plain-key case: AUTH-1 key chain, registry-declared env key DEEPSEEK_API_KEY); changes/2026-09-03-zai-live.md (zai plain-key case, env key ZAI_API_KEY); changes/2026-09-03-deepseek-anthropic-live.md (a second provider string on the same env key); changes/2026-09-03-meta-live.md (meta / meta-chat / meta-anthropic: three provider strings on one env key META_API_KEY; Meta's own vendor-less MODEL_API_KEY is deliberately not read); changes/2026-09-03-moonshotai-live.md (moonshotai: two vendor-named env keys in declared order, MOONSHOTAI_API_KEY then MOONSHOT_API_KEY \u2014 the second is the name Moonshot's own docs use; the first shadows it when both are set); changes/2026-09-03-cloud-hosts.md (nine cloud-chain cases: AUTH-1 aws/azure/gcp chains in the SDK order pinned from research/cloud-hosts/10-facts-*.md, AUTH-7 `unprobed`, harness-materialized files under a sandbox HOME); changes/2026-09-03-moonshotai-wires.md (moonshotai-responses, moonshotai-anthropic: the same two env keys)"
+    "evidence": "changes/2026-08-31-auth-contract-draft.md; spec/auth.md AUTH-1, AUTH-7 (ratified 2026-08-31); changes/2026-09-01-credential-policy.md (xai cases); changes/2026-09-01-subscription-first.md (xai oauth-unless-explicit reorder, superseding the same-day key-then-oauth cases before any port consumed them); changes/2026-09-03-provider-registry.md (deepseek plain-key case: AUTH-1 key chain, registry-declared env key DEEPSEEK_API_KEY); changes/2026-09-03-zai-live.md (zai plain-key case, env key ZAI_API_KEY); changes/2026-09-03-deepseek-anthropic-live.md (a second provider string on the same env key); changes/2026-09-03-meta-live.md (meta / meta-chat / meta-anthropic: three provider strings on one env key META_API_KEY; Meta's own vendor-less MODEL_API_KEY is deliberately not read); changes/2026-09-03-moonshotai-live.md (moonshotai: two vendor-named env keys in declared order, MOONSHOTAI_API_KEY then MOONSHOT_API_KEY \u2014 the second is the name Moonshot's own docs use; the first shadows it when both are set); changes/2026-09-03-cloud-hosts.md (nine cloud-chain cases: AUTH-1 aws/azure/gcp chains in the SDK order pinned from research/cloud-hosts/10-facts-*.md, AUTH-7 `unprobed`, harness-materialized files under a sandbox HOME); changes/2026-09-03-moonshotai-wires.md (moonshotai-responses, moonshotai-anthropic: the same two env keys); changes/2026-09-09-python-migration-ux.md (AUTH-1 shared explicit keys; Python-first rollout)"
   },
   "description": "Credential-resolution chain fixtures (spec/auth.md AUTH-1) exercised through each implementation's explain_auth equivalent (AUTH-7). Language-neutral: 'steps' name source kinds, not display strings. 'borrowed_file' is the provider's local OAuth credential file in its AUTH-8 wire format: a borrowed CLI store (claude-code, openai-codex) or the lm15-owned store (xai, oauth-unless-explicit policy). The sentinel below is planted as every secret value; no rendered report may contain it (AUTH-5). Cloud-chain cases (2026-09-03) carry 'files' (materialized by the harness under a sandbox HOME, '~/' relative) and optional 'settings'; 'unprobed' marks a configured network/subprocess rung the offline doctor did not contact, and 'configured' is true when a rung is selected OR unprobed.",
   "sentinel": "SECRET-SENTINEL-DO-NOT-PRINT",
   "cases": [
+    {
+      "id": "shared-openai-key-shadows-chat-env",
+      "provider": "openai-chat",
+      "env": {"OPENAI_API_KEY": "SECRET-SENTINEL-DO-NOT-PRINT"},
+      "api_keys_providers": ["openai"],
+      "expect": {"configured": true, "steps": [
+        {"kind": "api_keys", "state": "selected"},
+        {"kind": "env:OPENAI_API_KEY", "state": "shadowed"}
+      ]}
+    },
+    {
+      "id": "shared-chat-key-serves-responses",
+      "provider": "openai",
+      "env": {},
+      "api_keys_providers": ["openai_chat"],
+      "expect": {"configured": true, "steps": [
+        {"kind": "api_keys", "state": "selected"},
+        {"kind": "env:OPENAI_API_KEY", "state": "absent"}
+      ]}
+    },
+    {
+      "id": "shared-moonshot-key-serves-anthropic",
+      "provider": "moonshotai-anthropic",
+      "env": {},
+      "api_keys_providers": ["moonshotai"],
+      "expect": {"configured": true, "steps": [
+        {"kind": "api_keys", "state": "selected"},
+        {"kind": "env:MOONSHOTAI_API_KEY", "state": "absent"},
+        {"kind": "env:MOONSHOT_API_KEY", "state": "absent"}
+      ]}
+    },
+    {
+      "id": "shared-meta-exact-entry-resolves-family-ambiguity",
+      "provider": "meta-anthropic",
+      "env": {},
+      "api_keys_providers": ["meta", "meta-chat", "meta-anthropic"],
+      "expect": {"configured": true, "steps": [
+        {"kind": "api_keys", "state": "selected"},
+        {"kind": "env:META_API_KEY", "state": "absent"}
+      ]}
+    },
+    {
+      "id": "overlapping-google-env-lists-do-not-share",
+      "provider": "gemini",
+      "env": {},
+      "api_keys_providers": ["vertex-express"],
+      "expect": {"configured": false, "steps": [
+        {"kind": "api_keys", "state": "absent"},
+        {"kind": "env:GEMINI_API_KEY", "state": "absent"},
+        {"kind": "env:GOOGLE_API_KEY", "state": "absent"}
+      ]}
+    },
+    {
+      "id": "empty-env-lists-do-not-share-local-keys",
+      "provider": "vllm",
+      "env": {},
+      "api_keys_providers": ["ollama"],
+      "expect": {"configured": true, "steps": [
+        {"kind": "api_keys", "state": "absent"},
+        {"kind": "placeholder", "state": "selected"}
+      ]}
+    },
     {
       "id": "env-selected",
       "provider": "anthropic",

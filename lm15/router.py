@@ -40,8 +40,9 @@ fine-tune id like ``ft:gpt-4.1:org`` needs the explicit form
 
 Credentials
 -----------
-``resolve()`` is pure: it touches no network and reads no secret values
-(it records WHICH env var would be used, never the value).  ``lm()``
+``resolve()`` touches no network and invokes no credential provider.
+It checks configured keys and environment presence, but its result records
+WHICH env var would be used, never the value.  ``lm()``
 reads the key — first from ``RouterConfig.api_keys`` (explicit,
 repr-suppressed; values may be static strings or zero-argument
 credential-provider callables, resolved per request by the adapter),
@@ -63,7 +64,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field, replace
 from types import MappingProxyType
-from typing import AsyncIterator, Iterator, Mapping
+from typing import AsyncIterator, Iterator, Literal, Mapping, overload
+
+from .result import AsyncResponseStream, ResponseStream
 
 from .errors import AmbiguousModelError, NotConfiguredError, UnknownModelError
 from .models import ModelInfo, ModelRegistry
@@ -234,8 +237,12 @@ def _check_provider_keyed(config: RouterConfig, adapters: Mapping[str, type]) ->
         mapping = getattr(config, field_name)
         if not mapping:
             continue
+        seen: set[str] = set()
         for key in mapping:
             provider = _canonical_provider(key)
+            if field_name == "api_keys" and provider in seen:
+                raise NotConfiguredError(f"RouterConfig(api_keys=...): duplicate spellings for {provider!r}; use one entry")
+            seen.add(provider)
             if provider in known:
                 continue
             close = difflib.get_close_matches(provider, known, n=1, cutoff=0.6)
@@ -344,7 +351,11 @@ class RouterConfig:
     suppressed; lets hermetic tests pass ``env={}``).  A credential is a
     static key string or a zero-argument provider callable, resolved per
     request by the adapter.  ``env`` defaults to ``os.environ`` at
-    lookup time.
+    lookup time. An exact provider entry wins; otherwise one entry for a
+    provider with the identical non-empty declared env-key tuple supplies
+    the credential (e.g. ``openai`` also covers ``openai-chat``). Multiple
+    shared candidates raise rather than guess an account. URLs and host
+    settings are never shared this way.
 
     ``base_urls`` maps provider string -> the URL the provider's LM is
     built with, replacing the adapter's (or the preset's) default: a
@@ -562,14 +573,47 @@ def _declared_env_keys(provider: str, adapters: Mapping[str, type]) -> tuple[str
     return adapters[provider].manifest.env_keys
 
 
-def _api_keys_entry(config: RouterConfig, provider: str) -> tuple[Credential | None, bool]:
-    """Explicit api_keys entry for a provider, matching either spelling."""
-    if config.api_keys is None:
-        return None, False
-    for key, value in config.api_keys.items():
-        if _canonical_provider(key) == provider:
-            return value, True
-    return None, False
+def _api_keys_source(
+    config: RouterConfig, provider: str, adapters: Mapping[str, type] = ADAPTERS,
+) -> str | None:
+    """Select a config key, not its value; never invoke credential providers.
+
+    Exact provider first, else identical non-empty env-key tuples. Empty
+    tuples do not join unrelated local servers, OAuth stores or ADC chains.
+    Multiple candidates are ambiguous even if their values look equal:
+    credential callables can change independently at request time.
+    """
+    keys = config.api_keys
+    if not keys:
+        return None
+    exact = [key for key in keys if _canonical_provider(key) == provider]
+    candidates = exact
+    if not exact and _routable(provider, adapters):
+        env_keys = _declared_env_keys(provider, adapters)
+        if env_keys:
+            candidates = [key for key in keys
+                          if _routable(_canonical_provider(key), adapters)
+                          and _declared_env_keys(_canonical_provider(key), adapters) == env_keys]
+    if len(candidates) > 1:
+        raise NotConfiguredError(
+            f"RouterConfig(api_keys=...): ambiguous credentials for {provider!r} from "
+            f"{', '.join(repr(key) for key in sorted(candidates))}; "
+            f"supply one entry under {provider!r} or keep only one shared entry",
+        )
+    if not candidates:
+        return None
+    key = candidates[0]
+    value = keys[key]
+    if value is None or (isinstance(value, str) and not value):
+        raise NotConfiguredError(f"RouterConfig(api_keys=...): empty credential under {key!r}; no environment fallback")
+    return key
+
+
+def _api_keys_entry(
+    config: RouterConfig, provider: str, adapters: Mapping[str, type] = ADAPTERS,
+) -> tuple[Credential | None, bool]:
+    key = _api_keys_source(config, provider, adapters)
+    return (config.api_keys[key], True) if key is not None else (None, False)
 
 
 def _base_url_entry(config: RouterConfig, provider: str) -> str | None:
@@ -589,7 +633,7 @@ def _env_key_for(provider: str, config: RouterConfig, adapters: Mapping[str, typ
     (declares no env keys) or when an explicit ``api_keys`` entry
     overrides env lookup entirely.
     """
-    if _api_keys_entry(config, provider)[1]:
+    if _api_keys_entry(config, provider, adapters)[1]:
         return None
     env_keys = _declared_env_keys(provider, adapters)
     if not env_keys:
@@ -619,7 +663,7 @@ def _build_lm(resolution: Resolution, config: RouterConfig, adapters: Mapping[st
     policy = _credential_policy(resolution.provider, adapters)
     if policy == "oauth":
         return cls(**extra)  # self-resolving local OAuth constructor
-    api_key, _ = _api_keys_entry(config, resolution.provider)
+    api_key, _ = _api_keys_entry(config, resolution.provider, adapters)
     if definition is not None and definition.hosted:
         # A cloud door (AUTH-10): host settings from config, then env, then
         # defaults; the credential from the explicit entry or, for a cloud
@@ -797,7 +841,7 @@ class LMRouter:
     _adapters: Mapping[str, type] = ADAPTERS
 
     def resolve(self, model: str) -> Resolution:
-        """Pure lookup; touches no network and reads no secret values.
+        """Offline lookup; invokes no credential providers and returns no secrets.
 
         Raises UnknownModelError / AmbiguousModelError.  This IS the
         explain() method — there is no separate one.
@@ -837,8 +881,8 @@ class LMRouter:
         """:meth:`resolve` for the OpenAI-shaped door: ``model`` is read by
         :func:`openai_chat_model_string`, and a bare OpenAI name goes to
         Chat Completions (``openai-chat``), the endpoint the OpenAI SDK and
-        litellm were using.  Pure, like ``resolve()``: no network, no
-        secret values — the answer to "which provider, which env var"
+        litellm were using. Like ``resolve()``: no network, no credential
+        invocation or secret values in the result — "which provider, which env var"
         before any key exists."""
         resolution = self.resolve(openai_chat_model_string(model))
         if resolution.source == "rule" and resolution.provider == "openai":
@@ -863,18 +907,32 @@ class LMRouter:
             request = reader(body)
         return _routed_request(request, resolution), lm
 
-    def complete_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> Response:
+    @overload
+    def complete_from_openai_chat(self, model: str, messages: object, /, *, stream: Literal[False] = False, **kwargs) -> Response: ...
+
+    @overload
+    def complete_from_openai_chat(self, model: str, messages: object, /, *, stream: Literal[True], **kwargs) -> ResponseStream: ...
+
+    @overload
+    def complete_from_openai_chat(self, model: str, messages: object, /, *, stream: bool, **kwargs) -> Response | ResponseStream: ...
+
+    def complete_from_openai_chat(self, model: str, messages: object, /, *, stream: bool = False, **kwargs) -> Response | ResponseStream:
         """``client.chat.completions.create(model=, messages=, ...)`` or
         ``litellm.completion(model=, messages=, ...)`` — the same call,
         answered by lm15.  The messages and keywords are read by
         :func:`request_from_openai_chat` (MAP-12: every key maps, passes
         through, or is refused by name); the model string by
         :func:`openai_chat_model_string`.  Returns a canonical
-        :class:`Response`.  ``stream=True`` is refused here: use
-        :meth:`stream_from_openai_chat`."""
-        if kwargs.get("stream"):
-            raise NotConfiguredError("stream=True on complete_from_openai_chat; use stream_from_openai_chat(...)")
+        :class:`Response`, or with ``stream=True`` a lazy
+        :class:`ResponseStream`: iterate text, inspect ``.events()`` for
+        typed events and ``.response`` for the assembled answer. Close the
+        result (or use ``with``) when leaving a stream early. The native
+        ``complete(Request)`` method retains its single return type."""
+        if not isinstance(stream, bool):
+            raise TypeError("stream must be a boolean")
         request, lm = self.request_from_openai_chat(model, messages, **kwargs)
+        if stream:
+            return ResponseStream(lm.stream(request), request)
         return lm.complete(request)
 
     def stream_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> Iterator[StreamEvent]:
@@ -925,10 +983,26 @@ class AsyncLMRouter:
     resolve_openai_chat = LMRouter.resolve_openai_chat
     request_from_openai_chat = LMRouter.request_from_openai_chat
 
-    async def complete_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> Response:
-        if kwargs.get("stream"):
-            raise NotConfiguredError("stream=True on complete_from_openai_chat; use stream_from_openai_chat(...)")
+    @overload
+    async def complete_from_openai_chat(self, model: str, messages: object, /, *, stream: Literal[False] = False, **kwargs) -> Response: ...
+
+    @overload
+    async def complete_from_openai_chat(self, model: str, messages: object, /, *, stream: Literal[True], **kwargs) -> AsyncResponseStream: ...
+
+    @overload
+    async def complete_from_openai_chat(self, model: str, messages: object, /, *, stream: bool, **kwargs) -> Response | AsyncResponseStream: ...
+
+    async def complete_from_openai_chat(self, model: str, messages: object, /, *, stream: bool = False, **kwargs) -> Response | AsyncResponseStream:
+        """Await for a Response, or a lazy AsyncResponseStream when stream=True.
+
+        Iterate the latter with ``async for``; ``await result.response()``
+        assembles the answer. ``async with result`` closes on early exit.
+        """
+        if not isinstance(stream, bool):
+            raise TypeError("stream must be a boolean")
         request, lm = self.request_from_openai_chat(model, messages, **kwargs)
+        if stream:
+            return AsyncResponseStream(lm.stream(request), request)
         return await lm.complete(request)
 
     def stream_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> AsyncIterator[StreamEvent]:

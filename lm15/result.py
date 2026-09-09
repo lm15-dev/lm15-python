@@ -284,9 +284,37 @@ class ResponseStream:
         self._accumulator = StreamAccumulator(request)
         self._source = events
         self._response: Response | None = None
-        self._failure: Exception | None = None
+        self._failure: BaseException | None = None
         self._done = False
+        self._source_closed = False
         self._event_iter = self._pump()
+
+    def _close_source(self) -> None:
+        if not self._source_closed:
+            self._source_closed = True
+            close = getattr(self._source, "close", None)
+            if close is not None:
+                close()
+
+    def close(self) -> None:
+        """Stop reading and release the source, without draining it.
+
+        An unfinished stream has no complete response. Closing does not
+        promise that the provider stops generating or billing immediately.
+        """
+        if not self._done and self._response is None and self._failure is None:
+            self._failure = RuntimeError("stream closed before completion")
+        try:
+            self._event_iter.close()
+        finally:
+            self._done = True
+            self._close_source()
+
+    def __enter__(self) -> "ResponseStream":
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        self.close()
 
     def __iter__(self) -> Iterator[str]:
         for event in self.events():
@@ -349,15 +377,20 @@ class ResponseStream:
                     self._failure = _exception_from_error(event)
                     raise self._failure
                 self._accumulator.push(event)
-                yield event
                 if event.type == "end":
-                    break
+                    self._response = self._accumulator.response()
+                    self._done = True
+                    yield event
+                    return
+                yield event
             self._response = self._accumulator.response()
-        except Exception as exc:
-            self._failure = exc
+        except BaseException as exc:
+            if self._failure is None and self._response is None:
+                self._failure = exc
             raise
         finally:
             self._done = True
+            self._close_source()
 
 
 class AsyncResponseStream:
@@ -376,9 +409,33 @@ class AsyncResponseStream:
         self._accumulator = StreamAccumulator(request)
         self._source = events
         self._response: Response | None = None
-        self._failure: Exception | None = None
+        self._failure: BaseException | None = None
         self._done = False
+        self._source_closed = False
         self._event_gen = self._pump()
+
+    async def _close_source(self) -> None:
+        if not self._source_closed:
+            self._source_closed = True
+            close = getattr(self._source, "aclose", None)
+            if close is not None:
+                await close()
+
+    async def aclose(self) -> None:
+        """Stop reading and release the source, without draining it."""
+        if not self._done and self._response is None and self._failure is None:
+            self._failure = RuntimeError("stream closed before completion")
+        try:
+            await self._event_gen.aclose()
+        finally:
+            self._done = True
+            await self._close_source()
+
+    async def __aenter__(self) -> "AsyncResponseStream":
+        return self
+
+    async def __aexit__(self, *_exc: Any) -> None:
+        await self.aclose()
 
     def __aiter__(self) -> AsyncIterator[str]:
         return self._text_iter()
@@ -412,15 +469,20 @@ class AsyncResponseStream:
                     self._failure = _exception_from_error(event)
                     raise self._failure
                 self._accumulator.push(event)
-                yield event
                 if event.type == "end":
-                    break
+                    self._response = self._accumulator.response()
+                    self._done = True
+                    yield event
+                    return
+                yield event
             self._response = self._accumulator.response()
-        except Exception as exc:
-            self._failure = exc
+        except BaseException as exc:
+            if self._failure is None and self._response is None:
+                self._failure = exc
             raise
         finally:
             self._done = True
+            await self._close_source()
 
 
 # ─── One-shot materialization ────────────────────────────────────────
@@ -585,6 +647,15 @@ def coalesce_stream(
 
     See docs/mapping-rules.md MAP-3 and MAP-4.
     """
+    try:
+        yield from _coalesce_stream(events, model=model)
+    finally:
+        close = getattr(events, "close", None)
+        if close is not None:
+            close()
+
+
+def _coalesce_stream(events: Iterator[StreamEvent], *, model: str | None) -> Iterator[StreamEvent]:
     started = False
     saw_end = False
     finish_reason = None
@@ -631,6 +702,16 @@ async def acoalesce_stream(
     StreamStartEvent for dialects without a start frame; duplicate starts
     are dropped; error events never force a start.
     """
+    try:
+        async for event in _acoalesce_stream(events, model=model):
+            yield event
+    finally:
+        close = getattr(events, "aclose", None)
+        if close is not None:
+            await close()
+
+
+async def _acoalesce_stream(events: AsyncIterator[StreamEvent], *, model: str | None) -> AsyncIterator[StreamEvent]:
     started = False
     saw_end = False
     finish_reason = None

@@ -81,7 +81,8 @@ reconfigure. First match wins; no fallback chains, no plugins.
 Nothing matched? `UnknownModelError`, carrying the rules tried and
 whether a catalog was searched, with concrete fixes in the message.
 
-`resolve()` is pure: no network, no secret values read. Its return value
+`resolve()` is offline: no network or credential renewal, no secret values
+returned. It checks configuration and environment presence. Its return value
 *is* the explanation — there is no separate `explain()`:
 
 ```python
@@ -108,7 +109,11 @@ string and sends a bare OpenAI name to `openai-chat` rather than
 `lm()` constructs the provider LM, looking up the key in this order:
 
 1. `RouterConfig(api_keys={"anthropic": "..."})` — explicit, repr-suppressed,
-   beats the environment. Pass `env={}` too for fully hermetic tests.
+   beats the environment. An exact provider entry wins; otherwise a
+   single entry with the identical non-empty environment-key list supplies
+   the credential. For example, `api_keys={"openai": key}` covers both
+   OpenAI APIs. Multiple shared candidates require an exact entry instead
+   of choosing an account. Pass `env={}` too for fully hermetic tests.
    A value may also be a zero-argument **credential provider** callable
    (an Azure Entra `get_bearer_token_provider(...)`, your own rotation
    logic); the adapter resolves it per request, so long-lived clients
@@ -123,7 +128,9 @@ string and sends a bare OpenAI name to `openai-chat` rather than
 
 The provider strings that key `api_keys` (and `base_urls`, `settings`)
 are the ones `resolve()` reports; either spelling (`openai-chat`,
-`openai_chat`) works. A string that names no routable provider is
+`openai_chat`) works, but do not specify both spellings in `api_keys`.
+Only credentials share across matching environment-key declarations;
+URLs and host settings remain endpoint-specific. A string that names no routable provider is
 refused when the router is built, with the nearest real name — an
 ignored entry would send the request out on the environment's key.
 

@@ -712,7 +712,7 @@ class TestRouterConfigProviderNames:
             AsyncLMRouter(RouterConfig(env={}, settings={"bedrock": {"region": "us-east-1"}}))
 
     def test_known_names_in_either_spelling_pass(self) -> None:
-        _router(api_keys={"openai_chat": "k", "openai-chat": "k", "openai": "k", "vllm": "k"},
+        _router(api_keys={"openai_chat": "k", "openai": "k", "vllm": "k"},
                 base_urls={"ollama": "http://x"}, settings={"bedrock-anthropic": {"region": "us-east-1"}})
 
 
@@ -891,8 +891,9 @@ class TestOpenAIChatDoor:
             with pytest.raises(NotConfiguredError) as exc:
                 router.complete_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], **{key: 1})
             assert key in str(exc.value)
-        with pytest.raises(NotConfiguredError):
-            router.complete_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], stream=True)
+        result = router.complete_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], stream=True)
+        assert isinstance(result, lm15.ResponseStream)
+        result.close()  # lazy: no wire request
         with pytest.raises(UnsupportedFeatureError):  # n: the MAP-12 refusal, unchanged
             router.complete_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], n=2)
 
