@@ -6,10 +6,58 @@ the same arguments as `client.chat.completions.create(...)` and
 `litellm.completion(...)` and answers with an lm15 `Response`. A keyword
 lm15 cannot carry raises an error naming it; nothing is dropped.
 
-The examples use non-streaming calls and read keys from the environment
-(`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …). This is a migration, not a
+The examples use non-streaming calls. This is a migration, not a
 drop-in: the *answer* is an lm15 `Response` (`response.text`), not the
 SDK's object.
+
+## 0. API keys: where lm15 looks
+
+Both libraries read `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and so on from
+the environment; so does lm15, under the same names, so most migrations
+change nothing here. The key is chosen by the provider the model string
+resolves to, exactly as in litellm:
+
+| your model string | reaches | key read from |
+|---|---|---|
+| `gpt-4o-mini`, `openai/…` | OpenAI Chat Completions | `OPENAI_API_KEY` |
+| `anthropic/…`, `claude-…` | Anthropic | `ANTHROPIC_API_KEY` |
+| `gemini/…` | Gemini | `GEMINI_API_KEY`, then `GOOGLE_API_KEY` |
+| `groq/…` | Groq | `GROQ_API_KEY` |
+| `openrouter/…`, `deepseek/…`, `xai/…`, `moonshot/…` | that provider | `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY`, `XAI_API_KEY`, `MOONSHOTAI_API_KEY` |
+| `ollama/…` | your local server | nothing (a placeholder) |
+| `azure/…` | Azure OpenAI | `AZURE_OPENAI_API_KEY` or the Azure identity chain |
+
+The one thing that moves is a key passed **in code**. Both SDKs take it
+per client or per call:
+
+```python
+client = OpenAI(api_key="sk-…")                                  # OpenAI SDK
+litellm.completion(model="anthropic/…", api_key="sk-ant-…", …)   # litellm
+```
+
+In lm15 it goes on the router, once, per provider:
+
+```python
+router = lm15.LMRouter(lm15.RouterConfig(api_keys={
+    "openai": "sk-…",
+    "anthropic": "sk-ant-…",
+}))
+```
+
+An explicit entry there beats the environment. `api_key=` on the call
+itself is **refused** with that message: the router builds one adapter
+per provider and reuses it (that is where the connection pool lives), so
+a per-call key would either rebuild the adapter every call or silently
+rebind a shared one. Same for `api_base=`: `RouterConfig(base_urls={…})`.
+
+No key found: `NotConfiguredError` names the variable to set. To see
+which source would be used, without sending anything or printing the
+secret:
+
+```python
+from lm15.doctor import explain_auth
+print(explain_auth("anthropic").describe())
+```
 
 ## 1. From the OpenAI SDK
 
@@ -134,8 +182,8 @@ doors (`bedrock/`, `vertex_ai/`) — is refused by name; write
 
 ### What else changes
 
-- **Client settings are refused, with the lm15 place named.** `api_key`,
-  `api_base`, `timeout`, `num_retries`, `headers`, `cache`,
+- **Client settings are refused, with the lm15 place named.** `api_key`
+  and `api_base` (see § 0), `timeout`, `num_retries`, `headers`, `cache`,
   `drop_params`, … configure the client, not the request:
   `LMRouter(RouterConfig(api_keys=…, base_urls=…, transport=…))`. lm15
   never retries or caches on its own; `RETRYABLE_ERRORS` is data for your
