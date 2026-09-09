@@ -24,7 +24,7 @@ from ..compat import (
     ResolvedOpenAIChatCompat,
     resolve_openai_chat_compat,
 )
-from ..errors import ProviderError, UnsupportedFeatureError
+from ..errors import ProviderError, ServerError, UnsupportedFeatureError
 from ..access import OPENAI_CHAT_API
 from ..features import ProviderManifest
 from ..sse import SSEEvent
@@ -857,6 +857,142 @@ def request_from_openai_chat(body: Mapping[str, Any], *, compat: OpenAIChatCompa
     return _ingest_openai_chat("openai-chat", body, resolved)
 
 
+def _response_from_chat_body(
+    provider: str, data: Any, *, model: str | None, choice: int | None,
+    on_error: Callable[[str, str], ProviderError],
+) -> Response:
+    """The one Chat Completions response reader: ``parse_response`` for
+    provider traffic and :func:`response_from_openai_chat` for a foreign
+    dict share it.  ``choice`` names the choice to read; ``None`` means
+    "the only one", and a body with several choices is then refused
+    rather than silently reduced to its first (the reading-side twin of
+    MAP-12's refusal of ``n``)."""
+    if not isinstance(data, Mapping):
+        raise TypeError(f"a Chat Completions response body is a JSON object, got {type(data).__name__}")
+    resp_error = data.get("error")
+    if isinstance(resp_error, dict):
+        raise on_error(str(resp_error.get("code") or ""), str(resp_error.get("message") or resp_error))
+
+    unmapped: list[dict[str, str]] = []
+    choices = data.get("choices") or []
+    if not isinstance(choices, list):
+        raise TypeError("choices must be an array")
+    if choice is None:
+        if len(choices) > 1:
+            raise UnsupportedFeatureError(
+                f"{provider}: the body carries {len(choices)} choices; a canonical Response is one message — "
+                "name the choice to read (choice=i) and read each one, or send no n",
+                provider=provider,
+            )
+        index = 0
+    else:
+        if choice < 0 or choice >= len(choices):
+            raise ValueError(f"choice={choice} but the body carries {len(choices)} choice(s)")
+        index = choice
+    path = f"choices[{index}]"
+    chosen = choices[index] if choices and isinstance(choices[index], dict) else {}
+    if choices and not isinstance(choices[index], dict):
+        _record_unmapped(unmapped, path, type(choices[index]).__name__)
+    message = chosen.get("message") if isinstance(chosen.get("message"), dict) else {}
+
+    parts: list[Any] = []
+    reasoning_text = message.get("reasoning_content") or message.get("reasoning")
+    if reasoning_text:
+        parts.append(ThinkingPart(text=str(reasoning_text)))
+
+    content = message.get("content")
+    if isinstance(content, str):
+        if content:
+            parts.append(TextPart(text=content))
+    elif isinstance(content, list):
+        for content_index, item in enumerate(content):
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(TextPart(text=str(item.get("text") or "")))
+            else:
+                _record_unmapped(
+                    unmapped,
+                    f"{path}.message.content[{content_index}]",
+                    item.get("type") if isinstance(item, dict) else type(item).__name__,
+                )
+    elif content is not None:
+        _record_unmapped(unmapped, f"{path}.message.content", type(content).__name__)
+
+    refusal = message.get("refusal")
+    if refusal:
+        parts.append(RefusalPart(text=str(refusal)))
+
+    for call_index, call in enumerate(message.get("tool_calls") or []):
+        if not isinstance(call, dict):
+            _record_unmapped(unmapped, f"{path}.message.tool_calls[{call_index}]", type(call).__name__)
+            continue
+        call_type = call.get("type") or "function"
+        if call_type != "function":
+            _record_unmapped(unmapped, f"{path}.message.tool_calls[{call_index}]", call_type)
+            continue
+        function = call.get("function") if isinstance(call.get("function"), dict) else {}
+        if not function.get("name"):
+            raise unnamed_tool_call_error(provider, f"{path}.message.tool_calls[{call_index}]")
+        parts.append(
+            ToolCallPart(
+                id=str(call.get("id") or f"call_{len(parts)}"),
+                name=str(function["name"]),
+                input=parse_json_object(function.get("arguments")),
+            )
+        )
+
+    if not parts:
+        # MAP-2: a response message is never empty.
+        parts = [TextPart(text="")]
+
+    has_tool = any(isinstance(part, ToolCallPart) for part in parts)
+    usage = _usage_from_chat(data.get("usage") or {})
+    # choices[i].logprobs.content is the message-level token sequence.
+    # Refusal logprobs (choices[i].logprobs.refusal) stay in
+    # provider_data — no canonical refusal-token concept.
+    logprobs_payload = chosen.get("logprobs") if isinstance(chosen.get("logprobs"), dict) else {}
+    logprob_seq = openai_token_logprobs(logprobs_payload.get("content"))
+    resolved_model = data.get("model") or model
+    if not resolved_model:
+        raise ValueError("the body carries no model; pass model=")
+    return Response(
+        id=str(data.get("id")) if data.get("id") else None,
+        model=str(resolved_model),
+        message=Message(role="assistant", parts=tuple(parts)),
+        finish_reason=OpenAIChatLM._finish_reason(chosen.get("finish_reason"), has_tool_call=has_tool, unmapped=unmapped, path=path),
+        usage=usage,
+        logprobs=logprob_seq or None,
+        provider_data=_attach_unmapped(dict(data), unmapped),
+    )
+
+
+def response_from_openai_chat(body: Mapping[str, Any], *, model: str | None = None, choice: int | None = None) -> Response:
+    """A Chat Completions response body → the canonical :class:`Response`.
+
+    The reading-side twin of :func:`request_from_openai_chat`: ``body`` is
+    the JSON object a Chat Completions server (or a client library that
+    imitates one — litellm's ``ModelResponse.model_dump()``) returned.  It
+    is the same reader :meth:`OpenAIChatLM.parse_response` runs on provider
+    traffic, so what it maps (text, ``reasoning_content`` → thinking, tool
+    calls, refusal, usage, logprobs, finish reason) and what it records as
+    unmapped (``provider_data["_lm15_unmapped"]``) are pinned by the
+    contract's ``response`` direction.  An error envelope raises the typed
+    provider error.
+
+    ``model`` fills ``Response.model`` when the body carries none.
+    ``choice`` names the choice to read; left unset, a body with more than
+    one choice is refused (a Response is one message; read each choice by
+    index instead) — the twin of the request side's refusal of ``n``.
+    Keys the reader does not know are neither refused nor lost: the whole
+    body is ``provider_data``.  No compat is taken: the Chat Completions
+    response shape does not vary by server the way the request does.
+    """
+    def on_error(code: str, message: str) -> ProviderError:
+        cls = OpenAILM._response_error_code_map.get(code, ServerError)
+        return cls(message or code or "provider error", provider="openai-chat", provider_code=code or None)
+
+    return _response_from_chat_body("openai-chat", body, model=model, choice=choice, on_error=on_error)
+
+
 def _usage_from_chat(usage_data: dict[str, Any]) -> Usage:
     prompt_details = usage_data.get("prompt_tokens_details") or {}
     completion_details = usage_data.get("completion_tokens_details") or {}
@@ -1317,99 +1453,28 @@ class OpenAIChatLM(BaseProviderLM):
     # ─── Response parsing ───────────────────────────────────────────
 
     @staticmethod
-    def _finish_reason(raw: Any, *, has_tool_call: bool, unmapped: list[dict[str, str]]) -> str:
+    def _finish_reason(raw: Any, *, has_tool_call: bool, unmapped: list[dict[str, str]], path: str = "choices[0]") -> str:
         if has_tool_call:
             return "tool_call"
         if raw is None or raw == "":
             return "stop"
         mapped = _FINISH_REASON_MAP.get(str(raw))
         if mapped is None:
-            _record_unmapped(unmapped, "choices[0].finish_reason", raw)
+            _record_unmapped(unmapped, f"{path}.finish_reason", raw)
             return "stop"
         return mapped
 
     def parse_response(self, request: Request, response: HttpResponse) -> Response:
-        data = response.json()
-
-        resp_error = data.get("error") if isinstance(data, dict) else None
-        if isinstance(resp_error, dict):
-            raise self._response_error(
-                str(resp_error.get("code") or ""),
-                str(resp_error.get("message") or resp_error),
-            )
-
-        parts: list[Any] = []
-        unmapped: list[dict[str, str]] = []
-        choices = data.get("choices") or []
-        choice = choices[0] if choices and isinstance(choices[0], dict) else {}
-        if choices and not isinstance(choices[0], dict):
-            _record_unmapped(unmapped, "choices[0]", type(choices[0]).__name__)
-        message = choice.get("message") if isinstance(choice.get("message"), dict) else {}
-
-        reasoning_text = message.get("reasoning_content") or message.get("reasoning")
-        if reasoning_text:
-            parts.append(ThinkingPart(text=str(reasoning_text)))
-
-        content = message.get("content")
-        if isinstance(content, str):
-            if content:
-                parts.append(TextPart(text=content))
-        elif isinstance(content, list):
-            for content_index, item in enumerate(content):
-                if isinstance(item, dict) and item.get("type") == "text":
-                    parts.append(TextPart(text=str(item.get("text") or "")))
-                else:
-                    _record_unmapped(
-                        unmapped,
-                        f"choices[0].message.content[{content_index}]",
-                        item.get("type") if isinstance(item, dict) else type(item).__name__,
-                    )
-        elif content is not None:
-            _record_unmapped(unmapped, "choices[0].message.content", type(content).__name__)
-
-        refusal = message.get("refusal")
-        if refusal:
-            parts.append(RefusalPart(text=str(refusal)))
-
-        for call_index, call in enumerate(message.get("tool_calls") or []):
-            if not isinstance(call, dict):
-                _record_unmapped(unmapped, f"choices[0].message.tool_calls[{call_index}]", type(call).__name__)
-                continue
-            call_type = call.get("type") or "function"
-            if call_type != "function":
-                _record_unmapped(unmapped, f"choices[0].message.tool_calls[{call_index}]", call_type)
-                continue
-            function = call.get("function") if isinstance(call.get("function"), dict) else {}
-            if not function.get("name"):
-                raise unnamed_tool_call_error(self.provider, f"choices[0].message.tool_calls[{call_index}]")
-            parts.append(
-                ToolCallPart(
-                    id=str(call.get("id") or f"call_{len(parts)}"),
-                    name=str(function["name"]),
-                    input=parse_json_object(function.get("arguments")),
-                )
-            )
-
-        if not parts:
-            # MAP-2: a response message is never empty.
-            parts = [TextPart(text="")]
-
-        has_tool = any(isinstance(part, ToolCallPart) for part in parts)
-        usage = _usage_from_chat(data.get("usage") or {})
-        # choices[0].logprobs.content is the message-level token sequence.
-        # Refusal logprobs (choices[0].logprobs.refusal) stay in
-        # provider_data — no canonical refusal-token concept.
-        logprobs_payload = choice.get("logprobs") if isinstance(choice.get("logprobs"), dict) else {}
-        logprob_seq = openai_token_logprobs(logprobs_payload.get("content"))
-        return Response(
-            id=str(data.get("id")) if data.get("id") else None,
-            model=str(data.get("model") or request.model),
-            message=Message(role="assistant", parts=tuple(parts)),
-            finish_reason=self._finish_reason(choice.get("finish_reason"), has_tool_call=has_tool, unmapped=unmapped),
-            usage=usage,
-            logprobs=logprob_seq or None,
-            provider_data=_attach_unmapped(data, unmapped),
+        return _response_from_chat_body(
+            self.provider, response.json(), model=request.model,
+            choice=None, on_error=self._response_error,
         )
+
+    def response_from_openai_chat(self, body: Mapping[str, Any], *, model: str | None = None, choice: int | None = None) -> Response:
+        """A Chat Completions response body → canonical :class:`Response`
+        under this adapter's provider name and error mapping; see
+        :func:`response_from_openai_chat`."""
+        return _response_from_chat_body(self.provider, body, model=model, choice=choice, on_error=self._response_error)
 
     # ─── Stream parsing ──────────────────────────────────────────────
 

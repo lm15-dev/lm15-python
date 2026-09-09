@@ -1,0 +1,19 @@
+{
+  "_provenance": "litellm 1.100.0 ModelResponse.model_dump() captured live 2026-09-08 from /tmp/lm15-vs-litellm/litellm: gemini/gemini-3.8-flash ('Reply with exactly one word: ok', temperature 0, max_tokens 256) and openai/gpt-4o-mini (a forced get_weather tool call with n=2). Verbatim; ids and the thought signature are the provider's.",
+  "gemini_text": {
+    "id": "dUqhaqT7Hcmx_PUP6oqJiQI", "created": 1788955253, "model": "gemini-3.8-flash", "object": "chat.completion", "system_fingerprint": null,
+    "choices": [{"finish_reason": "stop", "index": 0, "message": {"content": "ok", "role": "assistant", "tool_calls": null, "function_call": null, "images": [], "thinking_blocks": [],
+      "provider_specific_fields": {"thought_signatures": ["EogDCoUDARFNMg9rOymdtiOj17XZbd8w2ZPlVgBWGuc+IJTVKy8jw/j0aLBmBF01/WTJwumZtoQyHFa2lrleo6uXJnW+eGMYRwpPmcDlo2CMw6W61x4fNwkaWLj/umaznp7dYDGln7jRDwdTpNgtX6zeTIUezTd7PoDsYqdmDyy1LiGxnqTaOTFuN2eRu0HLhj60Yh0m3wwb3yRPj/PE/SGG8MzfGLJ7krOmrqDwVkhePduYUFa23mZa67NDMhkPx2bxABT8aoOoAXS6vR64paIhmwDtbW9XeaA/Oy5g9PMefFoiPuWbsvOscyAUjVhxGj47/0NN+2/u2Y0rsqg5WvHJg/5wd4phAX1jz0htN+rM+qRmFH524PJzYQQvT+DN9xkWDVztp4rpBKSxcg+cnCjCjJSY1BcWVb88DCkFLgU74uLKKNAKSh9uZhjSLA/ckxWHlL65p4rlVBo1k08NRYuGe2a2eWF41/A6w8K+ErVkTLimvMtzMaidf8S1zkJg+D/X9Kk6Mi3XRA8="]}}}],
+    "usage": {"completion_tokens": 93, "prompt_tokens": 8, "total_tokens": 101, "completion_tokens_details": {"reasoning_tokens": 92, "text_tokens": 1}, "prompt_tokens_details": {"audio_tokens": null, "cached_tokens": null, "text_tokens": 8, "image_tokens": null, "video_tokens": null}, "cache_read_input_tokens": null},
+    "vertex_ai_grounding_metadata": [], "vertex_ai_url_context_metadata": [], "vertex_ai_safety_results": [], "vertex_ai_citation_metadata": [], "service_tier": "default"
+  },
+  "openai_tool_calls_n2": {
+    "id": "chatcmpl-EMBGyS0eBoe1xfG1HJv5vbOJNRBtx", "created": 1788955256, "model": "gpt-4o-mini-2024-07-18", "object": "chat.completion", "system_fingerprint": "fp_4adbad45a5",
+    "choices": [
+      {"finish_reason": "tool_calls", "index": 0, "message": {"content": null, "role": "assistant", "tool_calls": [{"function": {"arguments": "{\"city\":\"Paris\"}", "name": "get_weather"}, "id": "call_oElL0LzkB8xwrI56Z4cpEiXb", "type": "function"}], "function_call": null, "provider_specific_fields": {"refusal": null}, "annotations": []}, "provider_specific_fields": {}},
+      {"finish_reason": "tool_calls", "index": 1, "message": {"content": null, "role": "assistant", "tool_calls": [{"function": {"arguments": "{\"city\":\"Paris\"}", "name": "get_weather"}, "id": "call_8AtaRZOFJSXZgQCPCjc7IuUO", "type": "function"}], "function_call": null, "provider_specific_fields": {"refusal": null}, "annotations": []}, "provider_specific_fields": {}}
+    ],
+    "usage": {"completion_tokens": 28, "prompt_tokens": 45, "total_tokens": 73, "completion_tokens_details": {"accepted_prediction_tokens": 0, "audio_tokens": 0, "reasoning_tokens": 0, "rejected_prediction_tokens": 0}, "prompt_tokens_details": {"audio_tokens": 0, "cached_tokens": 0}},
+    "moderation": null, "service_tier": "default"
+  }
+}

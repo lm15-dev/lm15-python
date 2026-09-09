@@ -40,8 +40,11 @@ rung-by-rung credential resolution, no secrets rendered), and
 
 Migrating from an OpenAI-shaped client: `request_from_openai_chat(body,
 compat=...)` reads the JSON a client would POST to `/chat/completions` into
-a `Request`, or refuses with the key named (MAP-12; docs/migrating-from-
-openai-chat.md).  It is the only place lm15 reads a foreign request format.
+a `Request`, or refuses with the key named (MAP-12), and
+`response_from_openai_chat(body)` reads a Chat Completions response body
+(a server's, or litellm's `ModelResponse.model_dump()`) into a `Response`
+with the same reader the OpenAI Chat adapter uses (docs/migrating-from-
+openai-chat.md).  They are the only place lm15 reads a foreign format.
 
 The lowercase part-factory helpers (`text`, `image`, `tool_call`, ...) live in
 `lm15.types`, not at the top level — generic lowercase names at package top
@@ -171,7 +174,7 @@ from .providers import (
     OpenAICodexLM,
     XaiLM,
 )
-from .providers.openai_chat import request_from_openai_chat
+from .providers.openai_chat import request_from_openai_chat, response_from_openai_chat
 from .protocols import ProviderLM
 from .providers.async_base import (
     AsyncOpenAILM,
@@ -255,8 +258,8 @@ __all__ = [
     # providers
     "OpenAILM", "OpenAIChatLM", "AnthropicLM", "GeminiLM", "ClaudeCodeLM", "OpenAICodexLM", "XaiLM",
     "ProviderLM",
-    # ingest (MAP-12): a Chat Completions request body -> Request
-    "request_from_openai_chat",
+    # the Chat Completions dialect read in: a request body -> Request (MAP-12), a response body -> Response
+    "request_from_openai_chat", "response_from_openai_chat",
     # async mirror providers
     "AsyncOpenAILM", "AsyncOpenAIChatLM", "AsyncAnthropicLM", "AsyncGeminiLM",
     "AsyncClaudeCodeLM", "AsyncOpenAICodexLM", "AsyncXaiLM",

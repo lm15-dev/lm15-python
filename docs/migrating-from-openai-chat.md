@@ -104,6 +104,36 @@ Likewise, a tool result whose text begins with `[error] ` (how the chat
 wire carries `is_error`) reads back as text with `is_error=False`.
 Reversing a prose marker would be a guess.
 
+## The response, the other way
+
+`response_from_openai_chat(body)` reads a Chat Completions **response**
+body into a `Response` — the same reader the OpenAI Chat adapter runs on
+provider traffic, so what it maps (text, `reasoning_content` as thinking,
+tool calls, refusal, usage, logprobs, finish reason) and what it records
+as unmapped are pinned by the contract's 302 recorded provider responses.
+It takes a plain dict, which is what a cached litellm object gives you:
+
+```python
+resp = lm15.response_from_openai_chat(litellm_model_response.model_dump())
+resp.text, resp.tool_calls, resp.usage.reasoning_tokens
+```
+
+Everything the reader does not know rides in `resp.provider_data`, whole;
+an error envelope raises the typed provider error. Two rules to know:
+
+- **More than one choice is refused unless you name one.** A `Response` is
+  one message. A body produced with `n=3` raises until you read it three
+  times with `choice=0`, `1`, `2` — the twin of the request side refusing
+  `n`. (The adapter's own `parse_response` now refuses too; a user who
+  smuggled `n` through `config.extensions` used to get the first choice
+  silently.)
+- **`model=` fills in what the body lacks.** Servers echo the model; some
+  caches strip it.
+
+There is no `compat` argument: the Chat Completions *response* shape does
+not vary by server the way the request does, and a parameter that did
+nothing would be a lie.
+
 ## For framework authors
 
 If your framework's adapter already produces OpenAI-format messages —
@@ -123,9 +153,10 @@ caught on both sides.
 
 ## What this does not do
 
-It reads the Chat Completions **request** format only. It does not read
-the Responses API, Anthropic or Gemini formats; it does not turn a
-`Response` back into an OpenAI-shaped response object for serving behind
-an OpenAI-compatible endpoint (a later, separate feature). And it is not
-a `Request.from_...` constructor: the canonical types stay vendor-free;
-the converter lives beside the dialect it inverts.
+It reads the Chat Completions format only, in both directions. It does
+not read the Responses API, Anthropic or Gemini formats; it does not turn
+a `Response` back into an OpenAI-shaped response object for serving
+behind an OpenAI-compatible endpoint (a later, separate feature); it does
+not read streaming chunks. And it is not a `Request.from_...` constructor:
+the canonical types stay vendor-free; the converters live beside the
+dialect they invert.

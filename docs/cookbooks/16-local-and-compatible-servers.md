@@ -1,19 +1,12 @@
 # Local & OpenAI-compatible servers
 
-**Problem** — Half the model world speaks the OpenAI Chat Completions
-dialect: ollama on your laptop, Groq, OpenRouter, a vLLM box in the
-rack. Each one diverges from OpenAI in small wire-format ways — which
-max-tokens field, which role for instructions, whether reasoning fields
-exist. `OpenAIChatLM` takes a compat preset name and handles the
-dialect; the same `Request` works against all of them.
+**Problem** — Half the model world speaks the OpenAI Chat Completions dialect: ollama on your laptop, Groq, OpenRouter, a vLLM box in the rack. Each one diverges from OpenAI in small wire-format ways — which max-tokens field, which role for instructions, whether reasoning fields exist. `OpenAIChatLM` takes a compat preset name and handles the dialect; the same `Request` works against all of them.
 
 Keys loaded as in [recipe 01](01-first-request.md).
 
 ## Recipe
 
-This is the one recipe where you construct the LM directly instead of
-going through the router. `compat="groq"` sets both the wire-format
-policy and the default `base_url`:
+This is the one recipe where you construct the LM directly instead of going through the router. `compat="groq"` sets both the wire-format policy and the default `base_url`:
 
 ```python
 import os
@@ -35,10 +28,7 @@ Hello, how are you today?
 llama-3.3-70b-versatile stop Usage(input_tokens=41, output_tokens=8, …)
 ```
 
-Local servers work the same way. Ollama wants *an* API key header but
-ignores its value. This block requires a running ollama
-(`ollama serve`) with the model pulled; everything else on this page
-works without it:
+Local servers work the same way. Ollama wants *an* API key header but ignores its value. This block requires a running ollama (`ollama serve`) with the model pulled; everything else on this page works without it:
 
 ```python
 ollama = OpenAIChatLM(api_key="ollama", compat="ollama")
@@ -68,12 +58,9 @@ vllm        http://localhost:8000/v1
 sglang      http://localhost:30000/v1
 ```
 
-(`xai` is in the table because the first-class [xAI adapter](../providers-and-models.md)
-is built on the same Chat Completions dialect.)
+(`xai` is in the table because the first-class [xAI adapter](../providers-and-models.md) is built on the same Chat Completions dialect.)
 
-An explicit `base_url` always wins over the preset's default — the
-preset keeps supplying the wire-format policy. This is how you point
-the `vllm` preset at your own host:
+An explicit `base_url` always wins over the preset's default — the preset keeps supplying the wire-format policy. This is how you point the `vllm` preset at your own host:
 
 ```python
 vllm = OpenAIChatLM(api_key="unused", base_url="http://gpu-box:8000/v1", compat="vllm")
@@ -83,10 +70,7 @@ print(vllm.base_url)
 http://gpu-box:8000/v1
 ```
 
-Why not the router? The router resolves *model names*, and a name like
-`llama-3.3-70b-versatile` names a model, not a server — it runs on
-Groq, on ollama, and on your vLLM box, with different URLs and
-different keys. The router refuses to guess:
+Why not the router? The router resolves *model names*, and a name like `llama-3.3-70b-versatile` names a model, not a server — it runs on Groq, on ollama, and on your vLLM box, with different URLs and different keys. The router refuses to guess:
 
 ```python
 LMRouter().resolve("llama-3.3-70b-versatile")
@@ -97,10 +81,7 @@ Traceback (most recent call last):
 lm15.router.UnknownModelError: could not route model 'llama-3.3-70b-versatile': no provider prefix, no catalog supplied, and none of the 9 built-in rules matched. Use an explicit provider prefix, …
 ```
 
-The `openai-chat:` prefix exists (the `openai_chat` spelling is a
-permanent alias), but it routes to OpenAI's own Chat
-Completions endpoint — there is deliberately no router syntax for a
-non-default `base_url`:
+The `openai-chat:` prefix exists (the `openai_chat` spelling is a permanent alias), but it routes to OpenAI's own Chat Completions endpoint — there is deliberately no router syntax for a non-default `base_url`:
 
 ```python
 print(LMRouter().resolve("openai-chat:gpt-4.1-mini"))
@@ -109,8 +90,7 @@ print(LMRouter().resolve("openai-chat:gpt-4.1-mini"))
 'openai-chat:gpt-4.1-mini' -> provider 'openai-chat' (OpenAIChatLM); via explicit provider prefix; wire model 'gpt-4.1-mini'; key from $OPENAI_API_KEY.
 ```
 
-Everything else from the router recipes carries over to the direct LM —
-same `Request`, same `ResponseStream`. Streaming against Groq:
+Everything else from the router recipes carries over to the direct LM — same `Request`, same `ResponseStream`. Streaming against Groq:
 
 ```python
 req = Request(
@@ -143,51 +123,19 @@ OpenAIChatCompat(instruction_role='system', max_tokens_field='max_tokens', strea
 
 ## How it works
 
-`OpenAIChatLM.compat` accepts a preset name string, an
-`OpenAIChatCompat` object, or None (plain OpenAI policy). A name does
-two things at construction time: it resolves to a wire-format policy
-via `OpenAIChatCompat.preset(name)`, and — only if you left `base_url`
-at its default — it substitutes that server's default endpoint from
-`OPENAI_CHAT_PRESET_BASE_URLS`.
+`OpenAIChatLM.compat` accepts a preset name string, an `OpenAIChatCompat` object, or None (plain OpenAI policy). A name does two things at construction time: it resolves to a wire-format policy via `OpenAIChatCompat.preset(name)`, and — only if you left `base_url` at its default — it substitutes that server's default endpoint from `OPENAI_CHAT_PRESET_BASE_URLS`.
 
-The policy fields are the divergences that actually bite: Groq and
-ollama still want `max_tokens` where OpenAI now wants
-`max_completion_tokens`; ollama has no reasoning fields
-(`thinking_format="none"`) while OpenRouter has its own
-(`"openrouter"`); prompt-cache markers are OpenAI-only
-(`cache_control`); an image inside a tool result is a content array
-on xAI, Kimi and Z.AI and a refusal on Groq, DeepSeek and the base
-OpenAI wire (`tool_result_media`, measured 2026-09-07 — MAP-10). Fields left None inherit; `"auto"` is an explicit
-"use the adapter heuristic" — the distinction matters because policies
-layer (`lm15/compat.py`).
+The policy fields are the divergences that actually bite: Groq and ollama still want `max_tokens` where OpenAI now wants `max_completion_tokens`; ollama has no reasoning fields (`thinking_format="none"`) while OpenRouter has its own (`"openrouter"`); prompt-cache markers are OpenAI-only (`cache_control`); an image inside a tool result is a content array on xAI, Kimi and Z.AI and a refusal on Groq, DeepSeek and the base OpenAI wire (`tool_result_media`, measured 2026-09-07 — MAP-10). Fields left None inherit; `"auto"` is an explicit "use the adapter heuristic" — the distinction matters because policies layer (`lm15/compat.py`).
 
-The router stays out of this on purpose. Its job is explainable
-name-to-provider resolution from four fixed rungs; a base URL and a
-key for *your* server is configuration, not resolution, so the
-documented path is one line of direct construction. See
-[Using the router](../using-the-router.md), "When to use direct LM
-objects instead".
+The router stays out of this on purpose. Its job is explainable name-to-provider resolution from four fixed rungs; a base URL and a key for *your* server is configuration, not resolution, so the documented path is one line of direct construction. See [Using the router](../using-the-router.md), "When to use direct LM objects instead".
 
 ## Variations
 
-- **Async mirror.** `AsyncOpenAIChatLM` — same constructor, same
-  `compat`/`base_url` handling, awaitable `complete`, async `stream`.
-- **Override one field of a preset.** Pass an `OpenAIChatCompat`
-  instead of a name: start from `OpenAIChatCompat.preset("vllm")` and
-  rebuild with `dataclasses.replace(...)`. Note that a compat *object*
-  does not set `base_url` — only a preset name does.
-- **OpenRouter** is the same shape with a hosted twist:
-  `OpenAIChatLM(api_key=os.environ["OPENROUTER_API_KEY"],
-  compat="openrouter")`. Its preset keeps `cache_control="openai"` and
-  speaks OpenRouter's reasoning format; the `routing` field carries
-  OpenRouter-specific routing JSON.
-- **More presets than shown here**: `lmstudio`, `deepseek`, `qwen`,
-  `zai` — see `OpenAIChatCompat.preset` in `lm15/compat.py`. Unknown
-  names raise `ValueError` at construction, not at request time.
-- **Routing your own prefix.** `RouteRule("glm-", "openai-chat", ...)`
-  prepended to `DEFAULT_RULES` makes the router accept your model
-  names — but it still builds the LM against api.openai.com. Custom
-  `base_url` means direct construction, full stop.
+- **Async mirror.** `AsyncOpenAIChatLM` — same constructor, same `compat`/`base_url` handling, awaitable `complete`, async `stream`.
+- **Override one field of a preset.** Pass an `OpenAIChatCompat` instead of a name: start from `OpenAIChatCompat.preset("vllm")` and rebuild with `dataclasses.replace(...)`. Note that a compat *object* does not set `base_url` — only a preset name does.
+- **OpenRouter** is the same shape with a hosted twist: `OpenAIChatLM(api_key=os.environ["OPENROUTER_API_KEY"], compat="openrouter")`. Its preset keeps `cache_control="openai"` and speaks OpenRouter's reasoning format; the `routing` field carries OpenRouter-specific routing JSON.
+- **More presets than shown here**: `lmstudio`, `deepseek`, `qwen`, `zai` — see `OpenAIChatCompat.preset` in `lm15/compat.py`. Unknown names raise `ValueError` at construction, not at request time.
+- **Routing your own prefix.** `RouteRule("glm-", "openai-chat", ...)` prepended to `DEFAULT_RULES` makes the router accept your model names — but it still builds the LM against api.openai.com. Custom `base_url` means direct construction, full stop.
 
 ## See also
 

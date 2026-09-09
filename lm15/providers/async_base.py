@@ -656,6 +656,14 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
         self.base_url = self._inner.base_url
         self.compat = self._inner.compat
 
+    def request_from_openai_chat(self, body: "Mapping[str, Any]") -> Request:
+        """Pure; the sync sibling's, under this adapter's compat (MAP-12)."""
+        return self._inner.request_from_openai_chat(body)
+
+    def response_from_openai_chat(self, body: "Mapping[str, Any]", *, model: str | None = None, choice: int | None = None) -> Response:
+        """Pure; the sync sibling's reader under this adapter's provider name."""
+        return self._inner.response_from_openai_chat(body, model=model, choice=choice)
+
 
 # ─── Subscription mirrors (Claude Code / Codex CLI OAuth) ────────────
 #
