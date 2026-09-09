@@ -38,9 +38,12 @@ loopback listener, credential store), `lm15.doctor` (`explain_auth`:
 rung-by-rung credential resolution, no secrets rendered), and
 `lm15.vet` (the conformance shim CLI: `python -m lm15.vet`).
 
-Migrating from an OpenAI-shaped client: `request_from_openai_chat(body,
-compat=...)` reads the JSON a client would POST to `/chat/completions` into
-a `Request`, or refuses with the key named (MAP-12), and
+Migrating from the OpenAI SDK or litellm:
+`LMRouter().complete_from_openai_chat(model, messages, **kwargs)` takes
+their call as-is (their model strings too) and answers with a `Response`.
+Underneath: `request_from_openai_chat(body, compat=...)` reads the JSON a
+client would POST to `/chat/completions` into a `Request`, or refuses
+with the key named (MAP-12), and
 `response_from_openai_chat(body)` reads a Chat Completions response body
 (a server's, or litellm's `ModelResponse.model_dump()`) into a `Response`
 with the same reader the OpenAI Chat adapter uses (docs/migrating-from-

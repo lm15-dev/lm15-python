@@ -755,3 +755,70 @@ def test_rules_added_from_live_listing_2026_09_01() -> None:
     assert router.resolve("chat-latest").provider == "openai"
     # The new rules must not shadow the explicit prefix form.
     assert router.resolve("openai:gemma-4-31b-it").provider == "openai"
+
+
+# ─── the OpenAI-shaped door: complete_from_openai_chat (api-family § Ingest) ─
+
+from lm15.errors import NotConfiguredError, UnsupportedFeatureError
+from lm15.router import LITELLM_PROVIDER_PREFIXES, openai_chat_model_string
+
+
+class TestOpenAIChatDoor:
+    @pytest.mark.parametrize("given, expected", [
+        ("gpt-4o-mini", "gpt-4o-mini"),                      # bare: left for the rules (then the chat door)
+        ("openai/gpt-4o-mini", "openai-chat:gpt-4o-mini"),   # litellm's openai = Chat Completions
+        ("anthropic/claude-sonnet-4-5", "anthropic:claude-sonnet-4-5"),
+        ("groq/openai/gpt-oss-20b", "groq:openai/gpt-oss-20b"),  # only the first segment is the provider
+        ("ollama_chat/llama3", "ollama:llama3"),
+        ("anthropic:claude-sonnet-4-5", "anthropic:claude-sonnet-4-5"),  # lm15's own spelling wins
+    ])
+    def test_model_strings_written_for_the_other_libraries(self, given, expected) -> None:
+        assert openai_chat_model_string(given) == expected
+
+    def test_unknown_litellm_prefix_is_refused_by_name_never_routed(self) -> None:
+        with pytest.raises(UnknownModelError) as exc:
+            openai_chat_model_string("meta-llama/Llama-3-70b")
+        assert "meta-llama" in str(exc.value)
+        with pytest.raises(UnknownModelError):
+            openai_chat_model_string("bedrock/anthropic.claude-3")  # two lm15 doors; deliberately absent
+        assert "bedrock" not in LITELLM_PROVIDER_PREFIXES and "vertex_ai" not in LITELLM_PROVIDER_PREFIXES
+
+    def test_bare_openai_name_takes_the_chat_door_not_responses(self) -> None:
+        router = _router(api_keys={"openai": "sk", "openai_chat": "sk"}, env={})
+        request, lm = router.request_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], max_completion_tokens=5)
+        assert lm.provider == "openai-chat" and request.model == "gpt-4o-mini"
+        assert request.config.max_tokens == 5
+        # the general router still sends the same bare name to the Responses door
+        assert router.resolve("gpt-4o-mini").provider == "openai"
+
+    def test_destination_door_reads_its_own_spellings(self) -> None:
+        router = _router(api_keys={"deepseek": "k", "openai_chat": "k"}, env={})
+        request, _ = router.request_from_openai_chat("deepseek/deepseek-chat", [{"role": "user", "content": "Hi"}], thinking={"type": "disabled"})
+        assert request.config.reasoning is not None and request.config.reasoning.effort == "off"
+        with pytest.raises(UnsupportedFeatureError):  # the same body on OpenAI's door: another server's spelling
+            router.request_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], thinking={"type": "disabled"})
+
+    def test_client_keywords_are_refused_with_the_lm15_place_named(self) -> None:
+        router = _router(api_keys={"openai_chat": "k"}, env={})
+        for key in ("api_key", "api_base", "num_retries", "headers", "cache", "drop_params"):
+            with pytest.raises(NotConfiguredError) as exc:
+                router.complete_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], **{key: 1})
+            assert key in str(exc.value)
+        with pytest.raises(NotConfiguredError):
+            router.complete_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], stream=True)
+        with pytest.raises(UnsupportedFeatureError):  # n: the MAP-12 refusal, unchanged
+            router.complete_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], n=2)
+
+    def test_complete_from_openai_chat_end_to_end_through_a_fake_transport(self) -> None:
+        router = _router(api_keys={"openai_chat": "sk-h"}, env={})
+        transport = _FakeTransport([_FakeResponse(status=200, body=_CHAT_BODY)])
+        router.lm("openai_chat:x").transport = transport
+        response = router.complete_from_openai_chat(
+            "openai/gpt-4o-mini",
+            [{"role": "system", "content": "Be brief."}, {"role": "user", "content": "Hi"}],
+            max_completion_tokens=5, temperature=0,
+        )
+        assert response.text == "Hello!"
+        sent = json.loads(transport.requests[0].body)
+        assert sent["model"] == "gpt-4o-mini" and sent["messages"][0] == {"role": "system", "content": "Be brief."}
+        assert sent["max_completion_tokens"] == 5 and sent["temperature"] == 0.0

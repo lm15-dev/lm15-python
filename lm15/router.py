@@ -85,6 +85,8 @@ __all__ = [
     "AmbiguousModelError",
     "MissingCredentialError",
     "LMRouter",
+    "LITELLM_PROVIDER_PREFIXES",
+    "openai_chat_model_string",
     "AsyncLMRouter",
 ]
 
@@ -641,6 +643,89 @@ def _routed_request(request: Request, resolution: Resolution) -> Request:
     return replace(request, model=resolution.model)
 
 
+# ------------------------------------------------- the OpenAI-shaped door ----
+
+# litellm's routing prefixes (`<provider>/<model>`) that name a door lm15
+# has, copied as data. A prefix absent here is refused by name — never
+# routed by rule — because litellm's own rule is "a leading known provider
+# name is the provider", and an unknown one is an error there too. Where
+# litellm's name covers two lm15 doors (bedrock, vertex_ai: Anthropic or
+# not, by model) it is left out: choosing would be a guess.
+LITELLM_PROVIDER_PREFIXES: Mapping[str, str] = MappingProxyType({
+    "openai": "openai-chat",
+    "anthropic": "anthropic",
+    "gemini": "gemini",
+    "groq": "groq",
+    "openrouter": "openrouter",
+    "deepseek": "deepseek",
+    "xai": "xai",
+    "ollama": "ollama",
+    "ollama_chat": "ollama",
+    "hosted_vllm": "vllm",
+    "moonshot": "moonshotai",
+    "azure": "azure-chat",
+})
+
+# Keyword arguments of `create()` / `completion()` that configure the
+# CLIENT, not the request: refused with the lm15 place they belong.
+_CLIENT_KEYWORDS: Mapping[str, str] = MappingProxyType({
+    "api_key": "LMRouter(RouterConfig(api_keys={provider: key})) or the environment",
+    "api_base": "LMRouter(RouterConfig(base_urls={provider: url}))",
+    "base_url": "LMRouter(RouterConfig(base_urls={provider: url}))",
+    "timeout": "RouterConfig(transport=...)",
+    "num_retries": "your own retry loop over lm15.RETRYABLE_ERRORS (lm15 never retries)",
+    "max_retries": "your own retry loop over lm15.RETRYABLE_ERRORS (lm15 never retries)",
+    "headers": "RouterConfig(transport=...)",
+    "extra_headers": "RouterConfig(transport=...)",
+    "extra_body": "config.extensions on the Request (build it with request_from_openai_chat and edit)",
+    "extra_query": "RouterConfig(transport=...)",
+    "cache": "your own cache keyed on the Request (lm15 has no response cache)",
+    "caching": "your own cache keyed on the Request (lm15 has no response cache)",
+    "mock_response": "lm15.testing.FakeLM",
+    "drop_params": "nothing: lm15 refuses what it cannot carry instead of dropping it",
+    "custom_llm_provider": "the model string's prefix",
+})
+
+
+def openai_chat_model_string(model: str) -> str:
+    """The lm15 model string for a model string written for the OpenAI SDK
+    or litellm (`playbooks/api-family.md` § Ingest):
+
+    - an lm15 string (``provider:model``) is left alone;
+    - litellm's ``provider/model`` maps its prefix through
+      :data:`LITELLM_PROVIDER_PREFIXES` (only the first segment; a model
+      id may contain slashes itself: ``groq/openai/gpt-oss-20b``);
+    - a bare name routes by lm15's rules, except that OpenAI's models go
+      to the Chat Completions door (``openai-chat:``) — the endpoint both
+      libraries were using — not the Responses API.
+    """
+    if ":" in model:
+        return model
+    head, sep, rest = model.partition("/")
+    if sep and rest:
+        provider = LITELLM_PROVIDER_PREFIXES.get(head)
+        if provider is None:
+            raise UnknownModelError(
+                f"could not read {model!r} as a litellm model string: {head!r} is not a provider prefix lm15 "
+                f"has a door for (known: {', '.join(sorted(LITELLM_PROVIDER_PREFIXES))}); write it as lm15's "
+                "provider:model instead",
+                model=model,
+            )
+        return f"{provider}:{rest}"
+    return model
+
+
+def _split_openai_chat_call(model: str, messages: object, kwargs: dict) -> dict:
+    """``(model, messages, **kwargs)`` → the Chat Completions body, after
+    refusing the client keywords by name."""
+    for key, where in _CLIENT_KEYWORDS.items():
+        if key in kwargs:
+            raise NotConfiguredError(
+                f"{key!r} configures the client, not the request; in lm15 it lives in {where}",
+            )
+    return {"model": model, "messages": messages, **kwargs}
+
+
 # ---------------------------------------------------------------- router ----
 
 
@@ -693,6 +778,50 @@ class LMRouter:
         resolution = self.resolve(prefix.model)
         return self.lm(prefix.model).cache(_routed_request(prefix, resolution), ttl_seconds=ttl_seconds, label=label)
 
+    # ─── the OpenAI-shaped door (api-family § Ingest) ──────────────────
+
+    def request_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> tuple[Request, object]:
+        """The Request behind :meth:`complete_from_openai_chat`, and the LM
+        it routes to.  ``model`` may be written for the OpenAI SDK, for
+        litellm, or for lm15 (:func:`openai_chat_model_string`); the
+        body is read with the destination door's own spellings when it
+        speaks the Chat Completions wire, else with OpenAI's."""
+        body = _split_openai_chat_call(openai_chat_model_string(model), messages, kwargs)
+        resolution = self.resolve(body["model"])
+        if resolution.source == "rule" and resolution.provider == "openai":
+            # A bare OpenAI name: the endpoint both libraries were using.
+            body["model"] = f"openai-chat:{resolution.model}"
+            resolution = self.resolve(body["model"])
+        lm = self.lm(body["model"])
+        reader = getattr(lm, "request_from_openai_chat", None)
+        if reader is None:
+            from .providers.openai_chat import request_from_openai_chat as read_openai
+
+            request = read_openai(body)
+        else:
+            request = reader(body)
+        return _routed_request(request, resolution), lm
+
+    def complete_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> Response:
+        """``client.chat.completions.create(model=, messages=, ...)`` or
+        ``litellm.completion(model=, messages=, ...)`` — the same call,
+        answered by lm15.  The messages and keywords are read by
+        :func:`request_from_openai_chat` (MAP-12: every key maps, passes
+        through, or is refused by name); the model string by
+        :func:`openai_chat_model_string`.  Returns a canonical
+        :class:`Response`.  ``stream=True`` is refused here: use
+        :meth:`stream_from_openai_chat`."""
+        if kwargs.get("stream"):
+            raise NotConfiguredError("stream=True on complete_from_openai_chat; use stream_from_openai_chat(...)")
+        request, lm = self.request_from_openai_chat(model, messages, **kwargs)
+        return lm.complete(request)
+
+    def stream_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> Iterator[StreamEvent]:
+        """The streaming twin of :meth:`complete_from_openai_chat`: typed
+        lm15 stream events, not OpenAI-shaped chunks."""
+        request, lm = self.request_from_openai_chat(model, messages, **kwargs)
+        return lm.stream(request)
+
 
 class AsyncLMRouter:
     """Async mirror of :class:`LMRouter`.
@@ -730,3 +859,15 @@ class AsyncLMRouter:
     async def cache(self, prefix: Request, *, ttl_seconds: int | None = None, label: str | None = None):
         resolution = self.resolve(prefix.model)
         return await self.lm(prefix.model).cache(_routed_request(prefix, resolution), ttl_seconds=ttl_seconds, label=label)
+
+    request_from_openai_chat = LMRouter.request_from_openai_chat
+
+    async def complete_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> Response:
+        if kwargs.get("stream"):
+            raise NotConfiguredError("stream=True on complete_from_openai_chat; use stream_from_openai_chat(...)")
+        request, lm = self.request_from_openai_chat(model, messages, **kwargs)
+        return await lm.complete(request)
+
+    def stream_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> AsyncIterator[StreamEvent]:
+        request, lm = self.request_from_openai_chat(model, messages, **kwargs)
+        return lm.stream(request)
