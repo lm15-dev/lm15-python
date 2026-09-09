@@ -1,39 +1,176 @@
-# Migrating from an OpenAI-shaped client
+# Migrating from the OpenAI SDK or LiteLLM
 
-You already have requests in the format almost every tool speaks: a JSON
-object with `model`, a list of `{"role", "content"}` rows, maybe `tools`
-and a few knobs. A framework built it, a log recorded it, or the client
-library you are leaving expected it. `request_from_openai_chat` reads that
-object into a canonical `Request`, or tells you exactly which key it could
-not carry.
+You do not need to write JSON strings or rebuild your message history.
+Keep your Python message dictionaries, collect your request arguments into
+one dictionary, and let `request_from_openai_chat` turn it into an lm15
+`Request`. Unsupported fields raise an error naming what could not be
+carried.
+
+The examples below use non-streaming calls. Install lm15 with
+`pip install lm15` and keep your provider's API key in the environment.
+This is a migration, not a drop-in replacement: requests become lm15
+`Request` objects and answers become lm15 `Response` objects.
+
+## 1. From the OpenAI SDK to lm15
+
+This section covers `client.chat.completions.create`, not the OpenAI
+Responses API (`client.responses.create`). Set `OPENAI_API_KEY` as usual.
+
+### Before: an OpenAI SDK call
+
+```python
+from openai import OpenAI
+
+messages = [
+    {"role": "system", "content": "Answer in one sentence."},
+    {"role": "user", "content": "Why is the sky blue?"},
+]
+
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages,
+    max_completion_tokens=100,
+)
+print(response.choices[0].message.content)
+```
+
+### After: keep the messages, change the call
 
 ```python
 import lm15
 
-body = {
-    "model": "gpt-5-mini",
-    "messages": [
-        {"role": "system", "content": "Answer in one sentence."},
-        {"role": "user", "content": "Why is the sky blue?"},
-    ],
-    "temperature": 0.2,
-    "max_tokens": 100,
-}
+messages = [
+    {"role": "system", "content": "Answer in one sentence."},
+    {"role": "user", "content": "Why is the sky blue?"},
+]
 
-request = lm15.request_from_openai_chat(body)
-print(request.system)              # 'Answer in one sentence.'
-print(request.config.max_tokens)   # 100
-
-lm15.LMRouter().complete(request)  # now any provider can answer it
+router = lm15.LMRouter()  # reuse this across calls
+request = router.complete(lm15.request_from_openai_chat(
+    model="gpt-4o-mini",
+    messages=messages,
+    max_completion_tokens=100,
+))
+print(response.text)
 ```
 
-The result is an ordinary `Request`. Nothing is hidden behind the
-converter; from here on you are using lm15's types.
+`openai-chat:` explicitly keeps the Chat Completions endpoint; it is a
+routing prefix, not part of the model id sent to OpenAI. The converter
+moves the first system row to `request.system` and the token limit to
+`request.config.max_tokens`. You still hold ordinary lm15 types.
 
-## You probably hold Python objects, not JSON
+### If your history contains SDK message objects
 
-Neither the OpenAI SDK nor litellm works in JSON; the dict above is what
-their keyword arguments *are*. Four cases cover what people actually hold:
+A chat loop may have appended `old_response.choices[0].message` directly.
+Convert those objects to dictionaries before passing the history in;
+leave existing dictionaries alone:
+
+```python
+message_dicts = [
+    msg if isinstance(msg, dict) else msg.model_dump()
+    for msg in messages
+]
+request = lm15.request_from_openai_chat({
+    "model": "openai-chat:gpt-4o-mini",
+    "messages": message_dicts,
+})
+```
+
+To read an existing OpenAI response without making another network call:
+
+```python
+converted = lm15.response_from_openai_chat(old_response.model_dump())
+print(converted.text)
+```
+
+Once you use lm15 throughout your loop, keep `response.message` as an
+lm15 message rather than trying to call `.model_dump()` on it. lm15
+objects are not Pydantic objects.
+
+## 2. From LiteLLM to lm15
+
+LiteLLM also accepts OpenAI-style message dictionaries when calling other
+providers. The converter reads that message format; the router chooses
+where to send the resulting request. Here is an Anthropic example with
+`ANTHROPIC_API_KEY` set.
+
+### Before: a LiteLLM call to Anthropic
+
+```python
+import litellm
+
+messages = [
+    {"role": "system", "content": "Answer in one sentence."},
+    {"role": "user", "content": "Why is the sky blue?"},
+]
+
+response = litellm.completion(
+    model="anthropic/claude-sonnet-4-5",
+    messages=messages,
+    max_tokens=100,
+)
+print(response.choices[0].message.content)
+```
+
+### After: the same messages, sent through lm15
+
+```python
+import lm15
+
+messages = [
+    {"role": "system", "content": "Answer in one sentence."},
+    {"role": "user", "content": "Why is the sky blue?"},
+]
+
+router = lm15.LMRouter()
+request = lm15.request_from_openai_chat({
+    "model": "anthropic:claude-sonnet-4-5",
+    "messages": messages,
+    "max_tokens": 100,
+})
+response = router.complete(request)
+print(response.text)
+```
+
+Despite the converter's name, this call goes to Anthropic's Messages API,
+not OpenAI. No `compat="anthropic"` is needed: the input here is a set
+of ordinary OpenAI-style message rows and common request arguments.
+
+### What else changes?
+
+- **Provider prefixes:** replace the known LiteLLM routing prefix, such
+  as `anthropic/`, with lm15's `anthropic:`. Do not replace every slash:
+  model ids can contain slashes themselves. For example, a Groq call to
+  `openai/gpt-oss-20b` uses `groq:openai/gpt-oss-20b` in lm15.
+- **Client settings:** keep credentials, timeouts, headers and retries
+  out of the request dictionary. Configure credentials and transport
+  separately; caching, retries and multiple samples need caller-side
+  handling rather than being silently inherited from LiteLLM.
+- **Provider-specific arguments:** not every LiteLLM keyword maps.
+  For example, Anthropic's native `thinking` object is not an OpenAI
+  request field; express that intent through lm15's `Config.reasoning`
+  instead. An accepted request can still be refused at send time if the
+  destination provider cannot carry one of its fields.
+- **Existing objects:** use the same `msg.model_dump()` conversion shown
+  above for LiteLLM message objects in history. To read a whole cached
+  `ModelResponse`, use the response converter:
+
+```python
+converted = lm15.response_from_openai_chat(cached_response.model_dump())
+print(converted.text)
+```
+
+If that cached response contains multiple choices, explicitly select one
+with `choice=0`, `choice=1`, and so on. Each converted response carries
+the original request's total usage, not a per-choice share; do not add
+those usage values together.
+
+Streaming is a separate migration: lm15 emits typed stream events, not
+LiteLLM's OpenAI-shaped chunks. These converters do not convert chunks.
+
+## Handling Python objects and structured output
+
+For either SDK, these are the inputs the converters accept:
 
 - **Keyword arguments** to `create(model=…, messages=…, **kwargs)`: the
   body is `{"model": model, "messages": messages, **kwargs}`. Strip the
