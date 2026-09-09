@@ -319,12 +319,19 @@ class RouterConfig:
     static key string or a zero-argument provider callable, resolved per
     request by the adapter.  ``env`` defaults to ``os.environ`` at
     lookup time.
+
+    ``base_urls`` maps provider string -> the URL the provider's LM is
+    built with, replacing the adapter's (or the preset's) default: a
+    proxy in front of OpenAI, a vLLM server on another port.  Not for
+    the cloud doors (azure, bedrock, vertex): their URL is derived from
+    ``settings`` (resource, region), and an entry for one is refused.
     """
 
     registry: ModelRegistry | None = None
     rules: tuple[RouteRule, ...] = DEFAULT_RULES
     env: Mapping[str, str] | None = None
     api_keys: Mapping[str, Credential] | None = field(default=None, repr=False)
+    base_urls: Mapping[str, str] | None = field(default=None, kw_only=True)
     # Cloud-host settings per provider (AUTH-10): {"bedrock-anthropic":
     # {"region": "us-east-1"}}.  A setting not given here is read from its
     # env variables in order, then its default; region and resource have
@@ -539,6 +546,16 @@ def _api_keys_entry(config: RouterConfig, provider: str) -> tuple[Credential | N
     return None, False
 
 
+def _base_url_entry(config: RouterConfig, provider: str) -> str | None:
+    """Explicit base_urls entry for a provider, matching either spelling."""
+    if config.base_urls is None:
+        return None
+    for key, value in config.base_urls.items():
+        if _canonical_provider(key) == provider:
+            return value
+    return None
+
+
 def _env_key_for(provider: str, config: RouterConfig, adapters: Mapping[str, type]) -> str | None:
     """WHICH env var lm() would read for this provider (never the value).
 
@@ -564,6 +581,15 @@ def _build_lm(resolution: Resolution, config: RouterConfig, adapters: Mapping[st
     extra: dict = {}
     if config.transport is not None:
         extra["transport"] = config.transport
+    base_url = _base_url_entry(config, resolution.provider)
+    if base_url is not None:
+        if definition is not None and definition.hosted:
+            raise NotConfiguredError(
+                f"RouterConfig(base_urls={{{resolution.provider!r}: ...}}): a cloud door's URL is built from its "
+                f"host settings (resource, region), not given whole; set them in "
+                f"RouterConfig(settings={{{resolution.provider!r}: {{...}}}}) instead.",
+            )
+        extra["base_url"] = base_url
     policy = _credential_policy(resolution.provider, adapters)
     if policy == "oauth":
         return cls(**extra)  # self-resolving local OAuth constructor

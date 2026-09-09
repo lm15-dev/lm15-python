@@ -694,6 +694,58 @@ class TestResolvePresets:
         assert res.compat is None
 
 
+# ─── base_urls: the litellm api_base / OpenAI base_url, once per provider ──
+
+
+class TestRouterBaseUrls:
+    def test_base_url_replaces_the_adapter_default(self) -> None:
+        router = _router(base_urls={"openai": "https://proxy.example/v1"})
+        lm = router.lm("openai:gpt-4.1-mini")
+        try:
+            assert isinstance(lm, OpenAILM)
+            assert lm.base_url == "https://proxy.example/v1"
+        finally:
+            lm.close()
+
+    def test_base_url_replaces_a_preset_default(self) -> None:
+        router = _router(env={}, base_urls={"vllm": "http://gpu-box:8000/v1"})
+        lm = router.lm("vllm:meta-llama/Llama-3.1-8B-Instruct")
+        try:
+            assert isinstance(lm, OpenAIChatLM)
+            assert lm.base_url == "http://gpu-box:8000/v1"
+            assert lm.compat == "vllm"  # the preset's dialect stays
+        finally:
+            lm.close()
+
+    def test_base_url_accepts_either_spelling(self) -> None:
+        for spelling in ("openai_chat", "openai-chat"):
+            router = _router(api_keys={"openai_chat": "k"}, env={}, base_urls={spelling: "https://gw.example/v1"})
+            lm = router.lm("openai_chat:gpt-4o-mini")
+            try:
+                assert lm.base_url == "https://gw.example/v1"
+            finally:
+                lm.close()
+
+    def test_base_url_on_a_cloud_door_is_refused_by_name(self) -> None:
+        router = _router(env={"AZURE_OPENAI_API_KEY": "k"}, base_urls={"azure-chat": "https://x.example/openai/v1"})
+        with pytest.raises(lm15.NotConfiguredError) as exc:
+            router.lm("azure-chat:gpt-4o-mini")
+        assert "settings" in str(exc.value) and "azure-chat" in str(exc.value)
+
+    def test_base_url_is_not_for_other_providers(self) -> None:
+        router = _router(base_urls={"openai": "https://proxy.example/v1"})
+        lm = router.lm("claude-sonnet-4-5")
+        try:
+            assert lm.base_url == "https://api.anthropic.com/v1"
+        finally:
+            lm.close()
+
+    def test_async_router_honours_base_urls(self) -> None:
+        router = AsyncLMRouter(config=RouterConfig(env=dict(_ENV), base_urls={"openai": "https://proxy.example/v1"}))
+        lm = router.lm("openai:gpt-4.1-mini")
+        assert lm.base_url == "https://proxy.example/v1"
+
+
 # ─── credential providers through the router ─────────────────────────
 
 

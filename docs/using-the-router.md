@@ -130,6 +130,17 @@ is on [Authentication](authentication.md).
 One LM is built per provider, lazily, and reused across calls. The cache
 is the router's only mutable state.
 
+## Addresses
+
+`RouterConfig(base_urls={"openai-chat": "https://gw.example/v1"})` gives
+a provider's LM a different URL than its default — a proxy in front of
+OpenAI, a vLLM server on another host. The entry is matched by provider
+string (either spelling), the preset's dialect and credential rule are
+unchanged, and a provider without an entry keeps its default. The cloud
+doors (`azure-chat`, `bedrock-*`, `vertex`) build their URL from a
+resource or region and refuse an entry, pointing at
+`RouterConfig(settings=...)` — see [Cloud hosts](cloud-hosts.md).
+
 ## Catalogs: aimo and friends
 
 Catalog use is opt-in. Pass a registry and rung 2 lights up:
@@ -171,12 +182,15 @@ you had supplied one.
 Both paths are first-class. Skip the router and construct the LM
 yourself when:
 
-- you need a **custom `base_url`, transport, or compat policy** — Azure,
-  a self-hosted gateway, a nonstandard port. The router deliberately has
-  no syntax for this; `OpenAIChatLM(api_key=..., compat="ollama",
-  base_url=...)` is the documented path and is one line. (The stock
-  groq/openrouter/deepseek/zai/moonshotai/ollama/vllm/sglang endpoints route by name
-  already.)
+- you need a **custom compat policy or transport per provider** — the
+  router takes one `transport` for every LM it builds and binds each
+  provider's stock compat preset; `OpenAIChatLM(api_key=...,
+  compat="ollama", base_url=...)` is the one-line path when those must
+  differ. (A different URL alone does not need this:
+  `RouterConfig(base_urls={"vllm": "http://gpu-box:8000/v1"})` replaces
+  a provider's default or preset URL, keeping its dialect and
+  credential rule. The cloud doors — Azure, Bedrock, Vertex — build
+  their URL from `settings` instead and refuse a `base_urls` entry.)
 - you are a **library** wrapping lm15: take an LM object from your
   caller; don't impose string parsing on your API.
 - you want **zero resolution logic** in the call path, or several
@@ -203,6 +217,8 @@ router = LMRouter(config=RouterConfig(rules=rules))
 
 First match wins, so prepend to override. Note that a rule can only name
 a routable provider (`lm15.router.ADAPTERS` or `CHAT_PRESET_ROUTES`) —
-pointing `glm-` at `openai-chat` routes the request, but a non-default `base_url`
-still requires constructing the LM directly (see the escape hatch
-above).
+pointing `glm-` at `openai-chat` routes the request to that provider's
+URL, which `RouterConfig(base_urls={"openai-chat": ...})` can move for
+every `openai-chat` request. A second, differently-addressed instance
+of the same provider still means constructing the LM directly (see the
+escape hatch above).
