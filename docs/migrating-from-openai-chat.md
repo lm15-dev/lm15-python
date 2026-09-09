@@ -114,27 +114,44 @@ litellm.completion(model="gpt-4o-mini", …)   # reads $OPENAI_API_KEY
 router = lm15.LMRouter()       # reads $OPENAI_API_KEY
 ```
 
-All three read the same variable, chosen by the provider the model string resolves to. That is the whole story for a bare `gpt-…` name. For every other string, the variable is the one you already have set for that provider:
+All three read the same variable, chosen by the provider the model string resolves to. That is the whole story for a bare `gpt-…` name. For every other string, the variable is the one you already have set for that provider. The middle column is the **provider name** — the string lm15 uses whenever it asks you *which* provider: in `api_keys`, in `base_urls`, in `explain_auth`, in errors.
 
-| your model string | goes to | key read from |
+| your model string | lm15 provider name | key read from |
 |---|---|---|
-| `gpt-4o-mini`, `openai/…` | OpenAI, Chat Completions | `OPENAI_API_KEY` |
-| `anthropic/…`, `claude-…` | Anthropic | `ANTHROPIC_API_KEY` |
-| `gemini/…` | Gemini | `GEMINI_API_KEY`, then `GOOGLE_API_KEY` |
-| `groq/…` | Groq | `GROQ_API_KEY` |
-| `openrouter/…` | OpenRouter | `OPENROUTER_API_KEY` |
-| `deepseek/…` | DeepSeek | `DEEPSEEK_API_KEY` |
-| `xai/…` | xAI | a stored xAI login if you have one, then `XAI_API_KEY` |
-| `moonshot/…` | Moonshot | `MOONSHOTAI_API_KEY`, then `MOONSHOT_API_KEY` |
-| `ollama/…`, `hosted_vllm/…` | your local server | nothing (a placeholder) |
-| `azure/…` | Azure OpenAI | `AZURE_OPENAI_API_KEY`, then the Azure identity chain |
+| `gpt-4o-mini`, `openai/…` | `openai-chat` (Chat Completions) | `OPENAI_API_KEY` |
+| `openai:…` | `openai` (Responses API) | `OPENAI_API_KEY` |
+| `anthropic/…`, `claude-…` | `anthropic` | `ANTHROPIC_API_KEY` |
+| `gemini/…` | `gemini` | `GEMINI_API_KEY`, then `GOOGLE_API_KEY` |
+| `groq/…` | `groq` | `GROQ_API_KEY` |
+| `openrouter/…` | `openrouter` | `OPENROUTER_API_KEY` |
+| `deepseek/…` | `deepseek` | `DEEPSEEK_API_KEY` |
+| `xai/…` | `xai` | a stored xAI login if you have one, then `XAI_API_KEY` |
+| `moonshot/…` | `moonshotai` | `MOONSHOTAI_API_KEY`, then `MOONSHOT_API_KEY` |
+| `ollama/…` | `ollama` | nothing (a placeholder) |
+| `hosted_vllm/…` | `vllm` | nothing (a placeholder) |
+| `azure/…` | `azure-chat` | `AZURE_OPENAI_API_KEY`, then the Azure identity chain |
 
-Rather than trust a table, ask. `explain_auth` walks the same chain `lm()` will walk, marks the rung that wins, and never prints a value:
+Rather than trust a table, ask. `resolve_openai_chat` reads a model string exactly as the call would and reports the provider and the variable — a pure lookup, with no key needed and no value read:
+
+```python
+where = router.resolve_openai_chat("anthropic/claude-sonnet-4-5")
+print(where.provider, where.env_key)
+print(where.describe())
+```
+
+```output
+anthropic ANTHROPIC_API_KEY
+'anthropic:claude-sonnet-4-5' -> provider 'anthropic' (AnthropicLM); via explicit provider prefix; wire model 'claude-sonnet-4-5'; key from $ANTHROPIC_API_KEY.
+```
+
+(For a bare `gpt-4o-mini` it answers `openai-chat`, `OPENAI_API_KEY`. Plain `router.resolve("gpt-4o-mini")` would say `openai` — that is the Responses door `router.complete` takes, not this one.)
+
+That provider name is what `explain_auth` wants. It walks the same chain `lm()` will walk, marks the rung that wins, and never prints a value:
 
 ```python
 from lm15.doctor import explain_auth
 
-print(explain_auth("anthropic").describe())
+print(explain_auth(where.provider).describe())
 ```
 
 ```output
@@ -202,7 +219,7 @@ auth for provider 'openai-chat':
   configured: yes — explicit api_keys entry
 ```
 
-The provider names are the ones the router reports. Note `openai-chat`, not `openai`: on this door a bare `gpt-…` string goes to Chat Completions, and lm15 treats that endpoint as its own provider with its own entry (`openai_chat` is accepted too). An entry under `openai` would cover `openai:…` strings — the Responses API — and leave this call reading the environment. A value may also be a zero-argument callable that returns a fresh token, for credentials that rotate.
+The provider names are the ones `resolve_openai_chat(...).provider` reports. Note `openai-chat`, not `openai`: on this door a bare `gpt-…` string goes to Chat Completions, and lm15 treats that endpoint as its own provider with its own entry (`openai_chat` is accepted too). An entry under `openai` would cover `openai:…` strings — the Responses API — and leave this call reading the environment. A value may also be a zero-argument callable that returns a fresh token, for credentials that rotate.
 
 If you keep `api_key=` on the call out of habit, lm15 tells you where it went rather than guessing:
 

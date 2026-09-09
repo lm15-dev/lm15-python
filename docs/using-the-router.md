@@ -97,6 +97,12 @@ Every field is typed: `requested`, `model` (wire id), `provider`,
 when source is `"catalog"`), `compat` (the preset name when routed
 through `CHAT_PRESET_ROUTES`).
 
+`resolve_openai_chat()` is the same lookup for the OpenAI-shaped door
+(`complete_from_openai_chat`): it reads a litellm-style `provider/model`
+string and sends a bare OpenAI name to `openai-chat` rather than
+`openai`, which is where that call goes — see
+[Migrating from the OpenAI SDK or LiteLLM](migrating-from-openai-chat.md).
+
 ## Credentials
 
 `lm()` constructs the provider LM, looking up the key in this order:

@@ -806,19 +806,27 @@ class LMRouter:
 
     # ─── the OpenAI-shaped door (api-family § Ingest) ──────────────────
 
+    def resolve_openai_chat(self, model: str) -> Resolution:
+        """:meth:`resolve` for the OpenAI-shaped door: ``model`` is read by
+        :func:`openai_chat_model_string`, and a bare OpenAI name goes to
+        Chat Completions (``openai-chat``), the endpoint the OpenAI SDK and
+        litellm were using.  Pure, like ``resolve()``: no network, no
+        secret values — the answer to "which provider, which env var"
+        before any key exists."""
+        resolution = self.resolve(openai_chat_model_string(model))
+        if resolution.source == "rule" and resolution.provider == "openai":
+            resolution = self.resolve(f"openai-chat:{resolution.model}")
+        return resolution
+
     def request_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> tuple[Request, object]:
         """The Request behind :meth:`complete_from_openai_chat`, and the LM
         it routes to.  ``model`` may be written for the OpenAI SDK, for
-        litellm, or for lm15 (:func:`openai_chat_model_string`); the
-        body is read with the destination door's own spellings when it
-        speaks the Chat Completions wire, else with OpenAI's."""
-        body = _split_openai_chat_call(openai_chat_model_string(model), messages, kwargs)
-        resolution = self.resolve(body["model"])
-        if resolution.source == "rule" and resolution.provider == "openai":
-            # A bare OpenAI name: the endpoint both libraries were using.
-            body["model"] = f"openai-chat:{resolution.model}"
-            resolution = self.resolve(body["model"])
-        lm = self.lm(body["model"])
+        litellm, or for lm15 (:meth:`resolve_openai_chat`); the body is
+        read with the destination door's own spellings when it speaks
+        the Chat Completions wire, else with OpenAI's."""
+        resolution = self.resolve_openai_chat(model)
+        body = _split_openai_chat_call(resolution.requested, messages, kwargs)
+        lm = self.lm(resolution.requested)
         reader = getattr(lm, "request_from_openai_chat", None)
         if reader is None:
             from .providers.openai_chat import request_from_openai_chat as read_openai
@@ -886,6 +894,7 @@ class AsyncLMRouter:
         resolution = self.resolve(prefix.model)
         return await self.lm(prefix.model).cache(_routed_request(prefix, resolution), ttl_seconds=ttl_seconds, label=label)
 
+    resolve_openai_chat = LMRouter.resolve_openai_chat
     request_from_openai_chat = LMRouter.request_from_openai_chat
 
     async def complete_from_openai_chat(self, model: str, messages: object, /, **kwargs) -> Response:

@@ -850,6 +850,19 @@ class TestOpenAIChatDoor:
         with pytest.raises(UnsupportedFeatureError):  # the same body on OpenAI's door: another server's spelling
             router.request_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}], thinking={"type": "disabled"})
 
+    def test_resolve_openai_chat_is_pure_and_names_the_door_the_call_uses(self) -> None:
+        router = _router(env={})  # no key anywhere: resolution must not need one
+        res = router.resolve_openai_chat("gpt-4o-mini")
+        assert (res.provider, res.model, res.env_key) == ("openai-chat", "gpt-4o-mini", "OPENAI_API_KEY")
+        assert router.resolve_openai_chat("anthropic/claude-sonnet-4-5").provider == "anthropic"
+        assert router.resolve_openai_chat("hosted_vllm/x/y").env_key is None
+        assert router.resolve_openai_chat("openai:gpt-4o-mini").provider == "openai"  # lm15 string: as-is
+        assert AsyncLMRouter(RouterConfig(env={})).resolve_openai_chat("gpt-4o-mini").provider == "openai-chat"
+        # and it is the resolution request_from_openai_chat acts on
+        keyed = _router(api_keys={"openai_chat": "k"}, env={})
+        _, lm = keyed.request_from_openai_chat("gpt-4o-mini", [{"role": "user", "content": "Hi"}])
+        assert lm is keyed.lm("openai-chat:gpt-4o-mini")
+
     def test_client_keywords_are_refused_with_the_lm15_place_named(self) -> None:
         router = _router(api_keys={"openai_chat": "k"}, env={})
         for key in ("api_key", "api_base", "num_retries", "headers", "cache", "drop_params"):
