@@ -694,6 +694,28 @@ class TestResolvePresets:
         assert res.compat is None
 
 
+# ─── provider-keyed config is checked by name ────────────────────────────
+
+
+class TestRouterConfigProviderNames:
+    def test_unknown_provider_in_api_keys_is_refused_with_the_near_miss(self) -> None:
+        with pytest.raises(lm15.NotConfiguredError) as exc:
+            _router(api_keys={"antropic": "sk"})
+        message = str(exc.value)
+        assert "'antropic'" in message and "'anthropic'" in message and "api_keys" in message
+
+    def test_unknown_provider_in_base_urls_and_settings_is_refused(self) -> None:
+        with pytest.raises(lm15.NotConfiguredError) as exc:
+            _router(base_urls={"vlm": "http://x"})
+        assert "'vlm'" in str(exc.value) and "'vllm'" in str(exc.value)
+        with pytest.raises(lm15.NotConfiguredError):
+            AsyncLMRouter(RouterConfig(env={}, settings={"bedrock": {"region": "us-east-1"}}))
+
+    def test_known_names_in_either_spelling_pass(self) -> None:
+        _router(api_keys={"openai_chat": "k", "openai-chat": "k", "openai": "k", "vllm": "k"},
+                base_urls={"ollama": "http://x"}, settings={"bedrock-anthropic": {"region": "us-east-1"}})
+
+
 # ─── base_urls: the litellm api_base / OpenAI base_url, once per provider ──
 
 

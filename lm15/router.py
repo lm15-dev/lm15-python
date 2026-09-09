@@ -221,6 +221,32 @@ def _bound_ids(adapters: Mapping[str, type]) -> set[str]:
     return {d.id for d in PROVIDERS.values() if d.bound and d.id not in adapters}
 
 
+def _check_provider_keyed(config: RouterConfig, adapters: Mapping[str, type]) -> None:
+    """Every provider string a RouterConfig is keyed by (api_keys, base_urls,
+    settings) must name a routable provider.  A near miss is named: an
+    entry that matches nothing is otherwise silently ignored, and the
+    request goes out on whatever the environment holds — the wrong
+    account, with nothing said (AUTH-1)."""
+    import difflib
+
+    known = sorted(set(adapters) | _bound_ids(adapters))
+    for field_name in ("api_keys", "base_urls", "settings"):
+        mapping = getattr(config, field_name)
+        if not mapping:
+            continue
+        for key in mapping:
+            provider = _canonical_provider(key)
+            if provider in known:
+                continue
+            close = difflib.get_close_matches(provider, known, n=1, cutoff=0.6)
+            hint = f" Did you mean {close[0]!r}?" if close else ""
+            raise NotConfiguredError(
+                f"RouterConfig({field_name}=...): {key!r} is not a provider lm15 routes to.{hint} "
+                f"router.resolve(model).provider (or resolve_openai_chat) names the one a model "
+                f"string uses; known: {', '.join(known)}",
+            )
+
+
 # --------------------------------------------------------------- errors ----
 #
 # The router's failures are ErrorCode vocabulary entries (spec/vocabularies.md,
@@ -764,6 +790,7 @@ class LMRouter:
     """
 
     def __init__(self, config: RouterConfig = RouterConfig()) -> None:
+        _check_provider_keyed(config, self._adapters)
         self.config = config
         self._lms: dict[str, object] = {}
 
@@ -866,6 +893,7 @@ class AsyncLMRouter:
     """
 
     def __init__(self, config: RouterConfig = RouterConfig()) -> None:
+        _check_provider_keyed(config, self._adapters)
         self.config = config
         self._lms: dict[str, object] = {}
 

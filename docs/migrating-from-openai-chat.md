@@ -198,12 +198,36 @@ response = litellm.completion(
 
 **After — lm15**
 
+The dictionary is keyed by provider name, so first ask which name each of your model strings uses — the same lookup as above, on any router:
+
+```python
+router.resolve_openai_chat("gpt-4o-mini").provider
+router.resolve_openai_chat("anthropic/claude-sonnet-4-5").provider
+```
+
+```output
+'openai-chat'
+'anthropic'
+```
+
+Then build the router with those names, once:
+
 ```python
 router = lm15.LMRouter(lm15.RouterConfig(api_keys={
     "openai-chat": "sk-…",
     "anthropic": "sk-ant-…",
 }))
 response = router.complete_from_openai_chat("anthropic/claude-sonnet-4-5", messages)
+```
+
+A name lm15 does not route to is refused when the router is built, with the nearest real one — never ignored, because an ignored entry would mean the request quietly goes out on whatever key the environment holds:
+
+```python
+lm15.LMRouter(lm15.RouterConfig(api_keys={"antropic": "sk-ant-…"}))
+```
+
+```output
+NotConfiguredError: RouterConfig(api_keys=...): 'antropic' is not a provider lm15 routes to. Did you mean 'anthropic'? router.resolve(model).provider (or resolve_openai_chat) names the one a model string uses; known: anthropic, aws-anthropic, azure, …
 ```
 
 An explicit entry beats the environment, and `explain_auth` shows the environment variable being shadowed:
@@ -219,7 +243,7 @@ auth for provider 'openai-chat':
   configured: yes — explicit api_keys entry
 ```
 
-The provider names are the ones `resolve_openai_chat(...).provider` reports. Note `openai-chat`, not `openai`: on this door a bare `gpt-…` string goes to Chat Completions, and lm15 treats that endpoint as its own provider with its own entry (`openai_chat` is accepted too). An entry under `openai` would cover `openai:…` strings — the Responses API — and leave this call reading the environment. A value may also be a zero-argument callable that returns a fresh token, for credentials that rotate.
+One name the check cannot catch for you: `openai` **and** `openai-chat` are both real providers, so an entry under the wrong one is valid and simply does not apply here. Note `openai-chat`, not `openai`: on this door a bare `gpt-…` string goes to Chat Completions, and lm15 treats that endpoint as its own provider with its own entry (`openai_chat` is accepted too). An entry under `openai` would cover `openai:…` strings — the Responses API — and leave this call reading the environment. A value may also be a zero-argument callable that returns a fresh token, for credentials that rotate.
 
 If you keep `api_key=` on the call out of habit, lm15 tells you where it went rather than guessing:
 

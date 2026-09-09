@@ -121,6 +121,12 @@ string and sends a bare OpenAI name to `openai-chat` rather than
    placeholder key. These servers accept any value; override via
    `api_keys` if yours is locked down.
 
+The provider strings that key `api_keys` (and `base_urls`, `settings`)
+are the ones `resolve()` reports; either spelling (`openai-chat`,
+`openai_chat`) works. A string that names no routable provider is
+refused when the router is built, with the nearest real name — an
+ignored entry would send the request out on the environment's key.
+
 No key found → `MissingCredentialError`, which subclasses the existing
 `NotConfiguredError` so current handlers keep working. OAuth providers
 (`claude-code`, `openai-codex`) declare no env keys; the router calls
