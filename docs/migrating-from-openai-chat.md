@@ -30,6 +30,36 @@ lm15.LMRouter().complete(request)  # now any provider can answer it
 The result is an ordinary `Request`. Nothing is hidden behind the
 converter; from here on you are using lm15's types.
 
+## You probably hold Python objects, not JSON
+
+Neither the OpenAI SDK nor litellm works in JSON; the dict above is what
+their keyword arguments *are*. Four cases cover what people actually hold:
+
+- **Keyword arguments** to `create(model=…, messages=…, **kwargs)`: the
+  body is `{"model": model, "messages": messages, **kwargs}`. Strip the
+  client's transport knobs first (`api_key`, `api_base`, `timeout`,
+  `num_retries`, `headers`, …) — they are not request content and would
+  be refused by name.
+- **Message objects appended back into history** —
+  `messages.append(response.choices[0].message)`, the first thing every
+  chat loop does. Pass `msg.model_dump()`; its null-valued keys and empty
+  `annotations` read as absent, non-empty `annotations` (web-search
+  citations) become `CitationPart`s, and litellm's own
+  `provider_specific_fields` reads as absent when empty. These exact
+  dumps are pinned as contract cases.
+- **Response objects**: `response_from_openai_chat(resp.model_dump())`.
+- **A pydantic class as `response_format`**: not JSON. Convert it to the
+  `json_schema` object first — and know the difference: the OpenAI SDK
+  *rewrites* your schema into its strict form (`additionalProperties:
+  false` everywhere, every property required) before sending; lm15 sends
+  your schema **verbatim** (INV-050) and lets the provider's 400 be the
+  contract. So `Out.model_json_schema()` with `strict: true` can be
+  rejected where the SDK's transformed copy was accepted. Either use the
+  SDK's own converter if it is installed
+  (`openai.lib._parsing._completions.type_to_response_format_param(Out)`
+  — a private path, so it may move), or send `strict: false`, or write
+  the strict-form schema yourself.
+
 ## Tell it which server the body was written for
 
 Several OpenAI-compatible servers spell the same knob differently:

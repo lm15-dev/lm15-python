@@ -241,3 +241,28 @@ def test_vet_op_refuses_a_non_chat_provider() -> None:
         op_ingest_openai_chat({"provider": "anthropic", "body": body()})
     out = op_ingest_openai_chat({"provider": "openai_chat", "body": body()})
     assert out == {"canonical_request": {"model": "gpt-5-mini", "messages": [{"role": "user", "parts": [{"type": "text", "text": "Hi"}]}]}}
+
+
+# ─── message objects dumped back into history (MAP-12 addendum) ──────
+
+SDK_MESSAGE = {"content": "Ok! How can I help?", "refusal": None, "role": "assistant", "annotations": [], "audio": None, "function_call": None, "tool_calls": None}
+LITELLM_MESSAGE = {"content": "Ok!", "role": "assistant", "tool_calls": None, "function_call": None, "provider_specific_fields": {"refusal": None}, "annotations": []}
+
+
+def test_dumped_message_objects_read_as_one_text_part() -> None:
+    for m in (SDK_MESSAGE, LITELLM_MESSAGE):
+        req = request_from_openai_chat({"model": "m", "messages": [{"role": "user", "content": "x"}, m, {"role": "user", "content": "y"}]})
+        assert req.messages[1] == Message.assistant(TextPart(m["content"]))
+
+
+def test_annotations_become_citations_and_object_model_fields_refuse_when_filled() -> None:
+    from lm15.types import CitationPart
+
+    text = "The sky is blue because of Rayleigh scattering."
+    row = {"role": "assistant", "content": text, "annotations": [{"type": "url_citation", "url_citation": {"url": "https://w/rs", "title": "RS", "start_index": 27, "end_index": 46}}]}
+    req = request_from_openai_chat({"model": "m", "messages": [{"role": "user", "content": "x"}, row]})
+    assert req.messages[1].parts == (TextPart(text), CitationPart(url="https://w/rs", title="RS", text="Rayleigh scattering"))
+    with pytest.raises(UnsupportedFeatureError):
+        request_from_openai_chat({"model": "m", "messages": [{"role": "user", "content": "x"}, {"role": "assistant", "content": None, "provider_specific_fields": {"refusal": "no"}}]})
+    with pytest.raises(UnsupportedFeatureError):
+        request_from_openai_chat({"model": "m", "messages": [{"role": "user", "content": "x"}, {"role": "assistant", "content": "a", "annotations": [{"type": "file_citation", "file_citation": {}}]}]})

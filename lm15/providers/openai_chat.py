@@ -32,6 +32,7 @@ from ..transports import TransportRequest
 from ..types import (
     BuiltinTool,
     CacheConfig,
+    CitationPart,
     Config,
     FunctionTool,
     ImagePart,
@@ -366,6 +367,43 @@ def _ingest_content_blocks(
     return parts, breakpoint_at_end
 
 
+# Assistant-row keys that are a client library's object model, not the wire
+# (litellm's ChatCompletionMessage dumped back into history). Their null or
+# empty form carries nothing and reads as absent; a non-empty one is refused.
+_INGEST_CLIENT_OBJECT_KEYS: frozenset[str] = frozenset({"provider_specific_fields", "thinking_blocks", "images"})
+
+
+def _ingest_all_empty(value: Any) -> bool:
+    """A dict whose every value is null/empty (litellm: {"refusal": null})."""
+    return isinstance(value, dict) and all(v is None or v == [] or v == {} for v in value.values())
+
+
+def _ingest_annotations(provider: str, raw: Any, content_text: str | None, where: str) -> list[CitationPart]:
+    """OpenAI's assistant ``annotations`` (url_citation entries with a span
+    into the content) → CitationParts; an empty list is nothing."""
+    if not isinstance(raw, list):
+        raise TypeError(f"{where}.annotations must be an array")
+    out: list[CitationPart] = []
+    for index, entry in enumerate(raw):
+        entry_where = f"{where}.annotations[{index}]"
+        entry = _ingest_object(entry, entry_where)
+        if entry.get("type") != "url_citation":
+            raise _ingest_unsupported(provider, f"{entry_where} of type {entry.get('type')!r}", "only url_citation annotations have a canonical part (CitationPart)")
+        _ingest_only_keys(provider, entry, frozenset({"type", "url_citation"}), entry_where)
+        spec = _ingest_object(entry.get("url_citation"), f"{entry_where}.url_citation")
+        _ingest_only_keys(provider, spec, frozenset({"url", "title", "start_index", "end_index"}), f"{entry_where}.url_citation")
+        text: str | None = None
+        start, end = spec.get("start_index"), spec.get("end_index")
+        if content_text is not None and isinstance(start, int) and isinstance(end, int) and 0 <= start <= end <= len(content_text):
+            text = content_text[start:end] or None
+        out.append(CitationPart(
+            url=_ingest_str(spec.get("url"), f"{entry_where}.url_citation.url"),
+            title=_ingest_str(spec["title"], f"{entry_where}.url_citation.title") if spec.get("title") is not None else None,
+            text=text,
+        ))
+    return out
+
+
 def _ingest_tool_calls(provider: str, calls: Any, where: str) -> list[ToolCallPart]:
     if not isinstance(calls, list):
         raise TypeError(f"{where}.tool_calls must be an array")
@@ -463,13 +501,20 @@ def _ingest_messages(
             flush_results()
             _ingest_only_keys(
                 provider, row,
-                frozenset({"role", "content", "tool_calls", "refusal", "reasoning_content", "name", "audio", "function_call"}),
+                frozenset({"role", "content", "tool_calls", "refusal", "reasoning_content", "name", "audio", "function_call",
+                           "annotations", *_INGEST_CLIENT_OBJECT_KEYS}),
                 where,
             )
             if row.get("audio") is not None:
                 raise _ingest_unsupported(provider, f"{where}.audio", "an assistant audio reference has no canonical part")
             if row.get("function_call") is not None:
                 raise _ingest_unsupported(provider, f"{where}.function_call", "the deprecated function-calling shape; use tool_calls")
+            for key in _INGEST_CLIENT_OBJECT_KEYS:
+                # A client library's object model (litellm) dumped into history:
+                # null or empty carries nothing; anything else has no mapping.
+                value = row.get(key)
+                if value is not None and value != [] and value != {} and not _ingest_all_empty(value):
+                    raise _ingest_unsupported(provider, f"{where}.{key}", "a client library's own field with no canonical part; only its empty form reads as absent")
             parts: list[Part] = []
             reasoning_text = row.get("reasoning_content")
             if reasoning_text is not None:
@@ -485,6 +530,8 @@ def _ingest_messages(
                 parts.append(RefusalPart(text=_ingest_str(refusal_text, f"{where}.refusal")))
             if row.get("tool_calls") is not None:
                 parts.extend(_ingest_tool_calls(provider, row["tool_calls"], where))
+            if row.get("annotations") is not None:
+                parts.extend(_ingest_annotations(provider, row["annotations"], content if isinstance(content, str) else None, where))
             if not parts:
                 parts.append(TextPart(text=""))  # the never-empty rule (MAP-2), applied to history
             messages.append(Message(role="assistant", parts=tuple(parts)))
