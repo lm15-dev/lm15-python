@@ -46,7 +46,7 @@ messages = [
 ]
 
 router = lm15.LMRouter()  # reuse this across calls
-request = router.complete(lm15.request_from_openai_chat(
+request = router.complete(
     model="gpt-4o-mini",
     messages=messages,
     max_completion_tokens=100,
