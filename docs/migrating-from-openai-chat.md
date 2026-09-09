@@ -42,32 +42,32 @@ messages = [
 ]
 ```
 
-=== "Before — OpenAI SDK"
+**Before — OpenAI SDK**
 
-    ```python
-    from openai import OpenAI
+```python
+from openai import OpenAI
 
-    client = OpenAI()
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        max_completion_tokens=100,
-    )
-    print(response.choices[0].message.content)
-    ```
+client = OpenAI()
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages,
+    max_completion_tokens=100,
+)
+print(response.choices[0].message.content)
+```
 
-=== "Before — LiteLLM"
+**Before — LiteLLM**
 
-    ```python
-    import litellm
+```python
+import litellm
 
-    response = litellm.completion(
-        model="gpt-4o-mini",
-        messages=messages,
-        max_completion_tokens=100,
-    )
-    print(response.choices[0].message.content)
-    ```
+response = litellm.completion(
+    model="gpt-4o-mini",
+    messages=messages,
+    max_completion_tokens=100,
+)
+print(response.choices[0].message.content)
+```
 
 **After — lm15**
 
@@ -121,17 +121,17 @@ That call worked without you setting anything up, and this is not
 luck: the migration changes nothing about keys unless you passed one
 in code.
 
-=== "Before — OpenAI SDK"
+**Before — OpenAI SDK**
 
-    ```python
-    client = OpenAI()          # reads $OPENAI_API_KEY
-    ```
+```python
+client = OpenAI()          # reads $OPENAI_API_KEY
+```
 
-=== "Before — LiteLLM"
+**Before — LiteLLM**
 
-    ```python
-    litellm.completion(model="gpt-4o-mini", …)   # reads $OPENAI_API_KEY
-    ```
+```python
+litellm.completion(model="gpt-4o-mini", …)   # reads $OPENAI_API_KEY
+```
 
 **After — lm15**
 
@@ -193,22 +193,22 @@ RouterConfig(api_keys={'anthropic': "..."}).
 This is the one place keys move. Both libraries take a key on the
 client or on the call; lm15 takes it on the router, once per provider.
 
-=== "Before — OpenAI SDK"
+**Before — OpenAI SDK**
 
-    ```python
-    client = OpenAI(api_key="sk-…")
-    response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
-    ```
+```python
+client = OpenAI(api_key="sk-…")
+response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+```
 
-=== "Before — LiteLLM"
+**Before — LiteLLM**
 
-    ```python
-    response = litellm.completion(
-        model="anthropic/claude-sonnet-4-5",
-        messages=messages,
-        api_key="sk-ant-…",
-    )
-    ```
+```python
+response = litellm.completion(
+    model="anthropic/claude-sonnet-4-5",
+    messages=messages,
+    api_key="sk-ant-…",
+)
+```
 
 **After — lm15**
 
@@ -253,12 +253,11 @@ router.complete_from_openai_chat("gpt-4o-mini", messages, api_key="sk-…")
 NotConfiguredError: 'api_key' configures the client, not the request; in lm15 it lives in LMRouter(RouterConfig(api_keys={provider: key})) or the environment
 ```
 
-!!! note "Why not per call?"
-    The router builds one adapter per provider and reuses it — that is
-    where the connection pool lives. A key on the call would either
-    rebuild the adapter every time or silently rebind a shared one to a
-    different account. Neither is what you meant. Need two accounts on
-    one provider? Two routers.
+**Why not per call?** The router builds one adapter per provider and
+reuses it — that is where the connection pool lives. A key on the call
+would either rebuild the adapter every time or silently rebind a shared
+one to a different account. Neither is what you meant. Need two accounts
+on one provider? Two routers.
 
 ### A different server
 
@@ -266,22 +265,22 @@ NotConfiguredError: 'api_key' configures the client, not the request; in lm15 it
 in front of OpenAI or a server of your own. It moves the same way the
 key did:
 
-=== "Before — OpenAI SDK"
+**Before — OpenAI SDK**
 
-    ```python
-    client = OpenAI(base_url="https://gw.example/v1")
-    response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
-    ```
+```python
+client = OpenAI(base_url="https://gw.example/v1")
+response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+```
 
-=== "Before — LiteLLM"
+**Before — LiteLLM**
 
-    ```python
-    response = litellm.completion(
-        model="hosted_vllm/meta-llama/Llama-3.1-8B-Instruct",
-        messages=messages,
-        api_base="http://gpu-box:8000/v1",
-    )
-    ```
+```python
+response = litellm.completion(
+    model="hosted_vllm/meta-llama/Llama-3.1-8B-Instruct",
+    messages=messages,
+    api_base="http://gpu-box:8000/v1",
+)
+```
 
 **After — lm15**
 
