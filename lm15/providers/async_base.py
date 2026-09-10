@@ -46,7 +46,7 @@ from ..types import (
     StreamEvent,
 )
 from .anthropic import AnthropicLM
-from .base import BaseProviderLM, Credential, HttpResponse
+from .base import BaseProviderLM, Credential, HttpResponse, _attach_retry_after
 from .claude_code import DEFAULT_CLAUDE_CODE_VERSION, ClaudeCodeLM
 from .gemini import GeminiLM
 from .openai import OpenAILM
@@ -148,7 +148,9 @@ class AsyncBaseProviderLM:
         req = await self._build(self._inner.build_request, request, stream=False)
         resp = await self._send(req)
         if resp.status >= 400:
-            raise self._inner.normalize_error(resp.status, resp.text())
+            error = self._inner.normalize_error(resp.status, resp.text())
+            _attach_retry_after(error, resp.headers)
+            raise error
         return self._inner.parse_response(request, resp)
 
     def stream(self, request: Request) -> AsyncIterator[StreamEvent]:
@@ -165,9 +167,11 @@ class AsyncBaseProviderLM:
             async with self.transport.stream(req) as resp:
                 if resp.status >= 400:
                     body = await resp.read()
-                    raise self._inner.normalize_error(
+                    error = self._inner.normalize_error(
                         resp.status, body.decode("utf-8", errors="replace")
                     )
+                    _attach_retry_after(error, resp.headers)
+                    raise error
                 async for raw in aparse_sse(_aiter_lines(resp)):
                     for event in self._inner.parse_stream_events(request, raw):
                         if event is not None:
