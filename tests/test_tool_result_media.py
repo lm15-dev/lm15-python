@@ -154,7 +154,9 @@ def test_registry_presets_carry_the_measured_verdicts(provider, expected):
     """Through the router, the way a user reaches the binding (adapter-owned
     entries such as XaiLM bind their preset in the constructor)."""
     model = {"deepseek-anthropic": "deepseek-v4-flash", "moonshotai-anthropic": "kimi-k3"}.get(provider, "m")
-    lm = LMRouter(RouterConfig(api_keys={provider: "k"}, env={})).lm(f"{provider}:{model}")
+    # The test must not depend on a developer's ~/.aws/config for its region.
+    settings = {provider: {"region": "us-east-1"}} if provider == "bedrock-chat" else None
+    lm = LMRouter(RouterConfig(api_keys={provider: "k"}, env={}, settings=settings)).lm(f"{provider}:{model}")
     req = request(tool_result("call_1", IMAGE), model=model)
     if expected == "reject":
         with pytest.raises(UnsupportedFeatureError, match="tool_result_media='reject'"):
