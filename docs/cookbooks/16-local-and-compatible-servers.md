@@ -4,6 +4,11 @@
 
 Keys loaded as in [recipe 01](01-first-request.md).
 
+**No preset for your server?** Follow
+[Connect an unlisted OpenAI-compatible server](../connecting-openai-compatible-servers.md)
+for a custom `OpenAIChatCompat` object, unknown-name errors, LM Studio's address
+caveat, and offline request checks.
+
 ## Recipe
 
 This is the one recipe where you construct the LM directly instead of going through the router. `compat="groq"` sets both the wire-format policy and the default `base_url`:
@@ -81,7 +86,7 @@ Traceback (most recent call last):
 lm15.router.UnknownModelError: could not route model 'llama-3.3-70b-versatile': no provider prefix, no catalog supplied, and none of the 9 built-in rules matched. Use an explicit provider prefix, …
 ```
 
-The `openai-chat:` prefix exists (the `openai_chat` spelling is a permanent alias), but it routes to OpenAI's own Chat Completions endpoint — there is deliberately no router syntax for a non-default `base_url`:
+The `openai-chat:` prefix exists (the `openai_chat` spelling is a permanent alias). By default it routes to OpenAI's Chat Completions endpoint. A different URL goes in `RouterConfig(base_urls={"openai-chat": ...})`, not in the model string:
 
 ```python
 print(LMRouter().resolve("openai-chat:gpt-4.1-mini"))
@@ -127,15 +132,16 @@ OpenAIChatCompat(instruction_role='system', max_tokens_field='max_tokens', strea
 
 The policy fields are the divergences that actually bite: Groq and ollama still want `max_tokens` where OpenAI now wants `max_completion_tokens`; ollama has no reasoning fields (`thinking_format="none"`) while OpenRouter has its own (`"openrouter"`); prompt-cache markers are OpenAI-only (`cache_control`); an image inside a tool result is a content array on xAI, Kimi and Z.AI and a refusal on Groq, DeepSeek and the base OpenAI wire (`tool_result_media`, measured 2026-09-07 — MAP-10). Fields left None inherit; `"auto"` is an explicit "use the adapter heuristic" — the distinction matters because policies layer (`lm15/compat.py`).
 
-The router stays out of this on purpose. Its job is explainable name-to-provider resolution from four fixed rungs; a base URL and a key for *your* server is configuration, not resolution, so the documented path is one line of direct construction. See [Using the router](../using-the-router.md), "When to use direct LM objects instead".
+The router can change a registered provider's address through `RouterConfig(base_urls=...)`, keeping its existing policy. Use direct construction for a custom compat object or multiple differently configured instances of the same provider. See [Using the router](../using-the-router.md), "When to use direct LM objects instead".
 
 ## Variations
 
 - **Async mirror.** `AsyncOpenAIChatLM` — same constructor, same `compat`/`base_url` handling, awaitable `complete`, async `stream`.
 - **Override one field of a preset.** Pass an `OpenAIChatCompat` instead of a name: start from `OpenAIChatCompat.preset("vllm")` and rebuild with `dataclasses.replace(...)`. Note that a compat *object* does not set `base_url` — only a preset name does.
 - **OpenRouter** is the same shape with a hosted twist: `OpenAIChatLM(api_key=os.environ["OPENROUTER_API_KEY"], compat="openrouter")`. Its preset keeps `cache_control="openai"` and speaks OpenRouter's reasoning format; the `routing` field carries OpenRouter-specific routing JSON.
-- **More presets than shown here**: `lmstudio`, `deepseek`, `qwen`, `zai` — see `OpenAIChatCompat.preset` in `lm15/compat.py`. Unknown names raise `ValueError` at construction, not at request time.
-- **Routing your own prefix.** `RouteRule("glm-", "openai-chat", ...)` prepended to `DEFAULT_RULES` makes the router accept your model names — but it still builds the LM against api.openai.com. Custom `base_url` means direct construction, full stop.
+- **More presets than shown here**: `deepseek`, `qwen`, `zai` — see `OpenAIChatCompat.preset` in `lm15/compat.py`. Unknown names raise `ValueError` at construction, not at request time. Omit `compat` for default OpenAI behavior or pass a custom object; do not invent a preset name.
+- **LM Studio.** `lmstudio` currently aliases Ollama's policy but has no matching default URL entry. Always supply the LM Studio `base_url` explicitly; the alias alone can leave the address pointing at OpenAI. See the [custom-server tutorial](../connecting-openai-compatible-servers.md#lm-studios-existing-name).
+- **Routing your own prefix.** A `RouteRule` chooses a registered provider, not an address or a new compatibility policy. Set its address through `RouterConfig(base_urls=...)`; use a direct `OpenAIChatLM` for custom compat.
 
 ## See also
 
@@ -143,4 +149,4 @@ The router stays out of this on purpose. Its job is explainable name-to-provider
 - [05 — Streaming](05-streaming.md) — `ResponseStream` over typed stream events
 - [17 — Errors, retries & testing](17-errors-and-testing.md)
 - [18 — Provider passthrough](18-provider-passthrough.md) — server-specific knobs
-- [Using the router](../using-the-router.md) — why `base_url` is not router syntax
+- [Using the router](../using-the-router.md) — address overrides and when to use a direct LM

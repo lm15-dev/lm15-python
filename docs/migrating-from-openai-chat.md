@@ -252,6 +252,12 @@ NotConfiguredError: 'api_key' configures the client, not the request; in lm15 it
 
 ### A different server
 
+For an unlisted server that needs custom format settings, see
+[Connect an unlisted OpenAI-compatible server](connecting-openai-compatible-servers.md).
+That tutorial explains why unknown `compat` strings fail and how to pass an
+`OpenAIChatCompat` object instead. The router examples below keep the registered
+provider's existing policy and change only its address.
+
 `base_url` on the client, or `api_base` on the litellm call, is a proxy in front of OpenAI or a server of your own. It moves the same way the key did:
 
 **Before — OpenAI SDK**

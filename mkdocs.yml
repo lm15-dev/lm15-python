@@ -64,6 +64,7 @@ nav:
       - Tools from functions: tools-from-functions.md
       - Providers: using-the-a-provider.md
       - Model profiles & compat: using-model-profiles.md
+      - Connect an unlisted OpenAI-compatible server: connecting-openai-compatible-servers.md
       - Transports: using-the-transports.md
       - Design rationale: design-rationale.md
       - Security assessment: security-assessment.md

@@ -75,6 +75,9 @@ that materializes into the identical `Response`.
   captured output.
 - **Which providers? What does a model cost?**
   [Providers & models](providers-and-models.md).
+- **LM Studio or an unlisted OpenAI-compatible server?**
+  [Connect your own server](connecting-openai-compatible-servers.md) — default
+  behavior, custom compat objects, and offline request checks.
 - **Keys, rotating tokens, subscriptions:**
   [Authentication](authentication.md).
 - **Coming from litellm or the OpenAI SDK?**

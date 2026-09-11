@@ -53,7 +53,14 @@ response = lm.complete(
 
 ## Local OpenAI-compatible server
 
-Use `ProviderProfile.inference()` with an `OpenAIResponsesCompat` preset.
+For **Chat Completions** (`/chat/completions`), start with
+[Connect an unlisted OpenAI-compatible server](connecting-openai-compatible-servers.md).
+It shows `OpenAIChatLM` with no preset, an unknown-name error, and a custom
+`OpenAIChatCompat` object. You do not need a profile or a registry entry.
+
+The example below is for **Responses** (`/responses`), a different API.
+Use it only if your server implements that endpoint. Use
+`ProviderProfile.inference()` with an `OpenAIResponsesCompat` preset.
 
 ```python
 from lm15.compat import OpenAIResponsesCompat

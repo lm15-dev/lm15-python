@@ -176,17 +176,25 @@ still move before 1.0 stable ([roadmap](roadmap.md)).
 
 ## What if my provider isn't listed?
 
-Most hosted services and gateways speak the Chat Completions dialect.
-If yours does, it already works — point the adapter at it:
+For a server implementing OpenAI Chat Completions, start with the
+existing adapter; no provider registration is required:
 
 ```python
+from lm15 import OpenAIChatLM
+
 lm = OpenAIChatLM(api_key="...", base_url="https://your-gateway/v1")
 ```
 
-[Model profiles & compat](using-model-profiles.md) covers tuning the
-dialect quirks if the server has any. Azure OpenAI, Bedrock, and
-Vertex are on the [roadmap](roadmap.md); new providers land in lm15
-fixtures-first, with live receipts, so support is never a guess.
+Omitting `compat` uses the default Chat Completions policy. An unknown
+`compat="server-name"` raises `ValueError`; pass an `OpenAIChatCompat`
+object if your server needs different settings.
+
+[Connect an unlisted OpenAI-compatible server](connecting-openai-compatible-servers.md)
+walks through a custom policy, the LM Studio address caveat, and checking
+requests without sending them. Compatibility depends on the server and
+features you use, not just its advertised API family.
+[Model profiles & compat](using-model-profiles.md) covers policy layering;
+[Cloud hosts](cloud-hosts.md) covers Azure, Bedrock, and Vertex.
 
 ## How do I write the model string?
 
