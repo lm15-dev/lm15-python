@@ -5,6 +5,7 @@ import json
 import pytest
 
 from lm15 import (
+    StreamAssemblyError,
     LMRouter, AsyncLMRouter, RouterConfig, Response, ResponseStream,
     AsyncResponseStream, NotConfiguredError,
 )
@@ -249,8 +250,9 @@ def test_close_releases_retained_source_without_draining():
         assert next(iter(result)) == "first"
     assert closed == [True]
     result.close()
-    with pytest.raises(RuntimeError, match="closed"):
+    with pytest.raises(StreamAssemblyError, match="closed before its end event") as early:
         result.response
+    assert early.value.partial.text == "first"  # what had arrived is salvageable
     complete = ResponseStream(iter([StreamEndEvent(finish_reason="stop")]), Request("x", (Message.user("x"),)))
     next(complete.events())
     complete.close()
@@ -294,7 +296,7 @@ def test_close_before_iteration_never_starts_request():
     result.close()
     assert not transport.requests
     assert list(result) == []
-    with pytest.raises(RuntimeError, match="closed"):
+    with pytest.raises(StreamAssemblyError, match="closed before its end event"):
         result.response
 
 
@@ -327,6 +329,6 @@ def test_async_close_and_cancel_release_source():
             await result.aclose()
             assert closed == [True]
             if not cancel:
-                with pytest.raises(RuntimeError, match="closed"):
+                with pytest.raises(StreamAssemblyError, match="closed before its end event"):
                     await result.response()
     asyncio.run(run())

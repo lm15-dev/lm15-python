@@ -34,7 +34,9 @@ the primary error or cancellation if cleanup also fails. A failure that follows
 the end event — the source raising while it drains, or `close()` raising — never
 withholds the completed Response: it is returned, the failure is emitted as a
 `StreamCleanupWarning` and recorded on `ResponseStream.cleanup_errors` /
-`AsyncResponseStream.cleanup_errors` (an earlier revision on `main` re-raised it
+`AsyncResponseStream.cleanup_errors`. A stream closed by the caller before its
+end event raises `StreamAssemblyError` (with `partial`) from `.response`, not a
+bare `RuntimeError` (an earlier revision on `main` re-raised it
 as a `StreamAssemblyError` carrying the complete response in `partial`; that
 withheld a billed answer over a connection's afterlife and is gone). Use
 `StreamAccumulator.response()` explicitly when inspecting an unfinished stream;

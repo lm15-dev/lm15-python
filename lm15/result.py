@@ -308,7 +308,7 @@ class ResponseStream:
         promise that the provider stops generating or billing immediately.
         """
         if not self._done and self._response is None and self._failure is None:
-            self._failure = RuntimeError("stream closed before completion")
+            self._failure = _closed_early(self._accumulator)
         try:
             self._event_iter.close()
         finally:
@@ -439,7 +439,7 @@ class AsyncResponseStream:
     async def aclose(self) -> None:
         """Stop reading and release the source, without draining it."""
         if not self._done and self._response is None and self._failure is None:
-            self._failure = RuntimeError("stream closed before completion")
+            self._failure = _closed_early(self._accumulator)
         try:
             await self._event_gen.aclose()
         finally:
@@ -582,6 +582,25 @@ def _incomplete(accumulator):
     return StreamAssemblyError(
         "Stream ended without an end event: its finish reason and usage never "
         "arrived, so the text is not a finished turn (MAP-3)",
+        partial=partial,
+    )
+
+
+def _closed_early(accumulator):
+    """The caller closed the stream before its end event: the same fact as
+    a stream that ended without one (MAP-3) — no finish reason, no usage,
+    the text not a finished turn — so the same error, inside the family
+    (every failure lm15 raises is an LM15Error). ``partial`` is what had
+    arrived."""
+    try:
+        partial = accumulator.response()
+    except StreamAssemblyError as exc:
+        partial = exc.partial
+    except Exception:
+        partial = None
+    return StreamAssemblyError(
+        "Stream closed before its end event: the response was not completed "
+        "(close() was called while the stream was still open; MAP-3)",
         partial=partial,
     )
 
