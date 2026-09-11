@@ -4,10 +4,12 @@ import asyncio
 
 import pytest
 
+import warnings
+
 from lm15 import (
     AuthError, Message, OpenAIChatLM, RateLimitError, Request, StreamAssemblyError,
-    StreamDeltaEvent, StreamEndEvent, StreamErrorEvent, StreamStartEvent,
-    TextDelta, TransportError, Usage,
+    StreamCleanupWarning, StreamDeltaEvent, StreamEndEvent, StreamErrorEvent,
+    StreamStartEvent, TextDelta, TransportError, Usage,
 )
 from lm15.providers.async_base import AsyncOpenAIChatLM
 from lm15.providers.base import _attach_error_metadata, _retry_after_seconds
@@ -139,7 +141,7 @@ def consume(source, asynchronous, wrapper):
 @pytest.mark.parametrize("wrapper", ["one-shot", "response-stream", "coalesced"])
 def test_missing_end_is_not_materialized_as_success(asynchronous, wrapper):
     source = Source([StreamStartEvent(), StreamDeltaEvent(TextDelta("partial"))])
-    with pytest.raises(StreamAssemblyError, match="without a completion event") as caught:
+    with pytest.raises(StreamAssemblyError, match="without an end event") as caught:
         consume(source, asynchronous, wrapper)
     assert caught.value.partial.text == "partial"
     assert source.closed == 1
@@ -163,24 +165,91 @@ def test_cleanup_does_not_replace_primary_failure(asynchronous, wrapper, kind):
     assert source.closed == 1
 
 
+COMPLETE = [StreamStartEvent(), StreamDeltaEvent(TextDelta("ok")),
+            StreamEndEvent(finish_reason="stop", usage=Usage(input_tokens=2, output_tokens=1))]
+
+
 @pytest.mark.parametrize("asynchronous", [False, True])
 @pytest.mark.parametrize("wrapper", ["one-shot", "response-stream", "coalesced"])
-def test_cleanup_after_completion_is_nonretryable_and_carries_response(asynchronous, wrapper):
-    cleanup = TransportError("close failed")
-    source = Source([StreamStartEvent(), StreamDeltaEvent(TextDelta("ok")),
-                     StreamEndEvent(finish_reason="stop", usage=Usage(input_tokens=2, output_tokens=1))], cleanup=cleanup)
-    with pytest.raises(StreamAssemblyError) as caught:
-        consume(source, asynchronous, wrapper)
-    assert caught.value.__cause__ is cleanup
-    assert caught.value.partial.text == "ok"
-    assert caught.value.partial.usage.total_tokens == 3
+@pytest.mark.parametrize("where", ["close", "drain"])
+def test_failure_after_completion_never_withholds_the_response(asynchronous, wrapper, where):
+    """The end event arrived: the provider finished and billed the turn.  A
+    failure that follows it (close() raising, or the source raising while it
+    drains) is reported as a warning, never raised in place of the Response
+    (contract 2026-09-11-stream-completion)."""
+    failure = TransportError("connection reset after [DONE]")
+    source = Source(COMPLETE, cleanup=failure if where == "close" else None,
+                    error=failure if where == "drain" else None)
+    if where == "drain" and wrapper == "coalesced":
+        # The coalescer emits its merged end event only once the raw source
+        # is exhausted (MAP-3): a read failure before EOF happens BEFORE
+        # completion — the terminal frames may be incomplete — so it stays
+        # a retryable TransportError, and nothing is warned.
+        with pytest.raises(TransportError) as raised:
+            consume(source, asynchronous, wrapper)
+        assert raised.value is failure
+        assert source.closed == 1
+        return
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = consume(source, asynchronous, wrapper)
+    response = result if wrapper != "response-stream" else result
+    assert response.text == "ok"
+    assert response.usage.total_tokens == 3
+    assert response.finish_reason == "stop"
     assert source.closed == 1
+    assert [w.category for w in caught] == [StreamCleanupWarning]
+    assert "TransportError" in str(caught[0].message)
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_stream_object_records_cleanup_errors(asynchronous):
+    failure = OSError("close failed")
+    source = Source(COMPLETE, cleanup=failure)
+
+    async def run():
+        stream = AsyncResponseStream(source, REQUEST)
+        response = await stream.response()
+        return stream, response
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", StreamCleanupWarning)
+        if asynchronous:
+            stream, response = asyncio.run(run())
+        else:
+            stream = ResponseStream(source, REQUEST)
+            response = stream.response
+    assert response.text == "ok"
+    assert stream.cleanup_errors == (failure,)
+    # Reading again neither re-warns nor re-closes.
+    assert (stream.response if not asynchronous else asyncio.run(stream.response())).text == "ok"
+    assert source.closed == 1
+
+
+def test_cleanup_warning_can_be_made_fatal_by_the_caller():
+    source = Source(COMPLETE, cleanup=OSError("close failed"))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", StreamCleanupWarning)
+        with pytest.raises(StreamCleanupWarning):
+            materialize_response(source, REQUEST)
+
+
+def test_raw_coalesced_consumer_gets_the_end_event_then_a_warning_not_an_error():
+    """A caller iterating coalesced events directly sees the merged end event;
+    the underlying close() failure that follows is a warning, not an exception
+    surfacing after the stream already said it was done."""
+    source = Source(COMPLETE, cleanup=OSError("close failed"))
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        events = list(coalesce_stream(source))
+    assert events[-1].type == "end"
+    assert [w.category for w in caught] == [StreamCleanupWarning]
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
 @pytest.mark.parametrize("wrapper", ["one-shot", "response-stream"])
 def test_event_after_end_is_rejected(asynchronous, wrapper):
     source = Source([StreamStartEvent(), StreamEndEvent(finish_reason="stop"), StreamDeltaEvent(TextDelta("late"))])
-    with pytest.raises(StreamAssemblyError, match="after completion"):
+    with pytest.raises(StreamAssemblyError, match="after its end event"):
         consume(source, asynchronous, wrapper)
     assert source.closed == 1

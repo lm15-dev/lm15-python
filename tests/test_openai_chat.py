@@ -11,10 +11,11 @@ from lm15.errors import (
     AuthError,
     BillingError,
     ContextLengthError,
+    NotConfiguredError,
     RateLimitError,
     UnsupportedModelError,
 )
-from lm15.providers import HttpResponse, OpenAIChatLM
+from lm15.providers import HttpResponse, OpenAIChatLM, OpenAILM
 from lm15.sse import parse_sse
 from lm15.types import (
     Config,
@@ -288,6 +289,9 @@ def test_build_request_extensions_passthrough_wins_last() -> None:
 def test_preset_resolution_sets_default_base_url() -> None:
     cases = {
         "ollama": "http://localhost:11434/v1",
+        "lmstudio": "http://localhost:1234/v1",
+        "lm-studio": "http://localhost:1234/v1",
+        "LM Studio": "http://localhost:1234/v1",
         "groq": "https://api.groq.com/openai/v1",
         "openrouter": "https://openrouter.ai/api/v1",
         "vllm": "http://localhost:8000/v1",
@@ -295,6 +299,41 @@ def test_preset_resolution_sets_default_base_url() -> None:
     }
     for name, url in cases.items():
         assert _lm(compat=name).base_url == url
+
+
+def test_lmstudio_is_ollamas_policy_at_its_own_address() -> None:
+    from lm15.compat import OPENAI_CHAT_PRESETS, OPENAI_RESPONSES_PRESETS
+
+    assert OpenAIChatCompat.preset("lmstudio") is OPENAI_CHAT_PRESETS["ollama"]
+    assert OPENAI_RESPONSES_PRESETS["lmstudio"] is OPENAI_RESPONSES_PRESETS["ollama"]
+    assert _lm(compat="lmstudio").base_url != _lm(compat="ollama").base_url
+
+
+@pytest.mark.parametrize(("cls", "name"), [
+    (OpenAIChatLM, "qwen"),        # a chat preset with no documented address
+    (OpenAIChatLM, "bedrock"),     # host-templated: only the registry knows the region
+    (OpenAILM, "deepseek"),        # a Responses preset for a server with no Responses root
+    (OpenAILM, "zai"),
+])
+def test_a_named_server_without_an_address_is_refused_not_sent_to_openai(cls, name) -> None:
+    """A request addressed to a named server must never fall through to the
+    OpenAI cloud with whatever key is around (2026-09-11: `lmstudio` did)."""
+    with pytest.raises(NotConfiguredError, match="pass base_url="):
+        cls(api_key="k", compat=name)
+    lm = cls(api_key="k", compat=name, base_url="http://gateway.internal/v1")
+    assert lm.base_url == "http://gateway.internal/v1"
+
+
+def test_the_responses_door_knows_the_local_engines_roots() -> None:
+    for name, url in {
+        "ollama": "http://localhost:11434/v1",
+        "lmstudio": "http://localhost:1234/v1",
+        "vllm": "http://localhost:8000/v1",
+        "sglang": "http://localhost:30000/v1",
+        "openai": "https://api.openai.com/v1",
+        "responses": "https://api.openai.com/v1",
+    }.items():
+        assert OpenAILM(api_key="k", compat=name).base_url == url, name
 
 
 def test_preset_explicit_base_url_overrides_preset_default() -> None:

@@ -154,14 +154,22 @@ example; they do not mean "disable" or "detect". In layered profiles, `None`
 means inherit from the preceding layer. `"auto"`, on fields that accept it,
 selects the adapter's heuristic, not a network capability probe.
 
-### LM Studio's existing name
+### LM Studio's name
 
-Currently `compat="lmstudio"` is recognized as an alias for Ollama's policy,
-not an independent, verified LM Studio preset. It has no matching default URL
-entry, so using that name without `base_url` can leave the destination as OpenAI.
-**Always supply the explicit LM Studio address.** Using your own compat object
-also avoids depending on that alias. Test your server version's behavior before
-choosing settings; the policy above is not a blanket LM Studio recommendation.
+`compat="lmstudio"` (also spelled `lm-studio`) is a preset in its own right:
+it uses the same wire policy as `ollama` (LM Studio documents the same Chat
+Completions fields: `max_tokens`, no reasoning dial) at LM Studio's own
+documented default address, `http://localhost:1234/v1`. If your server runs
+elsewhere, pass `base_url=` — an explicit address always wins. The policy is
+taken from LM Studio's documentation, not yet pinned by a live receipt; test
+your server version's behaviour before relying on a setting, and use your own
+compat object if it differs.
+
+Any preset name that names a server lm15 has no address for in the dialect
+you chose (for example `compat="qwen"` on the Chat door, or `compat="deepseek"`
+on the Responses door) is refused at construction with `NotConfiguredError`
+until you pass `base_url=`. lm15 never falls back to the OpenAI cloud for a
+request you addressed to another server.
 
 ## 4. Adapt a known preset when it really is the same server
 

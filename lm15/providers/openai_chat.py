@@ -20,6 +20,7 @@ from typing import Any, Callable, ClassVar, Iterator, Mapping
 
 from ..compat import (
     OPENAI_CHAT_PRESET_BASE_URLS,
+    preset_base_url,
     OpenAIChatCompat,
     ResolvedOpenAIChatCompat,
     resolve_openai_chat_compat,
@@ -1094,10 +1095,11 @@ class OpenAIChatLM(BaseProviderLM):
         self._bind_access(self.access, credentials_path=self.credentials_path, default_base_url=_DEFAULT_BASE_URL, settings=self.settings)
         compat = self.compat if self.compat is not None else self._registry_compat()
         if isinstance(compat, str):
-            preset_key = compat.lower().replace("-", "_").replace(" ", "_")
             partial = OpenAIChatCompat.preset(compat)
             if self.base_url == _DEFAULT_BASE_URL:
-                self.base_url = OPENAI_CHAT_PRESET_BASE_URLS.get(preset_key, _DEFAULT_BASE_URL)
+                self.base_url = preset_base_url(
+                    OPENAI_CHAT_PRESET_BASE_URLS, compat, dialect="Chat Completions", default_preset="openai"
+                )
         elif isinstance(compat, OpenAIChatCompat):
             partial = compat
         else:

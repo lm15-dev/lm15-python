@@ -14,19 +14,32 @@ contract material or freeze provisional endpoints.
   and Responses compatibility policies.
 - Publish from the single source version in `lm15/_version.py`; check release
   artifacts and the installed wheel's version before upload.
-- **Known limitation:** `compat="lmstudio"` aliases Ollama's policy without a
-  default LM Studio address. Always pass the LM Studio `base_url` explicitly;
-  otherwise the client can retain OpenAI's address. This candidate documents
-  the workaround, not a fix or newly verified LM Studio support.
+- **A named server never resolves to the OpenAI cloud.** `compat="lmstudio"`
+  is its own preset (ollama's wire policy, LM Studio's documented address
+  `http://localhost:1234/v1`); before, the name missed the address table and
+  the request went to `api.openai.com`. The Responses door gains the local
+  engines' roots (`ollama`, `lmstudio`, `vllm`, `sglang`). A preset name with
+  no known address in the chosen dialect (`qwen` on Chat; `qwen`, `deepseek`,
+  `zai` on Responses; the host-templated `bedrock*` outside the registry) now
+  raises `NotConfiguredError` at construction unless `base_url=` is given.
+  `preset_base_url` in `lm15.compat` is the one lookup all three dialect
+  adapters use.
 
 **Error and completion hardening.** HTTP errors retain request IDs from headers
 when the provider body did not supply one; invalid/non-finite retry hints are
 ignored. `stream_assembly` now maps back to `StreamAssemblyError` consistently.
-Stream-to-response helpers require a final end event and reject trailing events,
-close their sources, and preserve the primary error or cancellation if cleanup
-also fails. Post-completion failures are non-retryable assembly failures carrying
-the completed response in `partial`. Use `StreamAccumulator.response()` explicitly
-when inspecting an unfinished stream; materializers no longer report it as success.
+Stream-to-response helpers require a final end event and reject trailing events
+(both `StreamAssemblyError`, with `partial`), close their sources, and preserve
+the primary error or cancellation if cleanup also fails. A failure that follows
+the end event — the source raising while it drains, or `close()` raising — never
+withholds the completed Response: it is returned, the failure is emitted as a
+`StreamCleanupWarning` and recorded on `ResponseStream.cleanup_errors` /
+`AsyncResponseStream.cleanup_errors` (an earlier revision on `main` re-raised it
+as a `StreamAssemblyError` carrying the complete response in `partial`; that
+withheld a billed answer over a connection's afterlife and is gone). Use
+`StreamAccumulator.response()` explicitly when inspecting an unfinished stream;
+materializers no longer report it as success. Contract:
+`lm15-contract/changes/2026-09-11-stream-completion-and-error-metadata.md`.
 
 **Three defects found by the Rust port (2026-09-07).** `Config.stop` and `ToolChoice.allowed` given as a bare string were iterated into characters by `from_dict` (INV-020 says one element); `response.usage: null` crashed `response_from_dict` (INV-042 says a telemetry nest reads as absent); the vet shim could not build the Vertex adapter (it passed `compat=None` to the Gemini dialect). All three fixed; no fixture changed.
 

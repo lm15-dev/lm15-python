@@ -27,7 +27,7 @@ from ..errors import (
 )
 from ..access import OPENAI_API, auth_header
 from ..auth import extract_chatgpt_account_id
-from ..compat import OPENAI_RESPONSES_PRESET_BASE_URLS, OpenAIResponsesCompat, _preset_key
+from ..compat import OPENAI_RESPONSES_PRESET_BASE_URLS, OpenAIResponsesCompat, preset_base_url
 from ..features import ProviderManifest
 from ..result import materialize_response
 from ..live import WebSocketLiveSession, require_websocket_sync_connect
@@ -462,7 +462,9 @@ class OpenAILM(BaseProviderLM):
         if isinstance(compat, str):
             self._compat_base = OpenAIResponsesCompat.preset(compat)
             if self.base_url == _DEFAULT_BASE_URL:
-                self.base_url = OPENAI_RESPONSES_PRESET_BASE_URLS.get(_preset_key(compat), _DEFAULT_BASE_URL)
+                self.base_url = preset_base_url(
+                    OPENAI_RESPONSES_PRESET_BASE_URLS, compat, dialect="Responses", default_preset="openai"
+                )
         elif isinstance(compat, OpenAIResponsesCompat):
             self._compat_base = compat
         elif compat is not None:

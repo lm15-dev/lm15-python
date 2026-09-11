@@ -22,7 +22,7 @@ from ..errors import (
     map_http_error,
 )
 from ..access import ANTHROPIC_API
-from ..compat import ANTHROPIC_PRESET_BASE_URLS, AnthropicCompat, ResolvedAnthropicCompat, resolve_anthropic_compat
+from ..compat import ANTHROPIC_PRESET_BASE_URLS, AnthropicCompat, ResolvedAnthropicCompat, preset_base_url, resolve_anthropic_compat
 from ..features import ProviderManifest
 from ..sse import SSEEvent
 from ..transports import TransportRequest
@@ -263,7 +263,9 @@ class AnthropicLM(BaseProviderLM):
             # as OpenAIChatLM).
             resolved = resolve_anthropic_compat(AnthropicCompat.preset(compat))
             if self.base_url == _DEFAULT_BASE_URL:
-                self.base_url = ANTHROPIC_PRESET_BASE_URLS.get(compat.lower(), _DEFAULT_BASE_URL)
+                self.base_url = preset_base_url(
+                    ANTHROPIC_PRESET_BASE_URLS, compat, dialect="Messages", default_preset="anthropic"
+                )
         elif isinstance(compat, AnthropicCompat):
             resolved = resolve_anthropic_compat(compat)
         else:

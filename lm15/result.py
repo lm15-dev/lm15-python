@@ -24,7 +24,7 @@ import json
 from dataclasses import dataclass, field, replace
 from typing import Any, AsyncIterator, Iterator
 
-from .errors import LM15Error, StreamAssemblyError, error_class_for_code
+from .errors import LM15Error, StreamAssemblyError, StreamCleanupWarning, error_class_for_code
 from .types import (
     AudioDelta,
     AudioPart,
@@ -287,12 +287,19 @@ class ResponseStream:
         self._failure: BaseException | None = None
         self._done = False
         self._source_closed = False
+        #: Failures that followed the end event (a read error while draining,
+        #: a close() that raised).  The Response is complete regardless; each
+        #: was also emitted as a StreamCleanupWarning.
+        self.cleanup_errors: tuple[BaseException, ...] = ()
         self._event_iter = self._pump()
 
     def _close_source(self, primary: BaseException | None = None) -> None:
         if not self._source_closed:
             self._source_closed = True
-            _close_events(self._source, primary, self._response)
+            _close_events(self._source, primary, self._response, self._record_cleanup)
+
+    def _record_cleanup(self, exc: BaseException) -> None:
+        self.cleanup_errors = (*self.cleanup_errors, exc)
 
     def close(self) -> None:
         """Stop reading and release the source, without draining it.
@@ -371,20 +378,23 @@ class ResponseStream:
     def _pump(self) -> Iterator[StreamEvent]:
         primary = None
         try:
-            for event in self._source:
-                _check_terminal(event, self._response)
-                self._accumulator.push(event)
-                if event.type == "end":
-                    self._response = self._accumulator.response()
-                yield event
+            try:
+                for event in self._source:
+                    _check_terminal(event, self._response)
+                    self._accumulator.push(event)
+                    if event.type == "end":
+                        self._response = self._accumulator.response()
+                    yield event
+            except Exception as exc:
+                if not _after_completion(exc, self._response):
+                    raise
+                _warn_cleanup(exc, self._record_cleanup)
             if self._response is None:
                 raise _incomplete(self._accumulator)
         except BaseException as exc:
-            primary = _after_completion_error(exc, self._response)
+            primary = exc
             if self._failure is None and not (isinstance(exc, GeneratorExit) and self._response is not None):
-                self._failure = primary
-            if primary is not exc:
-                raise primary from exc
+                self._failure = exc
             raise
         finally:
             self._done = True
@@ -414,12 +424,17 @@ class AsyncResponseStream:
         self._failure: BaseException | None = None
         self._done = False
         self._source_closed = False
+        #: See :attr:`ResponseStream.cleanup_errors`.
+        self.cleanup_errors: tuple[BaseException, ...] = ()
         self._event_gen = self._pump()
 
     async def _close_source(self, primary: BaseException | None = None) -> None:
         if not self._source_closed:
             self._source_closed = True
-            await _aclose_events(self._source, primary, self._response)
+            await _aclose_events(self._source, primary, self._response, self._record_cleanup)
+
+    def _record_cleanup(self, exc: BaseException) -> None:
+        self.cleanup_errors = (*self.cleanup_errors, exc)
 
     async def aclose(self) -> None:
         """Stop reading and release the source, without draining it."""
@@ -465,20 +480,23 @@ class AsyncResponseStream:
     async def _pump(self) -> AsyncIterator[StreamEvent]:
         primary = None
         try:
-            async for event in self._source:
-                _check_terminal(event, self._response)
-                self._accumulator.push(event)
-                if event.type == "end":
-                    self._response = self._accumulator.response()
-                yield event
+            try:
+                async for event in self._source:
+                    _check_terminal(event, self._response)
+                    self._accumulator.push(event)
+                    if event.type == "end":
+                        self._response = self._accumulator.response()
+                    yield event
+            except Exception as exc:
+                if not _after_completion(exc, self._response):
+                    raise
+                _warn_cleanup(exc, self._record_cleanup)
             if self._response is None:
                 raise _incomplete(self._accumulator)
         except BaseException as exc:
-            primary = _after_completion_error(exc, self._response)
+            primary = exc
             if self._failure is None and not (isinstance(exc, GeneratorExit) and self._response is not None):
-                self._failure = primary
-            if primary is not exc:
-                raise primary from exc
+                self._failure = exc
             raise
         finally:
             self._done = True
@@ -497,18 +515,21 @@ def materialize_response(events: Iterator[StreamEvent], request: Request) -> Res
     response = None
     primary = None
     try:
-        for event in events:
-            _check_terminal(event, response)
-            accumulator.push(event)
-            if event.type == "end":
-                response = accumulator.response()
+        try:
+            for event in events:
+                _check_terminal(event, response)
+                accumulator.push(event)
+                if event.type == "end":
+                    response = accumulator.response()
+        except Exception as exc:
+            if not _after_completion(exc, response):
+                raise
+            _warn_cleanup(exc)
         if response is None:
             raise _incomplete(accumulator)
         return response
     except BaseException as exc:
-        primary = _after_completion_error(exc, response)
-        if primary is not exc:
-            raise primary from exc
+        primary = exc
         raise
     finally:
         _close_events(events, primary, response)
@@ -520,18 +541,21 @@ async def amaterialize_response(events: AsyncIterator[StreamEvent], request: Req
     response = None
     primary = None
     try:
-        async for event in events:
-            _check_terminal(event, response)
-            accumulator.push(event)
-            if event.type == "end":
-                response = accumulator.response()
+        try:
+            async for event in events:
+                _check_terminal(event, response)
+                accumulator.push(event)
+                if event.type == "end":
+                    response = accumulator.response()
+        except Exception as exc:
+            if not _after_completion(exc, response):
+                raise
+            _warn_cleanup(exc)
         if response is None:
             raise _incomplete(accumulator)
         return response
     except BaseException as exc:
-        primary = _after_completion_error(exc, response)
-        if primary is not exc:
-            raise primary from exc
+        primary = exc
         raise
     finally:
         await _aclose_events(events, primary, response)
@@ -539,7 +563,11 @@ async def amaterialize_response(events: AsyncIterator[StreamEvent], request: Req
 
 def _check_terminal(event, response):
     if response is not None:
-        raise StreamAssemblyError("Stream emitted an event after completion", partial=response)
+        raise StreamAssemblyError(
+            "Stream emitted an event after its end event (MAP-3: the end event is "
+            "final); the source that produced this stream is defective",
+            partial=response,
+        )
     if event.type == "error":
         raise _exception_from_error(event)
 
@@ -551,19 +579,42 @@ def _incomplete(accumulator):
         partial = exc.partial
     except Exception:
         partial = None
-    return StreamAssemblyError("Stream ended without a completion event", partial=partial)
+    return StreamAssemblyError(
+        "Stream ended without an end event: its finish reason and usage never "
+        "arrived, so the text is not a finished turn (MAP-3)",
+        partial=partial,
+    )
 
 
-def _after_completion_error(exc, response):
-    if response is not None and isinstance(exc, Exception) and not isinstance(exc, (StreamAssemblyError, Warning)):
-        return StreamAssemblyError("Stream failed after response completion", partial=response)
-    return exc
+def _after_completion(exc, response):
+    """Is ``exc`` a source failure that followed a complete Response?
+
+    True only when the end event was seen and the failure is not itself an
+    assembly defect: the Response is complete, the provider billed it, and
+    the failure concerns the connection's afterlife.  Such a failure is
+    reported (StreamCleanupWarning), never raised in place of the Response.
+    """
+    return response is not None and not isinstance(exc, StreamAssemblyError)
 
 
-def _cleanup_failure(primary, cleanup, response):
+def _warn_cleanup(exc, record=None):
+    import warnings
+
+    if record is not None:
+        record(exc)
+    warnings.warn(
+        f"stream source failed after the response was complete "
+        f"({type(exc).__name__}: {exc}); the Response is returned unchanged",
+        StreamCleanupWarning,
+        stacklevel=3,
+    )
+
+
+def _cleanup_failure(primary, cleanup, response, record):
     if primary is None or isinstance(primary, GeneratorExit):
         if response is not None:
-            raise StreamAssemblyError("Stream cleanup failed after response completion", partial=response) from cleanup
+            _warn_cleanup(cleanup, record)
+            return
         raise cleanup
     try:
         primary.cleanup_errors = (*getattr(primary, "cleanup_errors", ()), cleanup)
@@ -573,22 +624,22 @@ def _cleanup_failure(primary, cleanup, response):
         pass  # Optional diagnostics must not replace the primary failure.
 
 
-def _close_events(source, primary=None, response=None):
+def _close_events(source, primary=None, response=None, record=None):
     try:
         close = getattr(source, "close", None)
         if close is not None:
             close()
     except Exception as cleanup:
-        _cleanup_failure(primary, cleanup, response)
+        _cleanup_failure(primary, cleanup, response, record)
 
 
-async def _aclose_events(source, primary=None, response=None):
+async def _aclose_events(source, primary=None, response=None, record=None):
     try:
         close = getattr(source, "aclose", None)
         if close is not None:
             await close()
     except Exception as cleanup:
-        _cleanup_failure(primary, cleanup, response)
+        _cleanup_failure(primary, cleanup, response, record)
 
 
 # ─── Conversion utilities ────────────────────────────────────────────
@@ -728,13 +779,19 @@ def coalesce_stream(
     See docs/mapping-rules.md MAP-3 and MAP-4.
     """
     primary = None
+    ended = None
     try:
-        yield from _coalesce_stream(events, model=model)
+        for event in _coalesce_stream(events, model=model):
+            if event.type == "end":
+                ended = event
+            yield event
     except BaseException as exc:
         primary = exc
         raise
     finally:
-        _close_events(events, primary)
+        # After the merged end event the stream is complete: a close() that
+        # raises is reported, not raised (contract 2026-09-11-stream-completion).
+        _close_events(events, primary, ended)
 
 
 def _coalesce_stream(events: Iterator[StreamEvent], *, model: str | None) -> Iterator[StreamEvent]:
@@ -785,14 +842,17 @@ async def acoalesce_stream(
     are dropped; error events never force a start.
     """
     primary = None
+    ended = None
     try:
         async for event in _acoalesce_stream(events, model=model):
+            if event.type == "end":
+                ended = event
             yield event
     except BaseException as exc:
         primary = exc
         raise
     finally:
-        await _aclose_events(events, primary)
+        await _aclose_events(events, primary, ended)
 
 
 async def _acoalesce_stream(events: AsyncIterator[StreamEvent], *, model: str | None) -> AsyncIterator[StreamEvent]:

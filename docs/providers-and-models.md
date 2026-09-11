@@ -190,7 +190,7 @@ Omitting `compat` uses the default Chat Completions policy. An unknown
 object if your server needs different settings.
 
 [Connect an unlisted OpenAI-compatible server](connecting-openai-compatible-servers.md)
-walks through a custom policy, the LM Studio address caveat, and checking
+walks through a custom policy, LM Studio's preset and address, and checking
 requests without sending them. Compatibility depends on the server and
 features you use, not just its advertised API family.
 [Model profiles & compat](using-model-profiles.md) covers policy layering;

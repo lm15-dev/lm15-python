@@ -112,16 +112,31 @@ class LockTimeoutError(LM15Error):
 class StreamAssemblyError(LM15Error):
     """A stream could not be assembled into a Response without inventing a fact.
 
-    Raised by the accumulator (MAP-9) when a tool call's fragments never
-    carried a name: an unnamed call is not actionable (MAP-1), and guessing
-    a name from the request dispatches the wrong function silently.  This is
-    an adapter defect, not model behaviour — every shipped dialect names a
-    call on its first fragment — so the message points at the adapter.
+    Three defects raise it (MAP-9 and MAP-3, contract change
+    2026-09-11-stream-completion):
+
+    - a tool call's fragments never carried a name (MAP-9): an unnamed call
+      is not actionable (MAP-1), and guessing a name from the request
+      dispatches the wrong function silently;
+    - the stream ended without an end event: the finish reason and usage
+      never arrived, and reporting the text as a finished turn would invent
+      both;
+    - an event arrived after the end event (MAP-3): it has no place in the
+      Response, and dropping it would be silent loss.
+
+    All three are adapter or source defects, not model behaviour — every
+    shipped dialect names a call on its first fragment and ends exactly
+    once — so the message points at the adapter.
 
     ``partial`` is everything that did assemble (text, thinking, other
-    parts, usage, finish reason) with the unnamed call(s) left out, so a
+    parts, usage, finish reason) with the offending material left out, so a
     caller that wants to salvage the turn can; ``part_index`` is the first
-    offending part.
+    offending part (MAP-9 only).
+
+    What does NOT raise it: a failure after the end event that is not an
+    event — the source raising while it drains, or its ``close()`` raising.
+    The Response is complete; it is returned, and the failure is reported
+    as a :class:`StreamCleanupWarning`.
     """
 
     default_code = "stream_assembly"
@@ -137,6 +152,19 @@ class StreamAssemblyError(LM15Error):
         super().__init__(message, **kwargs)
         self.partial = partial
         self.part_index = part_index
+
+
+class StreamCleanupWarning(RuntimeWarning):
+    """A stream's source failed after the Response was already complete.
+
+    Emitted (``warnings.warn``) when, after the end event has been yielded,
+    the source raises while draining or its ``close()``/``aclose()`` raises.
+    The provider finished the turn and billed it; the Response is returned
+    unchanged.  The failure is about the connection's afterlife, not the
+    answer, so it is never raised from ``response`` — a caller who wants it
+    programmatically reads ``ResponseStream.cleanup_errors``, and a caller
+    who wants it fatal runs with ``-W error::lm15.errors.StreamCleanupWarning``.
+    """
 
 
 class ConfigurationError(LM15Error):
