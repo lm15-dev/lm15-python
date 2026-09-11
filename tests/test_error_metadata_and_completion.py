@@ -114,13 +114,21 @@ class Source:
 
 def consume(source, asynchronous, wrapper):
     async def run():
-        events = acoalesce_stream(source) if wrapper == "coalesced" else source
-        if wrapper == "response-stream":
-            return await AsyncResponseStream(events, REQUEST).response()
-        return await amaterialize_response(events, REQUEST)
+        # Inspect the library's await boundary: Python 3.10's Task.result()
+        # creates a new CancelledError when it escapes asyncio.run().
+        try:
+            events = acoalesce_stream(source) if wrapper == "coalesced" else source
+            if wrapper == "response-stream":
+                return await AsyncResponseStream(events, REQUEST).response()
+            return await amaterialize_response(events, REQUEST)
+        except BaseException as exc:
+            return exc
 
     if asynchronous:
-        return asyncio.run(run())
+        result = asyncio.run(run())
+        if isinstance(result, BaseException):
+            raise result
+        return result
     events = coalesce_stream(source) if wrapper == "coalesced" else source
     if wrapper == "response-stream":
         return ResponseStream(events, REQUEST).response
