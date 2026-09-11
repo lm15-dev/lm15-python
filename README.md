@@ -6,7 +6,14 @@
 
 The public API is the top-level package: `from lm15 import AnthropicLM, Request, Message, ...` (see `lm15/__init__.py` for the full curated surface). Transport plumbing stays under `lm15.transports`, live sessions under `lm15.live`, and the conformance shim under `lm15.vet`.
 
-The code blocks below are documentation that runs: every ```output``` block is the real, captured output of the example above it.
+Every Python block below is executed by an offline regression test with simulated
+provider replies. The displayed outputs are captured from live runs; model text,
+token counts, and image sizes vary. Related blocks share variables: run them in
+order within each section.
+
+Live examples require the named API keys, Ollama running with `qwen3.5:0.8b`
+installed, or a valid CLI subscription login as indicated. Hosted calls, including
+web search and image generation, may incur charges.
 
 <!-- footprint:generated:start -->
 ## Footprint
@@ -109,7 +116,7 @@ for lm in providers:
 ```
 
 ```output
-anthropic Hello! How can I help you today?
+anthropic Hello! 👋 How can I help you today?
 gemini Hello! How can I help you today?
 ```
 
@@ -132,10 +139,14 @@ print(response.text)
 ```
 
 ```output
-Hello there! I'm ready to help. What would you like me to discuss?
+Hello! I am Qwen3.5, the latest large language model developed by Tongyi Lab. How can I assist you today?
 ```
 
-Swap `compat="groq"` (plus your Groq key) or `compat="openrouter"` and the same request hits those servers; pass an explicit `base_url` to point a preset anywhere. Server-specific knobs ride in `Config.extensions` and pass through verbatim.
+To switch to `compat="groq"` or `compat="openrouter"`, supply that server's key
+**and a model ID it supports**; an Ollama model ID is not portable between servers.
+Pass an explicit `base_url` to change a preset's address. Server-specific knobs
+ride in `Config.extensions` and pass through verbatim. For an unlisted server,
+see [custom compatibility policies](docs/connecting-openai-compatible-servers.md).
 
 ## Streaming
 
@@ -158,10 +169,11 @@ for event in lm.stream(request):
 ```
 
 ```output
-Montreal is a vibrant, multicultural city in Canada known for its rich history and festivals.
+Montreal is a vibrant city in Canada known for its rich culture and beautiful architecture.
 ```
 
-To consume a stream into a full `Response`:
+To consume a stream into a full `Response` (this makes a second request, rather
+than reusing the stream above):
 
 ```python
 from lm15 import materialize_response
@@ -171,7 +183,7 @@ print(response.text)
 ```
 
 ```output
-Montreal is a vibrant, multicultural city in Canada known for its rich history and cuisine.
+Montreal is a vibrant cultural hub in Canada known for its historic architecture and diverse cuisine.
 ```
 
 The materialized `Response` is identical in shape to one from `complete()` — same `message`, `finish_reason`, `usage`, and `provider_data`.
@@ -183,7 +195,7 @@ lm15 distinguishes **function tools** that your application executes from **prov
 ```python
 import os
 
-from lm15 import FunctionTool, Message, OpenAILM, Request
+from lm15 import Config, FunctionTool, Message, OpenAILM, Request, ToolChoice
 
 lm = OpenAILM(api_key=os.environ["OPENAI_API_KEY"])
 
@@ -201,7 +213,12 @@ weather_tool = FunctionTool(
 )
 
 messages = (Message.user("What is the weather in Montreal?"),)
-request = Request(model="gpt-4.1-mini", messages=messages, tools=(weather_tool,))
+request = Request(
+    model="gpt-4.1-mini",
+    messages=messages,
+    tools=(weather_tool,),
+    config=Config(tool_choice=ToolChoice(mode="required", parallel=False)),
+)
 
 response = lm.complete(request)
 for call in response.tool_calls:
@@ -212,19 +229,30 @@ for call in response.tool_calls:
 get_weather {'city': 'Montreal'}
 ```
 
-Now run your function and hand the result back. The model's tool-call turn is `response.message`; your answer is `Message.tool(call_id, result)`:
+This example requires one tool call and disables parallel calls, so the next
+block can consume that single call. With the default automatic tool choice,
+a model may answer without calling a tool; do not index an empty `tool_calls`.
+
+Now run your function and hand the result back. The model's tool-call turn is
+`response.message`; your answer is `Message.tool(call_id, result)`. The final
+request disables further tool calls so this demonstration ends with an answer:
 
 ```python
 call = response.tool_calls[0]
 result = get_weather(**call.input)
 
 messages = (*messages, response.message, Message.tool(call.id, result))
-final = lm.complete(Request(model="gpt-4.1-mini", messages=messages, tools=(weather_tool,)))
+final = lm.complete(Request(
+    model="gpt-4.1-mini",
+    messages=messages,
+    tools=(weather_tool,),
+    config=Config(tool_choice=ToolChoice(mode="none")),
+))
 print(final.text)
 ```
 
 ```output
-The weather in Montreal is sunny with a temperature of 22°C. Would you like to know the forecast for the coming days or any other information?
+The weather in Montreal is currently sunny with a temperature of 22°C.
 ```
 
 lm15 will never run the loop for you — that's your layer. This is the whole loop.
@@ -248,8 +276,8 @@ for citation in response.citations:
 ```
 
 ```output
-The 2028 Summer Olympics are scheduled to be held in Los Angeles, California, United States, from July 14 to 30, 2028. ([britannica.com](https://www.britannica.com/event/Los-Angeles-2028-Summer-Olympic-Games?utm_source=openai))
-Los Angeles 2028 Summer Olympic Games | Bidding, Host, Venues, Planning, Sports, Marketing, & Facts | Britannica https://www.britannica.com/event/Los-Angeles-2028-Summer-Olympic-Games?utm_source=openai
+The 2028 Summer Olympics will be held in Los Angeles, California, United States, from July 14 to 30, 2028. ([en.wikipedia.org](https://en.wikipedia.org/wiki/2028_Summer_Olympics?utm_source=openai))
+2028 Summer Olympics https://en.wikipedia.org/wiki/2028_Summer_Olympics?utm_source=openai
 ```
 
 ## Async
@@ -269,30 +297,39 @@ from lm15 import (
 )
 
 async def main() -> None:
-    lm = AsyncOpenAIChatLM(api_key="ollama", compat="ollama")
-    request = Request(
-        model="qwen3.5:0.8b",
-        messages=(Message.user("Name two colors."),),
-        config=Config(max_tokens=80, extensions={"reasoning_effort": "none"}),
-    )
+    async with AsyncOpenAIChatLM(api_key="ollama", compat="ollama") as lm:
+        request = Request(
+            model="qwen3.5:0.8b",
+            messages=(Message.user("Name two colors."),),
+            config=Config(max_tokens=80, extensions={"reasoning_effort": "none"}),
+        )
 
-    response = await lm.complete(request)
-    print(response.text)
+        response = await lm.complete(request)
+        print(response.text)
 
-    async for event in lm.stream(request):
-        if isinstance(event, StreamDeltaEvent) and isinstance(event.delta, TextDelta):
-            print(event.delta.text, end="", flush=True)
-    print()
+        async for event in lm.stream(request):
+            if isinstance(event, StreamDeltaEvent) and isinstance(event.delta, TextDelta):
+                print(event.delta.text, end="", flush=True)
+        print()
 
 asyncio.run(main())
 ```
 
 ```output
-Two examples of natural and artificial colors are **red** and **blue**.
-Two common names for a color are **red** (or crimson) and **blue** (often called indigo, cobalt, or azure). Other examples include green, yellow, purple, and brown.
+Two common names for the color are:
+
+1. **Primary Color** (e.g., Red)
+2. **Secondary Color** (e.g., Blue)
+
+*(Note: In some color theory frameworks, all three—are called primaries—but "primary" alone and "secondary" alone are just two valid distinct names as requested.)*
+Two common colors are **black** and **white**. These are among the most fundamental in art and design for their versatility and clarity in representation.
 ```
 
-The non-chat endpoints (files, batch, image, audio, live) are sync-only for now; the async classes raise `UnsupportedFeatureError` for them rather than pretending. Async endpoint mirrors are planned.
+Async adapters also provide non-chat operations where the provider supports
+them, including files, batch jobs, image/speech generation, and live sessions.
+Unsupported provider/endpoint combinations raise `UnsupportedFeatureError`.
+Use `with` for sync clients and `async with` for async clients to close their
+connections when finished.
 
 ## Local subscription adapters
 
@@ -386,10 +423,10 @@ print(lm.complete(request).text)
 ```
 
 ```output
-This image shows a blue atomic symbol, often used to represent an atom or atomic energy.
+This image shows a blue atom symbol with a central nucleus and three elliptical electron orbits.
 ```
 
-Non-chat endpoints have separate request/response types — `ImageGenerationRequest`, `AudioGenerationRequest`, `FileUploadRequest`, `BatchRequest`, `LiveConfig` — and generated media comes back as the same typed parts you send in:
+Non-chat endpoints have separate request/response types — `ImageGenerationRequest`, `SpeechGenerationRequest`, `FileUploadRequest`, `BatchRequest`, `LiveConfig` — and generated media comes back as the same typed parts you send in:
 
 ```python
 import base64
@@ -406,7 +443,7 @@ print(part.media_type, len(base64.b64decode(part.data)), "bytes")
 ```
 
 ```output
-image/png 1156899 bytes
+image/png 1115289 bytes
 ```
 
 ## Canonical JSON serialization
@@ -414,12 +451,13 @@ image/png 1156899 bytes
 The serde functions convert every public lm15 type to canonical JSON-compatible dicts and back, exactly — this is the wire format the conformance corpus pins:
 
 ```python
-from lm15 import Message, Request, request_from_dict, request_to_dict
+from lm15 import Message, Request
+from lm15.serde import request_from_dict, request_to_dict
 
 request = Request(model="gpt-4.1-mini", messages=(Message.user("Hi"),))
 wire = request_to_dict(request)
 round_tripped = request_from_dict(wire)
-round_tripped == request
+print(round_tripped == request)
 ```
 
 ```output
