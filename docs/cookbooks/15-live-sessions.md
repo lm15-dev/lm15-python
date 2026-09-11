@@ -1,5 +1,9 @@
 # Live sessions (realtime)
 
+**Provisional in 1.0:** this API ships, but may change incompatibly in 1.x
+with a contract change entry. Pin your package version; see
+[release scope](../roadmap.md#what-ships-in-10-and-what-is-stable).
+
 **Problem** — You want a bidirectional, low-latency conversation with a
 model: send text or microphone audio whenever you like, get audio and
 transcription back as it is generated, interrupt mid-sentence. That is

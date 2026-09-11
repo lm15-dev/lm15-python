@@ -1,5 +1,9 @@
 # Video generation
 
+**Provisional in 1.0:** this API ships, but may change incompatibly in 1.x
+with a contract change entry. Pin your package version; see
+[release scope](../roadmap.md#what-ships-in-10-and-what-is-stable).
+
 **Problem** — You describe eight seconds of motion and want an MP4.
 Video is the one modality that is a **job on every wire that sells
 it**: Sora (OpenAI), Veo (Gemini), and grok-imagine (xAI) all take your

@@ -1,5 +1,10 @@
 # Prompt caching
 
+**Stability:** chat caching configuration belongs to the chat contract.
+Stored-cache resources (`cache_*`, `CachedPrefix`) are **provisional in 1.0**:
+they ship, but may change incompatibly in 1.x with a contract change entry.
+See [release scope](../roadmap.md#what-ships-in-10-and-what-is-stable).
+
 **Problem** — Your requests share a large fixed prefix: a system prompt,
 a policy document, tool schemas. Without caching you pay full input price
 for that prefix on every call. Each provider has its own caching API —

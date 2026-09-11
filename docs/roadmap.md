@@ -12,21 +12,43 @@ same discipline as the code — see
   — canonical types, serde, errors, request building, response parsing,
   streaming — is checked against the pinned language-neutral contract.
   Publishing this candidate does not ratify draft contract changes.
-- Non-chat endpoints — files, batch, image and speech generation,
-  job-shaped video generation (Sora, Veo, grok-imagine) — and live
-  sessions (Gemini Live and OpenAI's GA Realtime protocol) work, are
-  live-tested, and are covered by contract checks, but remain
-  **provisional**: their shapes may still change before they are frozen.
-- **Shipped in the alpha** (additive, outside the frozen core, not yet
-  contract-governed): the [model-string router](using-the-router.md)
-  (`LMRouter`/`AsyncLMRouter`) and
-  [tool derivation from functions](tools-from-functions.md)
-  (`lm15.tool`/`derive_tool`). A cross-language porting spec is
-  [proposed](router-portability.md), pending ratification.
-- The earlier Rust, Go, TypeScript, and Julia implementations drifted
-  from the contract and were deliberately deleted; rebuilds from the
-  contract are underway, module by module (the auth module has landed in
-  all four), each module gated on its slice of the conformance corpus.
+- Non-chat endpoints, stored-cache resources, live sessions and Chat
+  Completions ingest ship as **provisional**. Contract tests cover recorded
+  behavior; they do not promise that every provider/account works live.
+  The stability boundary below applies even after the package reaches 1.0.
+- The [model-string router](using-the-router.md) and
+  [tool derivation from functions](tools-from-functions.md) are available.
+  The contract's [API-family playbook](https://github.com/lm15-dev/lm15-contract/blob/main/playbooks/api-family.md)
+  governs the shared public names; an older router-portability proposal is
+  not the authority for the current implementation.
+- Python, Rust and TypeScript pass the shared corpus at their recorded
+  pins. That is evidence of agreement on the recorded cases, not a release
+  approval or a claim about untested runtime behavior.
+
+## What ships in 1.0, and what is stable
+
+**Already decided: provisional features ship in 1.0, clearly labeled.**
+This follows the ratified contract's
+[`spec/SCOPE.md`](https://github.com/lm15-dev/lm15-contract/blob/main/spec/SCOPE.md),
+not a new release-policy decision.
+
+- **Frozen:** the canonical chat types, serialization, errors, request and
+  response mapping, streaming, credential resolution and model listing.
+  Removing or changing frozen behavior requires a major release and
+  maintainer ratification. Additions follow the contract's change process.
+- **Provisional:** non-chat endpoints (files, batches, image/speech/video
+  generation), stored-cache resources, live sessions and Chat Completions
+  ingest. These are included, but may change incompatibly during 1.x with
+  a contract `changes/` entry. Additive changes are preferred, not guaranteed.
+  Pin an exact package version and review change entries before upgrading
+  applications that use them.
+- **Out of scope:** embeddings and canonical provider-executed computer
+  use. The contract describes the limits of provider-specific passthrough;
+  it is not a stability promise for those features.
+
+The stability of a feature is separate from its test coverage. In particular,
+typed media *inside chat* belongs to the frozen chat model; the standalone
+media-generation endpoints are provisional.
 
 ## Toward 1.0 stable
 
@@ -39,8 +61,9 @@ documentation before the stable release. Remaining work includes:
    adjust library ergonomics where the docs reveal friction. Small,
    additive-only changes to the frozen chat core; provisional surfaces may
    still move.
-3. **Decide the 1.0 scope** — whether provisional surfaces ship as
-   "provisional, clearly labeled" in 1.0 or wait for a later minor.
+3. **Check scope labeling** — the scope is settled above. Keep the
+   provisional notices on the relevant guides and release notes; do not
+   advertise the entire exported package as a frozen API.
 4. **Release engineering** — tag-driven publishing via PyPI trusted
    publishing (OIDC), CI across Python 3.10–3.14 and Linux/macOS/Windows,
    a type-checking gate alongside the shipped `py.typed`.
@@ -61,11 +84,11 @@ Today, with identical canonical behavior and live-receipt fixtures:
   typed compatibility policies — Groq, OpenRouter, DeepSeek, vLLM, SGLang,
   Ollama
 
-Planned: a published, continuously tested compatibility matrix, and
-fixture-first coverage of additional hosted endpoints (Azure OpenAI,
-Bedrock, Vertex, Mistral, Together, Fireworks are the candidates).
-New providers always land as contract fixtures with live receipts first,
-code second.
+Azure, Bedrock and Vertex already have contract coverage; see
+[cloud hosts](cloud-hosts.md) for their distinct credentials and settings.
+Provider/model availability and live verification remain separate from
+passing recorded cases. Additional providers require evidence-backed
+fixtures before implementation.
 
 ## Layers above the foundation
 
@@ -89,9 +112,10 @@ package built on the frozen core, none of them contract-governed:
 
 ## Multi-language
 
-- Finish rebuilding the Rust, Go, TypeScript, and Julia implementations
-  from the contract, module by module, each module gated on its slice of
-  the 477-check corpus (auth has landed in all four).
+- Keep Python, Rust and TypeScript aligned with their contract pins and
+  runtime tests. Other ports must meet the same gates before claiming
+  parity; the corpus grows, so use the current reports rather than a
+  historical fixed check count.
 - Publish them (crates.io, Go module, npm) once they pass the full
   corpus — never before.
 - The promise stays the same in every language: byte-identical wire

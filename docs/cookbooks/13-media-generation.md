@@ -1,5 +1,10 @@
 # Media generation (images & speech)
 
+**Provisional in 1.0:** these generation endpoints ship, but may change
+incompatibly in 1.x with a contract change entry. The media parts used in
+chat remain part of the frozen core. See
+[release scope](../roadmap.md#what-ships-in-10-and-what-is-stable).
+
 **Problem** — Sometimes the thing you want back is not text: a picture
 of the diagram you described, or your paragraph read aloud. OpenAI,
 Gemini, and xAI sell this; Anthropic does not. The wires could not look

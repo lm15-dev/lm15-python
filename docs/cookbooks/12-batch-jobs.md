@@ -1,5 +1,9 @@
 # Batch jobs
 
+**Provisional in 1.0:** this API ships, but may change incompatibly in 1.x
+with a contract change entry. Pin your package version; see
+[release scope](../roadmap.md#what-ships-in-10-and-what-is-stable).
+
 **Problem** — You have five hundred requests that nobody is waiting on.
 Running them through `complete()` costs full price and busies your
 process; what you want is to hand the whole stack to the provider, walk

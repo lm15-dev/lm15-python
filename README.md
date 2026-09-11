@@ -51,6 +51,15 @@ python3 -m pip install -e '.[live]'
 
 lm15 has zero required dependencies — it is stdlib-only, including its HTTP transports.
 
+## Stability at 1.0
+
+The chat core, credential resolution and model listing have a frozen contract.
+Files, batches, standalone media generation, stored-cache resources, live
+sessions and Chat Completions ingest ship as **provisional**: they may change
+incompatibly in 1.x with a contract change entry. Pin your version when using
+them. See [release scope](docs/roadmap.md#what-ships-in-10-and-what-is-stable)
+for the existing policy and its limits.
+
 ## Quickstart
 
 ```python
@@ -425,6 +434,10 @@ print(lm.complete(request).text)
 ```output
 This image shows a blue atom symbol with a central nucleus and three elliptical electron orbits.
 ```
+
+**Provisional in 1.0:** the standalone generation and resource APIs below
+may change in 1.x. This does not change the frozen status of media parts
+used inside chat messages.
 
 Non-chat endpoints have separate request/response types — `ImageGenerationRequest`, `SpeechGenerationRequest`, `FileUploadRequest`, `BatchRequest`, `LiveConfig` — and generated media comes back as the same typed parts you send in:
 

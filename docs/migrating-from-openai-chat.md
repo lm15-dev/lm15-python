@@ -1,5 +1,10 @@
 # Migrating from the OpenAI SDK or LiteLLM
 
+**Provisional in 1.0:** Chat Completions ingest is included but is not part
+of the frozen core. Its mappings may change in 1.x with a contract change
+entry; individual additions may also await ratification. See
+[release scope](roadmap.md#what-ships-in-10-and-what-is-stable).
+
 You have code that calls `client.chat.completions.create(...)` or `litellm.completion(...)`: a model string, a list of `{"role", "content"}` dictionaries, a few keyword arguments. This page moves that code to lm15 one line at a time. Each step shows the line you have, the line it becomes, and what happened underneath — so that when the two differ, you know why and can decide for yourself.
 
 The rule the whole page follows: **keep your messages and your model string; change the call.** `LMRouter.complete_from_openai_chat(model, messages, **kwargs)` reads their model, messages and supported request options, and answers with an lm15 `Response`. Add `stream=True` to receive text as it arrives instead. Anything lm15 cannot carry is refused by name; nothing is silently dropped. It is a migration, not a drop-in: the answer is `response.text`, not `choices[0].message.content`.

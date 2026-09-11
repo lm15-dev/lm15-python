@@ -186,6 +186,52 @@ text "$0.05** (5 cents).\n\nHere's why:\n\nLet me call the"
 end Usage(input_tokens=66, output_tokens=454, total_tokens=520, …)
 ```
 
+## Groq/Qwen: keep thinking out of the answer
+
+Groq can return Qwen reasoning as literal `<think>...</think>` text in
+`message.content`. lm15 preserves that text; it never guesses which tags
+are reasoning rather than text the user asked the model to quote.
+
+Ask Groq to separate the fields instead. On `qwen/qwen3.6-27b`, use the
+existing provider extension, without setting a reasoning-effort level:
+
+```python
+from lm15 import Config, LMRouter, Message, Request, ResponseStream, ThinkingPart
+
+router = LMRouter()  # GROQ_API_KEY
+request = Request(
+    model="groq:qwen/qwen3.6-27b",
+    messages=(Message.user("What is 17 times 23?"),),
+    config=Config(extensions={"reasoning_format": "parsed"}),
+)
+response = router.complete(request)
+print(response.text)  # answer text, not the separate reasoning field
+reasoning = response.message.parts_of(ThinkingPart)
+
+# A second request, this time streamed. Text iteration excludes ThinkingDelta.
+with ResponseStream(router.stream(request), request) as stream:
+    for chunk in stream:
+        print(chunk, end="")
+    completed = stream.response
+```
+
+Both calls can incur provider charges. The model id is a documented example,
+not a promise that Groq will keep serving it; check your account's model list.
+
+`parsed` changes the *format*, not the amount of reasoning or its price.
+Groq's `message.reasoning` / `delta.reasoning` becomes `ThinkingPart` /
+`ThinkingDelta`; answer `content` stays text. A literal `<think>` in answer
+content still stays literal. Qwen 3.6 accepts `none|default` for its effort
+parameter, not the usual `low|medium|high` ladder, so do not add a guessed
+`Reasoning(effort="medium")` merely to request separation. To disable
+reasoning on a model that supports it, use `Reasoning(effort="off")` instead.
+
+This is the existing policy in contract MAP-7 rules 7 and 12 and the
+[reasoning decision's Groq amendment](https://github.com/lm15-dev/lm15-contract/blob/main/changes/2026-09-02-reasoning-design.md#amendments-during-implementation-2026-09-02).
+The Groq-wide default is deliberately unchanged: a Qwen-specific option
+must not silently become a request parameter for unrelated models. See
+[Groq's reasoning formats](https://console.groq.com/docs/reasoning).
+
 ## How it works
 
 `audio()` and `video()` are factories for `AudioPart` and `VideoPart` —
