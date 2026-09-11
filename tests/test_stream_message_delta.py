@@ -11,7 +11,7 @@ from __future__ import annotations
 import unittest
 
 from lm15.providers.anthropic import AnthropicLM
-from lm15.result import materialize_response
+from lm15.result import coalesce_stream, materialize_response
 from lm15.sse import parse_sse
 from lm15.types import Message, Request, TextPart
 
@@ -60,7 +60,9 @@ class TestAnthropicMessageDelta(unittest.TestCase):
             messages=(Message(role="user", parts=(TextPart(text="hi"),)),),
         )
         events = _parse_events(lm, request, SSE_BODY)
-        return materialize_response(iter(events), request)
+        # MAP-3: the dialect emits per-frame terminal data; the public stream
+        # coalesces it into one final end event before response assembly.
+        return materialize_response(coalesce_stream(iter(events)), request)
 
     def test_streamed_usage_comes_from_message_delta(self):
         response = self._response()

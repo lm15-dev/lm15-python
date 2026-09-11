@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**Error and completion hardening.** HTTP errors retain request IDs from headers
+when the provider body did not supply one; invalid/non-finite retry hints are
+ignored. `stream_assembly` now maps back to `StreamAssemblyError` consistently.
+Stream-to-response helpers require a final end event and reject trailing events,
+close their sources, and preserve the primary error or cancellation if cleanup
+also fails. Post-completion failures are non-retryable assembly failures carrying
+the completed response in `partial`. Use `StreamAccumulator.response()` explicitly
+when inspecting an unfinished stream; materializers no longer report it as success.
+
 **Three defects found by the Rust port (2026-09-07).** `Config.stop` and `ToolChoice.allowed` given as a bare string were iterated into characters by `from_dict` (INV-020 says one element); `response.usage: null` crashed `response_from_dict` (INV-042 says a telemetry nest reads as absent); the vet shim could not build the Vertex adapter (it passed `compat=None` to the Gemini dialect). All three fixed; no fixture changed.
 
 **Baseline review (2026-09-06).** These changes are not a frozen release.
