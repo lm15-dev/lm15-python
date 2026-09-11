@@ -7,11 +7,11 @@ same discipline as the code — see
 
 ## Where we are (September 2026)
 
-- **1.0.0a1** is the current release. The chat core — canonical types,
-  serde, errors, request building, response parsing, streaming — is frozen
-  by the language-neutral contract and enforced mechanically (477
-  conformance checks across twelve directions, spec drift gate, surface
-  ratchet).
+- **1.0.0rc1** is the current release candidate. Install it explicitly with
+  `pip install lm15==1.0.0rc1`; it is not the stable 1.0 release. The chat core
+  — canonical types, serde, errors, request building, response parsing,
+  streaming — is checked against the pinned language-neutral contract.
+  Publishing this candidate does not ratify draft contract changes.
 - Non-chat endpoints — files, batch, image and speech generation,
   job-shaped video generation (Sora, Veo, grok-imagine) — and live
   sessions (Gemini Live and OpenAI's GA Realtime protocol) work, are
@@ -30,8 +30,8 @@ same discipline as the code — see
 
 ## Toward 1.0 stable
 
-The alpha exists so the full documentation can be read end-to-end and the
-user experience judged as a whole before the final freeze. In order:
+The release candidate lets users test the package and read the full
+documentation before the stable release. Remaining work includes:
 
 1. **Complete documentation site** (this site) — guides, cookbooks, API
    reference, specification pages, benchmarks.

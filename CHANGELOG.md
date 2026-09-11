@@ -1,6 +1,23 @@
 # Changelog
 
-## Unreleased
+## 1.0.0rc1 — 2026-09-11
+
+First release candidate for 1.0. Install explicitly with
+`pip install lm15==1.0.0rc1`; this is a prerelease, not the stable 1.0 release.
+The changes below include breaking changes since the earlier public releases.
+The contract pin is unchanged; publishing this candidate does not ratify draft
+contract material or freeze provisional endpoints.
+
+- Add a tested tutorial for unlisted OpenAI-compatible servers: default policy,
+  custom `OpenAIChatCompat` objects, adapting presets, and offline request checks.
+- Clarify custom router addresses and the difference between Chat Completions
+  and Responses compatibility policies.
+- Publish from the single source version in `lm15/_version.py`; check release
+  artifacts and the installed wheel's version before upload.
+- **Known limitation:** `compat="lmstudio"` aliases Ollama's policy without a
+  default LM Studio address. Always pass the LM Studio `base_url` explicitly;
+  otherwise the client can retain OpenAI's address. This candidate documents
+  the workaround, not a fix or newly verified LM Studio support.
 
 **Error and completion hardening.** HTTP errors retain request IDs from headers
 when the provider body did not supply one; invalid/non-finite retry hints are

@@ -4,7 +4,6 @@ requires-python = ">=3.10"
 
 [[package]]
 name = "lm15"
-version = "1.0.0a1"
 source = { virtual = "." }
 
 [package.optional-dependencies]
