@@ -237,9 +237,9 @@ class AuthError(ProviderError):
             )
             if self.env_keys:
                 keys = " or ".join(f"{key}=..." for key in self.env_keys)
-                guidance += f"    - Set the provider API key in your environment: {keys}\n"
+                guidance += f"    - Pass the key explicitly (api_key, or RouterConfig api_keys), or on a host with an environment set {keys}\n"
             else:
-                guidance += "    - Set the provider API key in your environment\n"
+                guidance += "    - Pass the key explicitly (api_key, or RouterConfig api_keys)\n"
             if provider_name:
                 guidance += f"    - Verify your {provider_name} account/project has access\n"
 
@@ -351,7 +351,7 @@ class NotConfiguredError(ConfigurationError):
             guidance = "\n\n  To fix:\n"
             if self.env_keys:
                 keys = " or ".join(f"{key}=..." for key in self.env_keys)
-                guidance += f"    - Set the provider API key in your environment: {keys}\n"
+                guidance += f"    - Pass the key explicitly (api_key, or RouterConfig api_keys), or on a host with an environment set {keys}\n"
             if provider_name:
                 guidance += f"    - Configure credentials for {provider_name}\n"
 

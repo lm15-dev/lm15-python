@@ -36,7 +36,7 @@ find your API key at https://platform.openai.com/account/api-keys.
 
   To fix:
     - Check that your API key is correct and not expired
-    - Set the provider API key in your environment: OPENAI_API_KEY=...
+    - Pass the key explicitly (api_key, or RouterConfig api_keys), or on a host with an environment set OPENAI_API_KEY=...
     - Verify your openai account/project has access
 ```
 
