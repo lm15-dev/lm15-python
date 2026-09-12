@@ -1,0 +1,3273 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Provider-neutral, low-level foundation for LLM APIs — one canonical representation, exact serde, zero dependencies.">
+      
+      
+      
+        <link rel="canonical" href="https://lm15-dev.github.io/lm15-python/migrating-from-openai-chat/">
+      
+      
+        <link rel="prev" href="../using-the-type-system/">
+      
+      
+        <link rel="next" href="../tools-from-functions/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Migrating from an OpenAI-shaped client - lm15</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#migrating-from-the-openai-sdk-or-litellm" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="lm15" class="md-header__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lm15
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Migrating from an OpenAI-shaped client
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="lm15" class="md-nav__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    lm15
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers-and-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers & models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cloud-hosts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud hosts (AWS, Azure, Google Cloud)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-router/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The router
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-type-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The type system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating from an OpenAI-shaped client
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating from an OpenAI-shaped client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-first-call-side-by-side" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your first call, side by side
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-key-came-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the key came from
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Where the key came from">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-key-passed-in-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A key passed in code
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-different-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A different server
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-same-call-from-litellm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The same call, from LiteLLM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-chat-loop-where-you-stop-writing-dictionaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The chat loop: where you stop writing dictionaries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The chat loop: where you stop writing dictionaries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#your-history-probably-holds-sdk-objects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your history probably holds SDK objects
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-settings-each-one-has-a-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client settings: each one has a place
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#structured-output-a-pydantic-class-is-not-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structured output: a pydantic class is not JSON
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-converters-underneath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The converters underneath
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The converters underneath">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tell-it-which-server-the-body-was-written-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tell it which server the body was written for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-to-each-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens to each key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rows-and-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rows and content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-the-round-trip-is-not-exact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the round trip is not exact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-response-the-other-way" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The response, the other way
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#for-framework-authors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        For framework authors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-does-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this does not do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-to-go-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to go next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools-from-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools from functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-a-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-model-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model profiles & compat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connecting-openai-compatible-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connect an unlisted OpenAI-compatible server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design-rationale/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design rationale
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-assessment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security assessment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cookbooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Cookbooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Essentials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Essentials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/01-first-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first request
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/02-conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-turn conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/03-system-prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System & developer prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/04-generation-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Controlling generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/05-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/06-function-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/07-builtin-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in provider tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/08-structured-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structured output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modalities
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modalities
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/09-images-and-documents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Images, PDFs & documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/10-audio-video-reasoning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio, video & reasoning models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beyond chat
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Beyond chat
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/11-caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/12-batch-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batch jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/13-media-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Media generation (images & speech)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/14-video-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/15-live-sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live sessions (realtime)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Production
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/16-local-and-compatible-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local & OpenAI-compatible servers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/17-errors-and-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors, retries & testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/18-provider-passthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provider passthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/19-prompt-caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Specification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-lm15-is-specified/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How lm15 is specified
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serde-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mapping-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mapping rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-hydration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model hydration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../router-portability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Router portability (proposal)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/result/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/serde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles & models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#your-first-call-side-by-side" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your first call, side by side
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-key-came-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the key came from
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Where the key came from">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-key-passed-in-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A key passed in code
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-different-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A different server
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-same-call-from-litellm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The same call, from LiteLLM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-chat-loop-where-you-stop-writing-dictionaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The chat loop: where you stop writing dictionaries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The chat loop: where you stop writing dictionaries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#your-history-probably-holds-sdk-objects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your history probably holds SDK objects
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-settings-each-one-has-a-place" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client settings: each one has a place
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#structured-output-a-pydantic-class-is-not-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structured output: a pydantic class is not JSON
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-converters-underneath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The converters underneath
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The converters underneath">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tell-it-which-server-the-body-was-written-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tell it which server the body was written for
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-to-each-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens to each key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rows-and-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rows and content
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-the-round-trip-is-not-exact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the round trip is not exact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-response-the-other-way" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The response, the other way
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#for-framework-authors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        For framework authors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-does-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this does not do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-to-go-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to go next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="migrating-from-the-openai-sdk-or-litellm">Migrating from the OpenAI SDK or LiteLLM<a class="headerlink" href="#migrating-from-the-openai-sdk-or-litellm" title="Permanent link">&para;</a></h1>
+<p><strong>Provisional in 1.0:</strong> Chat Completions ingest is included but is not part
+of the frozen core. Its mappings may change in 1.x with a contract change
+entry; individual additions may also await ratification. See
+<a href="../roadmap/#what-ships-in-10-and-what-is-stable">release scope</a>.</p>
+<p>You have code that calls <code>client.chat.completions.create(...)</code> or <code>litellm.completion(...)</code>: a model string, a list of <code>{"role", "content"}</code> dictionaries, a few keyword arguments. This page moves that code to lm15 one line at a time. Each step shows the line you have, the line it becomes, and what happened underneath — so that when the two differ, you know why and can decide for yourself.</p>
+<p>The rule the whole page follows: <strong>keep your messages and your model string; change the call.</strong> <code>LMRouter.complete_from_openai_chat(model, messages, **kwargs)</code> reads their model, messages and supported request options, and answers with an lm15 <code>Response</code>. Add <code>stream=True</code> to receive text as it arrives instead. Anything lm15 cannot carry is refused by name; nothing is silently dropped. It is a migration, not a drop-in: the answer is <code>response.text</code>, not <code>choices[0].message.content</code>.</p>
+<p>You need Python 3.10+, <code>pip install --pre lm15</code>, and the API keys you already have — as you will see in a moment, they do not move. The model replies below were captured from earlier calls; your wording and token counts will vary. Examples containing placeholder keys or server addresses need your own values.</p>
+<h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
+<p>One object, made once, reused everywhere. It keeps one connection pool per provider, the way an <code>OpenAI()</code> client does.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">lm15</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">lm15</span><span class="o">.</span><span class="n">LMRouter</span><span class="p">()</span>
+</code></pre></div>
+<p>Every example on this page uses this <code>router</code>.</p>
+<h2 id="your-first-call-side-by-side">Your first call, side by side<a class="headerlink" href="#your-first-call-side-by-side" title="Permanent link">&para;</a></h2>
+<p>The running example: a system instruction and a question.</p>
+<div class="highlight"><pre><span></span><code><span class="n">messages</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">"role"</span><span class="p">:</span> <span class="s2">"system"</span><span class="p">,</span> <span class="s2">"content"</span><span class="p">:</span> <span class="s2">"Answer in one sentence."</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">"role"</span><span class="p">:</span> <span class="s2">"user"</span><span class="p">,</span> <span class="s2">"content"</span><span class="p">:</span> <span class="s2">"Why is the sky blue?"</span><span class="p">},</span>
+<span class="p">]</span>
+</code></pre></div>
+<p><strong>Before — OpenAI SDK</strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAI</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">OpenAI</span><span class="p">()</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+    <span class="n">max_completion_tokens</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Before — LiteLLM</strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">litellm</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+    <span class="n">max_completion_tokens</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>After — lm15</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">router</span><span class="o">.</span><span class="n">complete_from_openai_chat</span><span class="p">(</span>
+    <span class="s2">"gpt-4o-mini"</span><span class="p">,</span>
+    <span class="n">messages</span><span class="p">,</span>
+    <span class="n">max_completion_tokens</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">The sky appears blue due to the scattering of sunlight by the Earth's atmosphere, with shorter blue wavelengths being scattered more than other colors.</span>
+</code></pre></div>
+<p>The <code>messages</code> list is the same object. The keyword is the same keyword. What changed is the shape of the answer: <code>response</code> is an lm15 <code>Response</code>, typed all the way down — <code>response.usage.output_tokens</code> is <code>26</code>, <code>response.finish_reason</code> is <code>"stop"</code>, <code>response.message</code> is a message you can put into the next request.</p>
+<p>Three things happened under that call, each visible if you want it:</p>
+<ul>
+<li>The bare <code>gpt-4o-mini</code> went to OpenAI's <strong>Chat Completions</strong> endpoint — the one both libraries were using — not the Responses API that <code>router.complete(Request(model="gpt-4o-mini", …))</code> would pick. Same string, different door, on purpose; write <code>openai:gpt-4o-mini</code> if you want Responses.</li>
+<li>The list was read into a <code>Request</code>: the system row became <code>request.system</code>, the token limit <code>request.config.max_tokens</code>.</li>
+<li>The reply was parsed by lm15's own OpenAI Chat adapter.</li>
+</ul>
+<p>To see the <code>Request</code> instead of sending it — and the adapter it would be sent through:</p>
+<div class="highlight"><pre><span></span><code><span class="n">request</span><span class="p">,</span> <span class="n">lm</span> <span class="o">=</span> <span class="n">router</span><span class="o">.</span><span class="n">request_from_openai_chat</span><span class="p">(</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">messages</span><span class="p">,</span> <span class="n">max_completion_tokens</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">lm</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">lm</span><span class="o">.</span><span class="n">base_url</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">system</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">max_tokens</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">messages</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">OpenAIChatLM https://api.openai.com/v1</span>
+<span class="go">Answer in one sentence. 100 (Message(role='user', parts=(TextPart(text='Why is the sky blue?', continuation=(), type='text'),), continuation=()),)</span>
+</code></pre></div>
+<h2 id="where-the-key-came-from">Where the key came from<a class="headerlink" href="#where-the-key-came-from" title="Permanent link">&para;</a></h2>
+<p>That call worked without you setting anything up, and this is not luck: the migration changes nothing about keys unless you passed one in code.</p>
+<p><strong>Before — OpenAI SDK</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">client</span> <span class="o">=</span> <span class="n">OpenAI</span><span class="p">()</span>          <span class="c1"># reads $OPENAI_API_KEY</span>
+</code></pre></div>
+<p><strong>Before — LiteLLM</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="err">…</span><span class="p">)</span>   <span class="c1"># reads $OPENAI_API_KEY</span>
+</code></pre></div>
+<p><strong>After — lm15</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">router</span> <span class="o">=</span> <span class="n">lm15</span><span class="o">.</span><span class="n">LMRouter</span><span class="p">()</span>       <span class="c1"># reads $OPENAI_API_KEY</span>
+</code></pre></div>
+<p>All three read the same variable, chosen by the provider the model string resolves to. That is the whole story for a bare <code>gpt-…</code> name. For every other string, the variable is the one you already have set for that provider. The middle column shows a name you can use in <code>api_keys</code>. One <code>openai</code> entry covers both OpenAI APIs; you do not need to learn their endpoint names just to supply your key.</p>
+<table>
+<thead>
+<tr>
+<th>your model string</th>
+<th>name in <code>api_keys</code></th>
+<th>key read from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gpt-4o-mini</code>, <code>openai/…</code></td>
+<td><code>openai</code></td>
+<td><code>OPENAI_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>openai:…</code></td>
+<td><code>openai</code></td>
+<td><code>OPENAI_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>anthropic/…</code>, <code>claude-…</code></td>
+<td><code>anthropic</code></td>
+<td><code>ANTHROPIC_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>gemini/…</code></td>
+<td><code>gemini</code></td>
+<td><code>GEMINI_API_KEY</code>, then <code>GOOGLE_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>groq/…</code></td>
+<td><code>groq</code></td>
+<td><code>GROQ_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>openrouter/…</code></td>
+<td><code>openrouter</code></td>
+<td><code>OPENROUTER_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>deepseek/…</code></td>
+<td><code>deepseek</code></td>
+<td><code>DEEPSEEK_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>xai/…</code></td>
+<td><code>xai</code></td>
+<td>a stored xAI login if you have one, then <code>XAI_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>moonshot/…</code></td>
+<td><code>moonshotai</code></td>
+<td><code>MOONSHOTAI_API_KEY</code>, then <code>MOONSHOT_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>ollama/…</code></td>
+<td><code>ollama</code></td>
+<td>nothing (a placeholder)</td>
+</tr>
+<tr>
+<td><code>hosted_vllm/…</code></td>
+<td><code>vllm</code></td>
+<td>nothing (a placeholder)</td>
+</tr>
+<tr>
+<td><code>azure/…</code></td>
+<td><code>azure-chat</code></td>
+<td><code>AZURE_OPENAI_API_KEY</code>, then the Azure identity chain</td>
+</tr>
+</tbody>
+</table>
+<p>Rather than trust a table, ask. <code>resolve_openai_chat</code> reads a model string exactly as the call would and reports the provider and the variable — an offline lookup, with no key required, no credential renewal, and no secret shown:</p>
+<div class="highlight"><pre><span></span><code><span class="n">where</span> <span class="o">=</span> <span class="n">router</span><span class="o">.</span><span class="n">resolve_openai_chat</span><span class="p">(</span><span class="s2">"anthropic/claude-sonnet-4-5"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">where</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span> <span class="n">where</span><span class="o">.</span><span class="n">env_key</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">where</span><span class="o">.</span><span class="n">describe</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">anthropic ANTHROPIC_API_KEY</span>
+<span class="go">'anthropic:claude-sonnet-4-5' -&gt; provider 'anthropic' (AnthropicLM); via explicit provider prefix; wire model 'claude-sonnet-4-5'; key from $ANTHROPIC_API_KEY.</span>
+</code></pre></div>
+<p>(For a bare <code>gpt-4o-mini</code> it answers <code>openai-chat</code>, <code>OPENAI_API_KEY</code>. Plain <code>router.resolve("gpt-4o-mini")</code> would say <code>openai</code> — that is the Responses door <code>router.complete</code> takes, not this one.)</p>
+<p>Pass that lookup result straight to <code>explain_auth</code>; no string to copy or guess. Include <code>config=router.config</code> so the report checks this router's keys and settings, not just the process environment. It walks the credential chain, marks the source that wins, and never prints a secret:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">lm15.doctor</span><span class="w"> </span><span class="kn">import</span> <span class="n">explain_auth</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">explain_auth</span><span class="p">(</span><span class="n">where</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">router</span><span class="o">.</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">describe</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">auth for provider 'anthropic':</span>
+<span class="go">   - explicit api_keys entry: not provided</span>
+<span class="go">  =&gt; env $ANTHROPIC_API_KEY: set (value never shown)</span>
+<span class="go">  configured: yes — env $ANTHROPIC_API_KEY</span>
+</code></pre></div>
+<p>And when nothing is set, the error is the fix:</p>
+<div class="highlight"><pre><span></span><code><span class="n">lm15</span><span class="o">.</span><span class="n">LMRouter</span><span class="p">(</span><span class="n">lm15</span><span class="o">.</span><span class="n">RouterConfig</span><span class="p">(</span><span class="n">env</span><span class="o">=</span><span class="p">{}))</span><span class="o">.</span><span class="n">lm</span><span class="p">(</span><span class="s2">"claude-sonnet-4-5"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">MissingCredentialError: no API key found for provider 'anthropic'.</span>
+<span class="go">Set ANTHROPIC_API_KEY in the environment, or pass</span>
+<span class="go">RouterConfig(api_keys={'anthropic': "..."}).</span>
+</code></pre></div>
+<p>(<code>MissingCredentialError</code> is a <code>NotConfiguredError</code>; an existing <code>except NotConfiguredError</code> keeps working.)</p>
+<h3 id="a-key-passed-in-code">A key passed in code<a class="headerlink" href="#a-key-passed-in-code" title="Permanent link">&para;</a></h3>
+<p>This is the one place keys move. Both libraries take a key on the client or on the call; lm15 takes it on the router, once per provider.</p>
+<p><strong>Before — OpenAI SDK</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">client</span> <span class="o">=</span> <span class="n">OpenAI</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="s2">"sk-…"</span><span class="p">)</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Before — LiteLLM</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"anthropic/claude-sonnet-4-5"</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+    <span class="n">api_key</span><span class="o">=</span><span class="s2">"sk-ant-…"</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p><strong>After — lm15</strong></p>
+<p>Use the provider names you already know. Here, the names are <code>openai</code> and <code>anthropic</code>; the values are your existing keys. Replace the placeholders below, or keep loading keys from the environment as before. Never commit real keys to source control.</p>
+<div class="highlight"><pre><span></span><code><span class="n">keyed_router</span> <span class="o">=</span> <span class="n">lm15</span><span class="o">.</span><span class="n">LMRouter</span><span class="p">(</span><span class="n">lm15</span><span class="o">.</span><span class="n">RouterConfig</span><span class="p">(</span><span class="n">api_keys</span><span class="o">=</span><span class="p">{</span>
+    <span class="s2">"openai"</span><span class="p">:</span> <span class="s2">"sk-…"</span><span class="p">,</span>
+    <span class="s2">"anthropic"</span><span class="p">:</span> <span class="s2">"sk-ant-…"</span><span class="p">,</span>
+<span class="p">}))</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">keyed_router</span><span class="o">.</span><span class="n">complete_from_openai_chat</span><span class="p">(</span><span class="s2">"anthropic/claude-sonnet-4-5"</span><span class="p">,</span> <span class="n">messages</span><span class="p">)</span>
+</code></pre></div>
+<p>An <code>openai</code> entry also supplies the key when you call <code>gpt-4o-mini</code> through Chat Completions. The same rule covers the alternate APIs of Meta, Moonshot and DeepSeek: endpoints with identical, non-empty environment-key lists share an explicit key. This shares credentials only — it never changes which API receives your request.</p>
+<p>A name lm15 does not route to is refused when the router is built, with the nearest real one — never ignored, because an ignored entry would mean the request quietly goes out on whatever key the environment holds:</p>
+<div class="highlight"><pre><span></span><code><span class="n">lm15</span><span class="o">.</span><span class="n">LMRouter</span><span class="p">(</span><span class="n">lm15</span><span class="o">.</span><span class="n">RouterConfig</span><span class="p">(</span><span class="n">api_keys</span><span class="o">=</span><span class="p">{</span><span class="s2">"antropic"</span><span class="p">:</span> <span class="s2">"sk-ant-…"</span><span class="p">}))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">NotConfiguredError: RouterConfig(api_keys=...): 'antropic' is not a provider lm15 routes to. Did you mean 'anthropic'? router.resolve(model).provider (or resolve_openai_chat) names the one a model string uses; known: anthropic, aws-anthropic, azure, …</span>
+</code></pre></div>
+<p>An explicit entry beats the environment, and <code>explain_auth</code> shows the environment variable being shadowed:</p>
+<div class="highlight"><pre><span></span><code><span class="n">where</span> <span class="o">=</span> <span class="n">keyed_router</span><span class="o">.</span><span class="n">resolve_openai_chat</span><span class="p">(</span><span class="s2">"gpt-4o-mini"</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">explain_auth</span><span class="p">(</span><span class="n">where</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">keyed_router</span><span class="o">.</span><span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">describe</span><span class="p">())</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">auth for provider 'openai-chat':</span>
+<span class="go">  =&gt; explicit api_keys entry (via 'openai', shared env-key declarations): provided (value never shown)</span>
+<span class="go">   ~ env $OPENAI_API_KEY: set (value never shown)</span>
+<span class="go">  configured: yes — explicit api_keys entry (via 'openai', shared env-key declarations)</span>
+</code></pre></div>
+<p>Need different accounts for the two OpenAI APIs? Set both <code>"openai"</code> and <code>"openai-chat"</code>: the exact endpoint entry always wins. If several shared entries could supply a third endpoint, lm15 asks for an exact entry rather than choosing an account. Empty environment-key lists do not connect unrelated local servers or subscription logins; partially overlapping lists do not connect Gemini to Vertex Express. A value may also be a zero-argument callable returning a fresh credential, for keys or tokens that rotate.</p>
+<p>For an unfamiliar endpoint, <code>router.resolve_openai_chat(model).provider</code> still gives you an exact name accepted by <code>api_keys</code>, <code>base_urls</code> and <code>explain_auth</code>. Unlike keys, URLs and cloud settings remain endpoint-specific.</p>
+<p>If you keep <code>api_key=</code> on the call out of habit, lm15 tells you where it went rather than guessing:</p>
+<div class="highlight"><pre><span></span><code><span class="n">router</span><span class="o">.</span><span class="n">complete_from_openai_chat</span><span class="p">(</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">messages</span><span class="p">,</span> <span class="n">api_key</span><span class="o">=</span><span class="s2">"sk-…"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">NotConfiguredError: 'api_key' configures the client, not the request; in lm15 it lives in LMRouter(RouterConfig(api_keys={provider: key})) or the environment</span>
+</code></pre></div>
+<p><strong>Why configure keys once?</strong> This router keeps credentials on reusable provider clients. Per-call credentials could be designed safely, but this API deliberately keeps account selection separate from generation options. Need two accounts on the same endpoint? Use two routers.</p>
+<h3 id="a-different-server">A different server<a class="headerlink" href="#a-different-server" title="Permanent link">&para;</a></h3>
+<p>For an unlisted server that needs custom format settings, see
+<a href="../connecting-openai-compatible-servers/">Connect an unlisted OpenAI-compatible server</a>.
+That tutorial explains why unknown <code>compat</code> strings fail and how to pass an
+<code>OpenAIChatCompat</code> object instead. The router examples below keep the registered
+provider's existing policy and change only its address.</p>
+<p><code>base_url</code> on the client, or <code>api_base</code> on the litellm call, is a proxy in front of OpenAI or a server of your own. It moves the same way the key did:</p>
+<p><strong>Before — OpenAI SDK</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">client</span> <span class="o">=</span> <span class="n">OpenAI</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">"https://gw.example/v1"</span><span class="p">)</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Before — LiteLLM</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"hosted_vllm/meta-llama/Llama-3.1-8B-Instruct"</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+    <span class="n">api_base</span><span class="o">=</span><span class="s2">"http://gpu-box:8000/v1"</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p><strong>After — lm15</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">server_router</span> <span class="o">=</span> <span class="n">lm15</span><span class="o">.</span><span class="n">LMRouter</span><span class="p">(</span><span class="n">lm15</span><span class="o">.</span><span class="n">RouterConfig</span><span class="p">(</span><span class="n">base_urls</span><span class="o">=</span><span class="p">{</span>
+    <span class="s2">"openai-chat"</span><span class="p">:</span> <span class="s2">"https://gw.example/v1"</span><span class="p">,</span>
+    <span class="s2">"vllm"</span><span class="p">:</span> <span class="s2">"http://gpu-box:8000/v1"</span><span class="p">,</span>
+<span class="p">}))</span>
+<span class="n">server_router</span><span class="o">.</span><span class="n">complete_from_openai_chat</span><span class="p">(</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">messages</span><span class="p">)</span>
+<span class="n">server_router</span><span class="o">.</span><span class="n">complete_from_openai_chat</span><span class="p">(</span><span class="s2">"hosted_vllm/meta-llama/Llama-3.1-8B-Instruct"</span><span class="p">,</span> <span class="n">messages</span><span class="p">)</span>
+</code></pre></div>
+<p>The URL replaces the adapter's default (or the preset's: <code>vllm</code>, <code>ollama</code>, <code>groq</code>, … each know their own) while the preset's dialect stays. The cloud doors are the exception: Azure's and Bedrock's URLs are <em>built</em> from a resource name or a region, so an entry for <code>azure-chat</code> is refused and points you to <code>RouterConfig(settings=…)</code> — see <a href="../cloud-hosts/">Cloud hosts</a>.</p>
+<h2 id="the-same-call-from-litellm">The same call, from LiteLLM<a class="headerlink" href="#the-same-call-from-litellm" title="Permanent link">&para;</a></h2>
+<p>LiteLLM speaks the OpenAI message format to every provider; so does this door. Only the model string needs reading, and it is read the way litellm reads it.</p>
+<p><strong>Before — LiteLLM</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">litellm</span><span class="o">.</span><span class="n">completion</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"anthropic/claude-sonnet-4-5"</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+    <span class="n">max_tokens</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>After — lm15</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="n">router</span><span class="o">.</span><span class="n">complete_from_openai_chat</span><span class="p">(</span>
+    <span class="s2">"anthropic/claude-sonnet-4-5"</span><span class="p">,</span>
+    <span class="n">messages</span><span class="p">,</span>
+    <span class="n">max_tokens</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">The sky is blue because molecules in Earth's atmosphere scatter shorter blue wavelengths of sunlight more than longer red wavelengths, a phenomenon called Rayleigh scattering.</span>
+</code></pre></div>
+<p>That went to Anthropic's Messages API through lm15's Anthropic adapter, with the key from <code>ANTHROPIC_API_KEY</code>. The rule for the string:</p>
+<ul>
+<li>only the <strong>first</strong> segment is the provider; a model id may contain slashes itself (<code>groq/openai/gpt-oss-20b</code> → Groq, model <code>openai/gpt-oss-20b</code>);</li>
+<li>an lm15 <code>provider:model</code> string is always accepted as-is;</li>
+<li>a litellm prefix lm15 has no door for — or one that names two doors (<code>bedrock/</code>, <code>vertex_ai/</code>: Anthropic or not, by model) — is refused by name. Write <code>bedrock-anthropic:…</code> or <code>vertex:…</code> yourself.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">lm15.router</span><span class="w"> </span><span class="kn">import</span> <span class="n">openai_chat_model_string</span>
+
+<span class="n">openai_chat_model_string</span><span class="p">(</span><span class="s2">"groq/openai/gpt-oss-20b"</span><span class="p">)</span>
+<span class="n">openai_chat_model_string</span><span class="p">(</span><span class="s2">"bedrock/anthropic.claude-3"</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">'groq:openai/gpt-oss-20b'</span>
+<span class="go">UnknownModelError: could not read 'bedrock/anthropic.claude-3' as a litellm model string: 'bedrock' is not a provider prefix lm15 has a door for (known: anthropic, azure, deepseek, gemini, groq, hosted_vllm, moonshot, ollama, ollama_chat, openai, openrouter, xai); write it as lm15's provider:model instead</span>
+</code></pre></div>
+<h2 id="the-chat-loop-where-you-stop-writing-dictionaries">The chat loop: where you stop writing dictionaries<a class="headerlink" href="#the-chat-loop-where-you-stop-writing-dictionaries" title="Permanent link">&para;</a></h2>
+<p>A chat loop appends the reply to the history and calls again. On the dictionary door, the reply is a <code>Response</code>, not a dictionary — and lm15 does not turn it back into one (that would be a second, lossy format to maintain). So the loop is the seam: read the dictionaries <strong>once</strong>, then stay typed.</p>
+<p><strong>Before</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">)</span>
+    <span class="n">messages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+    <span class="n">messages</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">"role"</span><span class="p">:</span> <span class="s2">"user"</span><span class="p">,</span> <span class="s2">"content"</span><span class="p">:</span> <span class="nb">input</span><span class="p">(</span><span class="s2">"&gt; "</span><span class="p">)})</span>
+</code></pre></div>
+<p><strong>After</strong></p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">replace</span>
+
+<span class="n">request</span><span class="p">,</span> <span class="n">lm</span> <span class="o">=</span> <span class="n">router</span><span class="o">.</span><span class="n">request_from_openai_chat</span><span class="p">(</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">messages</span><span class="p">)</span>
+<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+    <span class="n">request</span> <span class="o">=</span> <span class="n">replace</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">messages</span><span class="o">=</span><span class="n">request</span><span class="o">.</span><span class="n">messages</span> <span class="o">+</span> <span class="p">(</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+        <span class="n">lm15</span><span class="o">.</span><span class="n">Message</span><span class="o">.</span><span class="n">user</span><span class="p">(</span><span class="nb">input</span><span class="p">(</span><span class="s2">"&gt; "</span><span class="p">)),</span>
+    <span class="p">))</span>
+</code></pre></div>
+<p><code>request_from_openai_chat</code> hands you the adapter along with the request because the two belong together: the <code>Request</code> carries the bare wire model (<code>gpt-4o-mini</code>), and <code>router.complete(request)</code> would route that bare name to the Responses API. <code>lm.complete(request)</code> keeps the door you started on. (To route through the router instead, set <code>model="openai-chat:gpt-4o-mini"</code> on the request.)</p>
+<p><code>replace</code> is <code>dataclasses.replace</code>: lm15's types are immutable, so a new turn is a new <code>Request</code> rather than a mutated list. Messages are a tuple; <code>+ (…,)</code> appends.</p>
+<h3 id="your-history-probably-holds-sdk-objects">Your history probably holds SDK objects<a class="headerlink" href="#your-history-probably-holds-sdk-objects" title="Permanent link">&para;</a></h3>
+<p>The old loop did <code>messages.append(response.choices[0].message)</code>, so an existing history mixes dictionaries with pydantic objects. Pass their dictionary form and leave the dictionaries alone:</p>
+<div class="highlight"><pre><span></span><code><span class="n">history</span> <span class="o">=</span> <span class="p">[</span><span class="n">m</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="n">m</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">messages</span><span class="p">]</span>
+<span class="n">response</span> <span class="o">=</span> <span class="n">router</span><span class="o">.</span><span class="n">complete_from_openai_chat</span><span class="p">(</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">history</span><span class="p">)</span>
+</code></pre></div>
+<p>Their <code>null</code>-valued keys and empty <code>annotations</code> read as absent; non-empty <code>annotations</code> (web-search citations) become <code>CitationPart</code>s. The exact dumps the SDK and litellm produce are pinned as contract cases. An old SDK response you still hold on its own: <code>lm15.response_from_openai_chat(old.model_dump())</code>.</p>
+<h2 id="streaming">Streaming<a class="headerlink" href="#streaming" title="Permanent link">&para;</a></h2>
+<p>Keep <code>stream=True</code>. The difference is what you iterate: lm15 gives you text fragments directly, not OpenAI-shaped chunks. The returned <code>ResponseStream</code> also assembles the reply, so usage, tool calls and other parts remain available afterwards.</p>
+<p><strong>Before</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">chat</span><span class="o">.</span><span class="n">completions</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">choices</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">delta</span><span class="o">.</span><span class="n">content</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>After</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">result</span> <span class="o">=</span> <span class="n">router</span><span class="o">.</span><span class="n">complete_from_openai_chat</span><span class="p">(</span>
+    <span class="s2">"gpt-4o-mini"</span><span class="p">,</span> <span class="n">messages</span><span class="p">,</span> <span class="n">max_completion_tokens</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">with</span> <span class="n">result</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">usage</span><span class="o">.</span><span class="n">output_tokens</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">The sky appears blue due to the scattering of sunlight by the Earth's atmosphere, with shorter blue wavelengths being scattered more than other colors.</span>
+<span class="go">26</span>
+</code></pre></div>
+<p>The same call works with <code>"anthropic/claude-sonnet-4-5"</code> and the other supported model strings. Without <code>stream=True</code> (or with <code>stream=False</code>), the call returns a completed <code>Response</code> as before.</p>
+<p>The request starts when you iterate, not when you create <code>result</code>. The <code>with</code> block closes the stream even if you break early or your code raises. A closed, unfinished stream cannot provide a completed response; closing does not guarantee that the provider stops billing immediately. Reading <code>result.response</code> before closing instead consumes the remaining stream.</p>
+<p>For thinking and tool-call fragments as they arrive, iterate <code>result.events()</code> instead of <code>result</code>; neither executes tools. <code>router.stream_from_openai_chat(...)</code> remains available for raw typed events without assembly. The native <code>router.complete(Request(...))</code> and <code>router.stream(Request(...))</code> APIs are unchanged.</p>
+<p><strong>Async Python</strong> uses the same flag. Await the call, then use <code>async for</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stream_answer</span><span class="p">():</span>
+    <span class="n">async_router</span> <span class="o">=</span> <span class="n">lm15</span><span class="o">.</span><span class="n">AsyncLMRouter</span><span class="p">()</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">async_router</span><span class="o">.</span><span class="n">complete_from_openai_chat</span><span class="p">(</span>
+        <span class="s2">"anthropic/claude-sonnet-4-5"</span><span class="p">,</span> <span class="n">messages</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">result</span><span class="p">:</span>
+        <span class="k">async</span> <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">result</span><span class="o">.</span><span class="n">response</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">response</span>
+</code></pre></div>
+<p>The trade-off is deliberate: this migration helper has two return types, selected by <code>stream</code>. Its type annotations distinguish <code>True</code> and <code>False</code>; a boolean decided at runtime requires handling either result.</p>
+<h2 id="client-settings-each-one-has-a-place">Client settings: each one has a place<a class="headerlink" href="#client-settings-each-one-has-a-place" title="Permanent link">&para;</a></h2>
+<p><code>api_key</code> and <code>api_base</code> you have seen. The other keywords that configure the <em>client</em> rather than the <em>request</em> are refused the same way, each naming its lm15 home:</p>
+<table>
+<thead>
+<tr>
+<th>you wrote</th>
+<th>in lm15 it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>api_key=</code></td>
+<td><code>RouterConfig(api_keys={provider: key})</code>, or the environment</td>
+</tr>
+<tr>
+<td><code>api_base=</code>, <code>base_url=</code></td>
+<td><code>RouterConfig(base_urls={provider: url})</code></td>
+</tr>
+<tr>
+<td><code>timeout=</code>, <code>headers=</code>, <code>extra_headers=</code>, <code>extra_query=</code></td>
+<td><code>RouterConfig(transport=…)</code> — see <a href="../using-the-transports/">Transports</a></td>
+</tr>
+<tr>
+<td><code>num_retries=</code>, <code>max_retries=</code></td>
+<td>your own loop over <code>lm15.RETRYABLE_ERRORS</code>; lm15 never retries on its own</td>
+</tr>
+<tr>
+<td><code>cache=</code>, <code>caching=</code></td>
+<td>your own cache keyed on the <code>Request</code>; lm15 has no response cache</td>
+</tr>
+<tr>
+<td><code>extra_body=</code></td>
+<td><code>config.extensions</code> on the <code>Request</code> (build it, then edit)</td>
+</tr>
+<tr>
+<td><code>mock_response=</code></td>
+<td><code>lm15.testing.FakeLM</code></td>
+</tr>
+<tr>
+<td><code>drop_params=</code></td>
+<td>nothing: lm15 refuses what it cannot carry instead of dropping it</td>
+</tr>
+<tr>
+<td><code>n=</code></td>
+<td>refused: a <code>Response</code> is one message; loop in your code</td>
+</tr>
+</tbody>
+</table>
+<p>Two more differences that are not settings:</p>
+<ul>
+<li><strong>Provider-specific keywords are read with the destination's spelling.</strong> <code>deepseek/…</code> reads DeepSeek's <code>thinking: {"type": "disabled"}</code>; <code>groq/…</code> reads <code>reasoning_format</code>; sending DeepSeek's spelling to OpenAI is refused instead of forwarded to a server that ignores it. Anthropic's native <code>thinking</code> object is not a Chat Completions key at all; say it as <code>reasoning_effort</code> (or build the <code>Request</code> and set <code>Config.reasoning</code>).</li>
+<li><strong>Cached <code>ModelResponse</code> objects</strong> read one choice at a time: <code>lm15.response_from_openai_chat(cached.model_dump(), choice=i)</code>. Each carries the request's <em>total</em> usage, not a share.</li>
+</ul>
+<h2 id="structured-output-a-pydantic-class-is-not-json">Structured output: a pydantic class is not JSON<a class="headerlink" href="#structured-output-a-pydantic-class-is-not-json" title="Permanent link">&para;</a></h2>
+<p><code>response_format=Out</code> (a pydantic class) is the one keyword neither door can take as-is, because it is not JSON. Convert it to the <code>json_schema</code> object first — and know the difference: the OpenAI SDK <em>rewrites</em> your schema into its strict form (<code>additionalProperties: false</code> everywhere, every property required) before sending; lm15 sends your schema <strong>verbatim</strong> (INV-050) and lets the provider's 400 be the contract. So <code>Out.model_json_schema()</code> with <code>strict: true</code> can be rejected where the SDK's transformed copy was accepted. Either use the SDK's own converter if it is installed (<code>openai.lib._parsing._completions.type_to_response_format_param(Out)</code> — a private path, so it may move), send <code>strict: false</code>, or write the strict-form schema yourself.</p>
+<hr />
+<p>The rest of this page is the contract of the converters underneath: what every key does, how rows become messages, and where a round trip cannot be exact. Read it when a refusal surprises you.</p>
+<h2 id="the-converters-underneath">The converters underneath<a class="headerlink" href="#the-converters-underneath" title="Permanent link">&para;</a></h2>
+<p><code>complete_from_openai_chat</code> is three public pieces you can use on their own: <code>lm15.router.openai_chat_model_string</code> (the model-string rule above), <code>lm15.request_from_openai_chat(body, compat=None)</code> (the body → <code>Request</code>), and the provider's own <code>parse_response</code>.</p>
+<h3 id="tell-it-which-server-the-body-was-written-for">Tell it which server the body was written for<a class="headerlink" href="#tell-it-which-server-the-body-was-written-for" title="Permanent link">&para;</a></h3>
+<p>Several OpenAI-compatible servers spell the same knob differently: DeepSeek writes <code>thinking: {"type": "disabled"}</code> where OpenAI writes <code>reasoning_effort: "none"</code>, Groq has <code>reasoning_format</code>, OpenRouter a <code>reasoning</code> object. <code>compat</code> names the dialect whose spellings are read — the same preset names <code>OpenAIChatLM</code> takes:</p>
+<div class="highlight"><pre><span></span><code><span class="n">lm15</span><span class="o">.</span><span class="n">request_from_openai_chat</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">compat</span><span class="o">=</span><span class="s2">"deepseek"</span><span class="p">)</span>
+<span class="n">lm15</span><span class="o">.</span><span class="n">request_from_openai_chat</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="n">compat</span><span class="o">=</span><span class="s2">"groq"</span><span class="p">)</span>
+</code></pre></div>
+<p>A body carrying another server's spelling is <strong>refused</strong>, not forwarded: a knob a server ignores is a silent paid no-op (hidden reasoning tokens are billed), and lm15 does not guess which server a body was meant for. On an adapter, <code>lm.request_from_openai_chat(body)</code> uses that adapter's own compat, including per-model overrides; the router door does this for you.</p>
+<h3 id="what-happens-to-each-key">What happens to each key<a class="headerlink" href="#what-happens-to-each-key" title="Permanent link">&para;</a></h3>
+<p>Every key has exactly one verdict, recorded as data in the contract (<code>lm15-contract/tools/openai-chat-ingest-verdicts.json</code>) and checked there against the scraped OpenAI reference, so a key nobody decided about cannot exist quietly. The buckets (mapping rule MAP-12):</p>
+<table>
+<thead>
+<tr>
+<th>Verdict</th>
+<th>What it means</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>map</strong></td>
+<td>reads into a canonical field</td>
+<td><code>messages</code>, <code>tools</code>, <code>tool_choice</code>, <code>parallel_tool_calls</code>, <code>max_tokens</code> / <code>max_completion_tokens</code> (both, on every preset), <code>temperature</code>, <code>top_p</code>, <code>stop</code>, <code>logprobs</code> + <code>top_logprobs</code>, <code>response_format</code>, <code>service_tier</code>, <code>store</code>, <code>user</code> / <code>safety_identifier</code>, the reasoning and prompt-cache spellings of the chosen preset</td>
+</tr>
+<tr>
+<td><strong>extensions</strong></td>
+<td>passes verbatim into <code>config.extensions</code> and back out unchanged</td>
+<td><code>seed</code>, <code>logit_bias</code>, <code>presence_penalty</code>, <code>frequency_penalty</code>, <code>metadata</code>, <code>verbosity</code>, <code>moderation</code></td>
+</tr>
+<tr>
+<td><strong>refuse</strong></td>
+<td><code>UnsupportedFeatureError</code> naming the key and where it belongs</td>
+<td><code>n</code> (lm15 reads one choice; fan out in the caller), the deprecated <code>functions</code> / <code>function_call</code> shape, <code>audio</code>, <code>modalities</code>, <code>prediction</code>, <code>web_search_options</code>, <code>top_k</code>, a per-message <code>name</code>, a <code>custom</code> tool, <code>strict: true</code> on a tool, a content block with no canonical part</td>
+</tr>
+<tr>
+<td><strong>call-mode</strong></td>
+<td>read and dropped — it says how the request is sent, not what is asked</td>
+<td><code>stream</code>, <code>stream_options</code> (pass <code>stream</code> to <code>complete()</code> / <code>stream()</code> instead)</td>
+</tr>
+<tr>
+<td><strong>default</strong></td>
+<td>equal to the wire's default; reads as absent</td>
+<td><code>response_format {"type": "text"}</code>, <code>strict: false</code>, <code>logprobs: false</code></td>
+</tr>
+</tbody>
+</table>
+<p>A key with no verdict at all is refused. Malformed input — a wrong JSON type, a tool call whose <code>arguments</code> string is not JSON, <code>max_tokens</code> and <code>max_completion_tokens</code> that disagree — raises <code>ValueError</code> / <code>TypeError</code>, like everything else in lm15's type system.</p>
+<h3 id="rows-and-content">Rows and content<a class="headerlink" href="#rows-and-content" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The first row, when <code>system</code> or <code>developer</code>, becomes <code>Request.system</code>; a later <code>system</code> / <code>developer</code> row becomes a <code>developer</code> message at that position.</li>
+<li>Consecutive <code>tool</code> rows become <strong>one</strong> tool message with one <code>ToolResultPart</code> per row (<code>tool_call_id</code> → <code>id</code>, <code>name</code> → <code>name</code>).</li>
+<li>An assistant row's parts come out in a fixed order: <code>reasoning_content</code> as a <code>ThinkingPart</code>, then <code>content</code>, then <code>refusal</code>, then <code>tool_calls</code> with <code>arguments</code> parsed. <code>content: null</code> with nothing else is one empty text part (a message is never empty).</li>
+<li><code>text</code> → <code>TextPart</code>; <code>image_url</code> → <code>ImagePart</code> (a data URI becomes inline data; a URL stays a URL); <code>input_audio</code> → <code>AudioPart</code>; <code>file</code> → <code>DocumentPart</code>; <code>refusal</code> → <code>RefusalPart</code>.</li>
+<li>A <code>prompt_cache_breakpoint</code> on the system row is <code>prefix="stable"</code>; on the last text block of message <em>N</em> it is <code>prefix_until_index=N</code>.</li>
+</ul>
+<h3 id="where-the-round-trip-is-not-exact">Where the round trip is not exact<a class="headerlink" href="#where-the-round-trip-is-not-exact" title="Permanent link">&para;</a></h3>
+<p><code>request_from_openai_chat(lm.build_request(r).body) == r</code> for every request the chat adapter can carry losslessly — the contract checks this over every recorded chat body in its corpus. Three things the <strong>wire</strong> cannot carry do not come back, and each is named:</p>
+<ul>
+<li>A <code>ThinkingPart</code> replayed as text (<code>thinking_replay="as_text"</code>) reads back as text. lm15 never parses <code>&lt;think&gt;</code> blocks or other markers out of prose, in either direction.</li>
+<li>A <code>ToolResultPart.name</code> on a preset that omits it from the tool row.</li>
+<li>A leading <code>developer</code> message reads back as <code>Request.system</code>: the wire has one instruction row for both.</li>
+</ul>
+<p>Likewise, a tool result whose text begins with <code>[error]</code> (how the chat wire carries <code>is_error</code>) reads back as text with <code>is_error=False</code>. Reversing a prose marker would be a guess.</p>
+<h3 id="the-response-the-other-way">The response, the other way<a class="headerlink" href="#the-response-the-other-way" title="Permanent link">&para;</a></h3>
+<p><code>response_from_openai_chat(body)</code> reads a Chat Completions <strong>response</strong> body into a <code>Response</code> — the same reader the OpenAI Chat adapter runs on provider traffic, so what it maps (text, <code>reasoning_content</code> as thinking, tool calls, refusal, usage, logprobs, finish reason) and what it records as unmapped are pinned by the contract's 302 recorded provider responses. It takes a plain dict, which is what a cached litellm object gives you:</p>
+<div class="highlight"><pre><span></span><code><span class="n">resp</span> <span class="o">=</span> <span class="n">lm15</span><span class="o">.</span><span class="n">response_from_openai_chat</span><span class="p">(</span><span class="n">litellm_model_response</span><span class="o">.</span><span class="n">model_dump</span><span class="p">())</span>
+<span class="n">resp</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">resp</span><span class="o">.</span><span class="n">tool_calls</span><span class="p">,</span> <span class="n">resp</span><span class="o">.</span><span class="n">usage</span><span class="o">.</span><span class="n">reasoning_tokens</span>
+</code></pre></div>
+<p>Everything the reader does not know rides in <code>resp.provider_data</code>, whole; an error envelope raises the typed provider error. Two rules to know:</p>
+<ul>
+<li><strong>More than one choice is refused unless you name one.</strong> A <code>Response</code> is one message. A body produced with <code>n=3</code> raises until you read it three times with <code>choice=0</code>, <code>1</code>, <code>2</code> — the twin of the request side refusing <code>n</code>. (The adapter's own <code>parse_response</code> refuses too; a user who smuggled <code>n</code> through <code>config.extensions</code> used to get the first choice silently.)</li>
+<li><strong><code>model=</code> fills in what the body lacks.</strong> Servers echo the model; some caches strip it.</li>
+</ul>
+<p>There is no <code>compat</code> argument: the Chat Completions <em>response</em> shape does not vary by server the way the request does, and a parameter that did nothing would be a lie.</p>
+<h2 id="for-framework-authors">For framework authors<a class="headerlink" href="#for-framework-authors" title="Permanent link">&para;</a></h2>
+<p>If your framework's adapter already produces OpenAI-format messages — DSPy's <code>ChatAdapter</code> and <code>JSONAdapter</code> do — your typed-request constructor is one line:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">from_call</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">messages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">lm15</span><span class="o">.</span><span class="n">Request</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">lm15</span><span class="o">.</span><span class="n">request_from_openai_chat</span><span class="p">({</span><span class="s2">"model"</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span> <span class="s2">"messages"</span><span class="p">:</span> <span class="n">messages</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">})</span>
+</code></pre></div>
+<p>Render anything that is not JSON first (a pydantic model class passed as <code>response_format</code> must become the <code>json_schema</code> object the OpenAI SDK would send). The exact bodies DSPy's adapters produce are pinned as contract cases, so a change in either project that breaks this line is caught on both sides.</p>
+<h2 id="what-this-does-not-do">What this does not do<a class="headerlink" href="#what-this-does-not-do" title="Permanent link">&para;</a></h2>
+<p>It reads the Chat Completions format only, in both directions. It does not read the Responses API, Anthropic or Gemini formats; it does not turn a <code>Response</code> back into an OpenAI-shaped response object for serving behind an OpenAI-compatible endpoint (a later, separate feature); it does not read streaming chunks. And it is not a <code>Request.from_...</code> constructor: the canonical types stay vendor-free; the converters live beside the dialect they invert.</p>
+<h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../getting-started/">Getting started</a> — the <code>Request</code> / <code>Response</code> loop you are now standing in, from the beginning.</li>
+<li><a href="../using-the-router/">Using the router</a> — the model-string grammar and how resolution picks a door.</li>
+<li><a href="../authentication/">Authentication</a> — subscriptions, rotating tokens, and every other way a key can arrive.</li>
+<li><a href="../cookbooks/05-streaming/">Streaming</a> and <a href="../cookbooks/06-function-tools/">Function tools</a> — the two things the dictionary format carries least well, done natively.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

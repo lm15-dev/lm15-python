@@ -1,0 +1,2812 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Provider-neutral, low-level foundation for LLM APIs — one canonical representation, exact serde, zero dependencies.">
+      
+      
+      
+        <link rel="canonical" href="https://lm15-dev.github.io/lm15-python/connecting-openai-compatible-servers/">
+      
+      
+        <link rel="prev" href="../using-model-profiles/">
+      
+      
+        <link rel="next" href="../using-the-transports/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Connect an unlisted OpenAI-compatible server - lm15</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#connect-an-unlisted-openai-compatible-server" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="lm15" class="md-header__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lm15
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Connect an unlisted OpenAI-compatible server
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="lm15" class="md-nav__button md-logo" aria-label="lm15" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    lm15
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lm15-dev/lm15-python" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lm15-dev/lm15-python
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers-and-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers & models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../authentication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cloud-hosts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cloud hosts (AWS, Azure, Google Cloud)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-router/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The router
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-type-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The type system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../migrating-from-openai-chat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrating from an OpenAI-shaped client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools-from-functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools from functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-a-provider/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-model-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model profiles & compat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connect an unlisted OpenAI-compatible server
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connect an unlisted OpenAI-compatible server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-need-from-the-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What you need from the server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-understand-what-a-preset-name-means" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Understand what a preset name means
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-start-without-a-preset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Start without a preset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-configure-a-real-world-compatibility-difference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Configure a real-world compatibility difference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Configure a real-world compatibility difference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lm-studios-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LM Studio's name
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-adapt-a-known-preset-when-it-really-is-the-same-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Adapt a known preset when it really is the same server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-send-a-request-then-test-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Send a request, then test streaming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting-and-integration-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting and integration checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../using-the-transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design-rationale/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design rationale
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-assessment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security assessment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cookbooks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Cookbooks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Essentials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Essentials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/01-first-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first request
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/02-conversations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-turn conversations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/03-system-prompts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System & developer prompts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/04-generation-config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Controlling generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/05-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/06-function-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/07-builtin-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in provider tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/08-structured-output/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Structured output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modalities
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modalities
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/09-images-and-documents/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Images, PDFs & documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/10-audio-video-reasoning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audio, video & reasoning models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Beyond chat
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Beyond chat
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/11-caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/12-batch-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batch jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/13-media-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Media generation (images & speech)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/14-video-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Video generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/15-live-sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live sessions (realtime)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Production
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/16-local-and-compatible-servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local & OpenAI-compatible servers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/17-errors-and-testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors, retries & testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/18-provider-passthrough/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provider passthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbooks/19-prompt-caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prompt caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Specification
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Specification
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-lm15-is-specified/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How lm15 is specified
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serde-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mapping-rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mapping rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-hydration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model hydration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../router-portability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Router portability (proposal)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/result/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/serde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Serde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles & models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/transports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-need-from-the-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What you need from the server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-understand-what-a-preset-name-means" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Understand what a preset name means
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-start-without-a-preset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Start without a preset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-configure-a-real-world-compatibility-difference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Configure a real-world compatibility difference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Configure a real-world compatibility difference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lm-studios-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LM Studio's name
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-adapt-a-known-preset-when-it-really-is-the-same-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Adapt a known preset when it really is the same server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-send-a-request-then-test-streaming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Send a request, then test streaming
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting-and-integration-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting and integration checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="connect-an-unlisted-openai-compatible-server">Connect an unlisted OpenAI-compatible server<a class="headerlink" href="#connect-an-unlisted-openai-compatible-server" title="Permanent link">&para;</a></h1>
+<p>You do not need a named lm15 preset to use a server. This tutorial shows how to
+connect through OpenAI <strong>Chat Completions</strong>, choose compatibility settings from
+actual server requirements, and inspect the resulting request before sending it.</p>
+<p>Use the Python package from <a href="../getting-started/">Getting started</a>. Steps 1–4
+run without a server or a real API key. Step 5 makes real requests.</p>
+<h2 id="what-you-need-from-the-server">What you need from the server<a class="headerlink" href="#what-you-need-from-the-server" title="Permanent link">&para;</a></h2>
+<p>Keep these three choices separate:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>What to supply</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>base_url</code></td>
+<td>The API root, such as <code>http://localhost:1234/v1</code>, <strong>not</strong> the full <code>/chat/completions</code> URL.</td>
+</tr>
+<tr>
+<td><code>api_key</code></td>
+<td>That server's token. For a local server with authentication disabled, these examples pass the explicit placeholder <code>"unused"</code>.</td>
+</tr>
+<tr>
+<td><code>Request.model</code></td>
+<td>The exact model ID the server exposes, not an lm15 routing prefix.</td>
+</tr>
+</tbody>
+</table>
+<p>For LM Studio, load a model and start its local server. Copy the address and
+model ID from its interface; <code>http://localhost:1234/v1</code> is the example address
+used here. Configure a different address if your server runs elsewhere.</p>
+<p>Use HTTPS for remote servers. Do not copy an OpenAI account key into a custom
+server's configuration. A compatibility policy does not choose credentials.</p>
+<p>This guide uses <code>OpenAIChatLM</code>, which sends requests to <code>/chat/completions</code>.
+A server exposing only <code>/responses</code> needs <code>OpenAILM</code> and
+<code>OpenAIResponsesCompat</code> instead. A preset cannot switch between those APIs.</p>
+<h2 id="1-understand-what-a-preset-name-means">1. Understand what a preset name means<a class="headerlink" href="#1-understand-what-a-preset-name-means" title="Permanent link">&para;</a></h2>
+<p>A <code>compat</code> string is a lookup in lm15's existing presets, not an arbitrary
+provider label and not automatic server detection. Unknown names fail during
+client construction, before a chat request is sent:</p>
+<p><div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">replace</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">lm15</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span><span class="p">,</span> <span class="n">Message</span><span class="p">,</span> <span class="n">OpenAIChatLM</span><span class="p">,</span> <span class="n">Request</span><span class="p">,</span> <span class="n">ResponseStream</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lm15.compat</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIChatCompat</span>
+
+<span class="n">base_url</span> <span class="o">=</span> <span class="s2">"http://localhost:1234/v1"</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">OpenAIChatLM</span><span class="p">(</span>
+        <span class="n">base_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span>
+        <span class="n">api_key</span><span class="o">=</span><span class="s2">"unused"</span><span class="p">,</span>
+        <span class="n">compat</span><span class="o">=</span><span class="s2">"your-unlisted-server"</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">unknown OpenAIChatCompat preset: 'your-unlisted-server'</span>
+</code></pre></div></p>
+<p>There are three valid choices:</p>
+<table>
+<thead>
+<tr>
+<th><code>compat</code> value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Omitted or <code>None</code></td>
+<td>Use the adapter's default Chat Completions policy. No server detection.</td>
+</tr>
+<tr>
+<td>A recognized string, such as <code>"vllm"</code></td>
+<td>Use an existing preset; a server preset can also supply a default address.</td>
+</tr>
+<tr>
+<td>An <code>OpenAIChatCompat(...)</code> object</td>
+<td>Use your own settings. Supply <code>base_url</code> explicitly; the object has no address.</td>
+</tr>
+</tbody>
+</table>
+<p>Changing <code>base_url</code> alone does <strong>not</strong> change the compatibility policy.</p>
+<h2 id="2-start-without-a-preset">2. Start without a preset<a class="headerlink" href="#2-start-without-a-preset" title="Permanent link">&para;</a></h2>
+<p>For a server matching the default OpenAI behavior, omit <code>compat</code> entirely.
+<code>Config.max_tokens</code> expresses your intent; the adapter chooses the JSON field
+name. Build a request to see that choice:</p>
+<p><div class="highlight"><pre><span></span><code><span class="n">request</span> <span class="o">=</span> <span class="n">Request</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">"your-model-id"</span><span class="p">,</span>
+    <span class="n">system</span><span class="o">=</span><span class="s2">"Answer briefly."</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="p">(</span><span class="n">Message</span><span class="o">.</span><span class="n">user</span><span class="p">(</span><span class="s2">"Explain rainbows in one sentence."</span><span class="p">),),</span>
+    <span class="n">config</span><span class="o">=</span><span class="n">Config</span><span class="p">(</span><span class="n">max_tokens</span><span class="o">=</span><span class="mi">64</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="k">with</span> <span class="n">OpenAIChatLM</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span> <span class="n">api_key</span><span class="o">=</span><span class="s2">"unused"</span><span class="p">)</span> <span class="k">as</span> <span class="n">lm</span><span class="p">:</span>
+    <span class="n">prepared</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">prepared</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">prepared</span><span class="o">.</span><span class="n">method</span><span class="p">,</span> <span class="n">prepared</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"model:"</span><span class="p">,</span> <span class="n">payload</span><span class="p">[</span><span class="s2">"model"</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"max_completion_tokens:"</span><span class="p">,</span> <span class="n">payload</span><span class="p">[</span><span class="s2">"max_completion_tokens"</span><span class="p">])</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">POST http://localhost:1234/v1/chat/completions</span>
+<span class="go">model: your-model-id</span>
+<span class="go">max_completion_tokens: 64</span>
+</code></pre></div></p>
+<p>With the literal placeholder credential used here, <code>build_request</code> constructs
+and authenticates the request locally; it does not send it. Do not print the
+whole prepared request or its headers: they can contain credentials. The body
+can contain private prompts, so inspect it only with safe test input.</p>
+<h2 id="3-configure-a-real-world-compatibility-difference">3. Configure a real-world compatibility difference<a class="headerlink" href="#3-configure-a-real-world-compatibility-difference" title="Permanent link">&para;</a></h2>
+<p>Suppose your deployment's documentation or an actual error establishes that it:</p>
+<ul>
+<li>Uses <code>system</code> for instructions.</li>
+<li>Expects <code>max_tokens</code>, not <code>max_completion_tokens</code>.</li>
+<li>Accepts streaming but rejects the <code>stream_options</code> field.</li>
+</ul>
+<p>This is a deployment scenario, <strong>not</strong> a claim that every local server or every
+LM Studio version has these restrictions. Change only settings you have evidence
+for; do not copy another server's entire preset because it runs the same model.</p>
+<p>Pass an object instead of inventing a preset name:</p>
+<p><div class="highlight"><pre><span></span><code><span class="n">chat_compat</span> <span class="o">=</span> <span class="n">OpenAIChatCompat</span><span class="p">(</span>
+    <span class="n">instruction_role</span><span class="o">=</span><span class="s2">"system"</span><span class="p">,</span>
+    <span class="n">max_tokens_field</span><span class="o">=</span><span class="s2">"max_tokens"</span><span class="p">,</span>
+    <span class="n">stream_usage</span><span class="o">=</span><span class="s2">"omit"</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">with</span> <span class="n">OpenAIChatLM</span><span class="p">(</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span>
+    <span class="n">api_key</span><span class="o">=</span><span class="s2">"unused"</span><span class="p">,</span>
+    <span class="n">compat</span><span class="o">=</span><span class="n">chat_compat</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">lm</span><span class="p">:</span>
+    <span class="n">prepared</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">prepared</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+    <span class="n">streaming</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"instruction role:"</span><span class="p">,</span> <span class="n">payload</span><span class="p">[</span><span class="s2">"messages"</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">"role"</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"max_tokens:"</span><span class="p">,</span> <span class="n">payload</span><span class="p">[</span><span class="s2">"max_tokens"</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"max_completion_tokens present:"</span><span class="p">,</span> <span class="s2">"max_completion_tokens"</span> <span class="ow">in</span> <span class="n">payload</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"stream:"</span><span class="p">,</span> <span class="n">streaming</span><span class="p">[</span><span class="s2">"stream"</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"stream_options present:"</span><span class="p">,</span> <span class="s2">"stream_options"</span> <span class="ow">in</span> <span class="n">streaming</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">instruction role: system</span>
+<span class="go">max_tokens: 64</span>
+<span class="go">max_completion_tokens present: False</span>
+<span class="go">stream: True</span>
+<span class="go">stream_options present: False</span>
+</code></pre></div></p>
+<p>The original <code>Request</code> did not change. You changed its translation into the
+server's JSON format, not the prompt or the requested token limit.</p>
+<p><strong>Trade-off:</strong> <code>stream_usage="omit"</code> removes the request for a streaming usage
+report. Streaming text still works if the server supports it, but token counts
+may be unavailable. It does not disable streaming or calculate missing counts.</p>
+<p>Fields left at <code>None</code> inherit the adapter's defaults in this direct-construction
+example; they do not mean "disable" or "detect". In layered profiles, <code>None</code>
+means inherit from the preceding layer. <code>"auto"</code>, on fields that accept it,
+selects the adapter's heuristic, not a network capability probe.</p>
+<h3 id="lm-studios-name">LM Studio's name<a class="headerlink" href="#lm-studios-name" title="Permanent link">&para;</a></h3>
+<p><code>compat="lmstudio"</code> (also spelled <code>lm-studio</code>) is a preset in its own right:
+it uses the same wire policy as <code>ollama</code> (LM Studio documents the same Chat
+Completions fields: <code>max_tokens</code>, no reasoning dial) at LM Studio's own
+documented default address, <code>http://localhost:1234/v1</code>. If your server runs
+elsewhere, pass <code>base_url=</code> — an explicit address always wins. The policy is
+taken from LM Studio's documentation, not yet pinned by a live receipt; test
+your server version's behaviour before relying on a setting, and use your own
+compat object if it differs.</p>
+<p>Any preset name that names a server lm15 has no address for in the dialect
+you chose (for example <code>compat="qwen"</code> on the Chat door, or <code>compat="deepseek"</code>
+on the Responses door) is refused at construction with <code>NotConfiguredError</code>
+until you pass <code>base_url=</code>. lm15 never falls back to the OpenAI cloud for a
+request you addressed to another server.</p>
+<h2 id="4-adapt-a-known-preset-when-it-really-is-the-same-server">4. Adapt a known preset when it really is the same server<a class="headerlink" href="#4-adapt-a-known-preset-when-it-really-is-the-same-server" title="Permanent link">&para;</a></h2>
+<p>For example, if your deployment is vLLM but its gateway rejects <code>stream_options</code>,
+start with the vLLM preset and change that one field:</p>
+<p><div class="highlight"><pre><span></span><code><span class="n">custom_vllm</span> <span class="o">=</span> <span class="n">replace</span><span class="p">(</span>
+    <span class="n">OpenAIChatCompat</span><span class="o">.</span><span class="n">preset</span><span class="p">(</span><span class="s2">"vllm"</span><span class="p">),</span>
+    <span class="n">stream_usage</span><span class="o">=</span><span class="s2">"omit"</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">with</span> <span class="n">OpenAIChatLM</span><span class="p">(</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="s2">"http://gpu-box:8000/v1"</span><span class="p">,</span>
+    <span class="n">api_key</span><span class="o">=</span><span class="s2">"unused"</span><span class="p">,</span>
+    <span class="n">compat</span><span class="o">=</span><span class="n">custom_vllm</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">lm</span><span class="p">:</span>
+    <span class="n">prepared</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">prepared</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">prepared</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"stream_options present:"</span><span class="p">,</span> <span class="s2">"stream_options"</span> <span class="ow">in</span> <span class="n">payload</span><span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="go">http://gpu-box:8000/v1/chat/completions</span>
+<span class="go">stream_options present: False</span>
+</code></pre></div></p>
+<p>The object retains the other vLLM settings, but <strong>does not carry vLLM's default
+address</strong>. Do not mutate lm15's preset tables to register your deployment.</p>
+<h2 id="5-send-a-request-then-test-streaming">5. Send a request, then test streaming<a class="headerlink" href="#5-send-a-request-then-test-streaming" title="Permanent link">&para;</a></h2>
+<p>The following blocks make real requests. Run the preceding blocks first.
+Set <code>LOCAL_MODEL_ID</code> to your server's model ID, and <code>LOCAL_LLM_API_KEY</code> if it
+requires authentication. Replace <code>base_url</code> as needed. Use <code>chat_compat</code> only
+if the requirements in step 3 match your deployment; otherwise adjust it or use
+<code>None</code> for the default policy.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Live: requires a running server and LOCAL_MODEL_ID.</span>
+<span class="n">live_request</span> <span class="o">=</span> <span class="n">replace</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"LOCAL_MODEL_ID"</span><span class="p">])</span>
+
+<span class="k">with</span> <span class="n">OpenAIChatLM</span><span class="p">(</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span>
+    <span class="n">api_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"LOCAL_LLM_API_KEY"</span><span class="p">,</span> <span class="s2">"unused"</span><span class="p">),</span>
+    <span class="n">compat</span><span class="o">=</span><span class="n">chat_compat</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">lm</span><span class="p">:</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">lm</span><span class="o">.</span><span class="n">complete</span><span class="p">(</span><span class="n">live_request</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div>
+<p>Then check streaming separately:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Live: requires a running server and the preceding blocks.</span>
+<span class="k">with</span> <span class="n">OpenAIChatLM</span><span class="p">(</span>
+    <span class="n">base_url</span><span class="o">=</span><span class="n">base_url</span><span class="p">,</span>
+    <span class="n">api_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"LOCAL_LLM_API_KEY"</span><span class="p">,</span> <span class="s2">"unused"</span><span class="p">),</span>
+    <span class="n">compat</span><span class="o">=</span><span class="n">chat_compat</span><span class="p">,</span>
+<span class="p">)</span> <span class="k">as</span> <span class="n">lm</span><span class="p">:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">ResponseStream</span><span class="p">(</span><span class="n">lm</span><span class="o">.</span><span class="n">stream</span><span class="p">(</span><span class="n">live_request</span><span class="p">),</span> <span class="n">live_request</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">()</span>
+</code></pre></div>
+<p>No model answer is shown here: offline request inspection verifies serialization,
+not successful inference against a particular server. Tests also run these live
+blocks against scripted responses, not a real LM Studio installation.</p>
+<h2 id="troubleshooting-and-integration-checklist">Troubleshooting and integration checklist<a class="headerlink" href="#troubleshooting-and-integration-checklist" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom or requirement</th>
+<th>What to check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unknown OpenAIChatCompat preset</code></td>
+<td>Omit <code>compat</code> or pass an object; an unlisted brand is not a valid preset name.</td>
+</tr>
+<tr>
+<td>Connection refused or HTTP 404</td>
+<td>Is the server running? Is the address an API root? Does it expose <code>/chat/completions</code>?</td>
+</tr>
+<tr>
+<td>Authentication error</td>
+<td>Use the target server's token and authentication settings, not an unrelated provider key.</td>
+</tr>
+<tr>
+<td>Model not found</td>
+<td>Copy the exact server model ID. Direct clients do not strip router prefixes.</td>
+</tr>
+<tr>
+<td>Rejected token-limit field</td>
+<td>Set <code>max_tokens_field</code> to the documented spelling.</td>
+</tr>
+<tr>
+<td>Rejected <code>stream_options</code></td>
+<td>Set <code>stream_usage="omit"</code> if the server cannot accept it; expect possibly missing usage.</td>
+</tr>
+<tr>
+<td>Instructions need <code>system</code> instead of <code>developer</code></td>
+<td>Set <code>instruction_role="system"</code>.</td>
+</tr>
+<tr>
+<td>Works for text, fails for tools or JSON output</td>
+<td>Verify those features with that model and server. Text success does not prove feature support.</td>
+</tr>
+</tbody>
+</table>
+<p>For each integration:</p>
+<ol>
+<li>Record the server version, model ID, and documentation or observed error
+   behind each non-default setting.</li>
+<li>Inspect the destination and both ordinary and streaming request bodies.</li>
+<li>Test a short text reply, then streaming, then each feature your application
+   needs. Check results, not just HTTP success: servers can ignore fields.</li>
+<li>Keep a small regression test for the fields you depend on. Use
+   <a href="../cookbooks/17-errors-and-testing/"><code>FakeTransport</code></a> for offline tests.</li>
+<li>Do not silently remove requested features to obtain a successful response.
+   A compat object controls known format differences; it cannot add capabilities
+   to a server or make an unrelated response format parse as Chat Completions.</li>
+</ol>
+<p>Use direct clients for custom policies or multiple differently configured
+servers. If only the address differs and a registered provider's policy fits,
+<a href="../using-the-router/#addresses"><code>RouterConfig(base_urls=...)</code></a> is also supported.
+An unknown <code>compat</code> name and an unknown router provider are separate lookups;
+neither registers the other.</p>
+<h2 id="related-documentation">Related documentation<a class="headerlink" href="#related-documentation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../cookbooks/16-local-and-compatible-servers/">Local &amp; OpenAI-compatible servers</a> — named presets.</li>
+<li><a href="../using-model-profiles/">Model profiles &amp; compat</a> — profiles and policy layering.</li>
+<li><a href="../reference/profiles/#compatibility-policies">Compatibility API reference</a> — available fields and values.</li>
+<li><a href="../cookbooks/18-provider-passthrough/">Provider passthrough</a> — additional server-specific fields.</li>
+<li><a href="../authentication/">Authentication</a> — credentials and access policies.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
