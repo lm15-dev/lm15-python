@@ -457,6 +457,15 @@ class OpenAILM(BaseProviderLM):
     _compat_base: OpenAIResponsesCompat | None = field(init=False, repr=False, default=None)
 
     def __post_init__(self) -> None:
+        if self.profile is not None:
+            import warnings
+
+            warnings.warn(
+                "OpenAILM(profile=...) is deprecated and will be removed in lm15 1.0.0: pass compat= "
+                "(and base_url=) instead; per-request policy goes in Config.extensions['openai_responses_compat']",
+                DeprecationWarning,
+                stacklevel=3,
+            )
         self._bind_access(self.access, credentials_path=self.credentials_path, default_base_url=_DEFAULT_BASE_URL, settings=self.settings)
         compat = self.compat if self.compat is not None else self._registry_compat()
         if isinstance(compat, str):
@@ -535,6 +544,15 @@ class OpenAILM(BaseProviderLM):
         profile: ProviderProfile,
         transport: SyncTransport | None = None,
     ) -> "OpenAILM":
+        """DEPRECATED (1.0.0rc2; removed in 1.0.0): ``OpenAILM(api_key=..., compat=..., base_url=...)``."""
+        import warnings
+
+        warnings.warn(
+            "OpenAILM.from_profile is deprecated and will be removed in lm15 1.0.0: "
+            "use OpenAILM(api_key=..., compat=<preset or OpenAIResponsesCompat>, base_url=...)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         endpoint = profile.endpoint("inference")
         base_url = endpoint.base_url if endpoint and endpoint.base_url else "https://api.openai.com/v1"
         return cls(

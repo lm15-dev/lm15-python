@@ -1,5 +1,7 @@
 # Profiles & models
 
+**`lm15.profiles.ProviderProfile` / `EndpointProfile` are deprecated (1.0.0rc2) and removed in 1.0.0**; see the migration table in [Using model profiles](../using-model-profiles.md). The compatibility policies and the request-level hatch stay.
+
 ::: lm15.profiles
 
 ::: lm15.models

@@ -734,11 +734,9 @@ def test_openrouter_reasoning_off_sends_enabled_false() -> None:
     payload = json.loads(chat.build_request(_reasoning_off_request(), stream=False).body)
     assert payload["reasoning"] == {"enabled": False}
 
-    # The Responses adapter resolves its compat from the base URL.
-    responses = OpenAILM(
-        api_key="sk-test", transport=_FakeTransport(),
-        base_url="https://openrouter.ai/api/v1",
-    )
+    # The Responses adapter takes the preset by name (guessing it from the
+    # base URL is deprecated; tests/test_profiles_models.py pins the warning).
+    responses = OpenAILM(api_key="sk-test", transport=_FakeTransport(), compat="openrouter")
     payload = json.loads(responses.build_request(_reasoning_off_request(), stream=False).body)
     assert payload["reasoning"] == {"enabled": False}
 

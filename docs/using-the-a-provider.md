@@ -65,27 +65,21 @@ with StdlibTransport(max_connections=10) as transport:
     ...
 ```
 
-## Provider profiles and local-compatible endpoints
+## Local and OpenAI-compatible endpoints
 
-For normal provider usage, pass `api_key` and optionally `base_url` directly. If
-you need model metadata or OpenAI-compatible dialect controls, use a
-`ProviderProfile`. Profiles are optional and keep provider wire quirks out of
-`Request`.
+Name the server; the preset supplies its wire policy and its address:
 
 ```python
-from lm15.compat import OpenAIResponsesCompat
-from lm15.profiles import ProviderProfile
 from lm15.providers import OpenAILM
 
-profile = ProviderProfile.inference(
-    provider="ollama",
-    api_family="openai_responses",
-    base_url="http://localhost:11434/v1",
-    compat=OpenAIResponsesCompat.preset("ollama"),
-)
-
-lm = OpenAILM.from_profile(api_key="ollama", profile=profile)
+lm = OpenAILM(api_key="ollama", compat="ollama")                       # http://localhost:11434/v1
+lm = OpenAILM(api_key="ollama", compat="ollama", base_url="http://gpu-box:11434/v1")
 ```
+
+A preset name lm15 has no address for in the chosen dialect is refused with
+`NotConfiguredError` until you pass `base_url=`; it is never sent to the
+OpenAI cloud. (`ProviderProfile` / `OpenAILM.from_profile`, the older way to
+say the same, are deprecated and removed in 1.0.0.)
 
 See [Using model profiles and compatibility policies](using-model-profiles.md)
 for model metadata, registries, presets, and request-level escape hatches.

@@ -1,5 +1,20 @@
 # Using model profiles and compatibility policies
 
+!!! warning "`ProviderProfile` is deprecated (1.0.0rc2) and removed in 1.0.0"
+    Everything a profile said has one home now. Migrate like this:
+
+    | You had | Write instead |
+    |---|---|
+    | `ProviderProfile.inference(provider=..., base_url=URL, compat=OpenAIResponsesCompat.preset("ollama"))` + `OpenAILM.from_profile(api_key=K, profile=p)` | `OpenAILM(api_key=K, compat="ollama")` — a preset name supplies its own address; add `base_url=URL` only if yours differs |
+    | a per-model `ModelInfo.compat` on the Responses dialect | `Config(extensions={"openai_responses_compat": {...}})` on that model's requests (the chat dialect has `OpenAIChatCompat.model_overrides`) |
+    | a compat *guessed* from `base_url` (`openrouter.ai`, `api.meta.ai`) | `compat="openrouter"` / `compat="meta"` — the guess now warns and will be removed |
+
+    `ModelInfo`, `ModelRegistry` and the `lm15.compat` policies are not deprecated.
+    Why: a profile was a second configuration-resolution system beside the
+    adapter's and the router's; two systems is how a user ends up not knowing
+    which one picked the URL. Decision record:
+    `lm15-contract/changes/2026-09-11-job-handles-live-turns-profiles.md` § 3.
+
 `lm15` keeps inference requests simple:
 
 ```python

@@ -1,5 +1,8 @@
 import json
+import warnings
 from dataclasses import replace
+
+import pytest
 
 from lm15.compat import OpenAIResponsesCompat
 from lm15.model_registry import ModelRegistry
@@ -9,6 +12,42 @@ from lm15.providers import OpenAILM
 from lm15.types import Config, FunctionTool, Message, Reasoning, Request, ToolResultPart, TextPart
 
 from .test_providers import _FakeTransport
+
+
+@pytest.fixture(autouse=True)
+def _profiles_are_deprecated(request):
+    """A test that builds a ProviderProfile must see the deprecation fire
+    (contract 2026-09-11 § 3); the warning must not fail the test."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", DeprecationWarning)
+        yield
+    if "profile" in request.node.name and "migration" not in request.node.name and "sniffing" not in request.node.name:
+        assert any(issubclass(w.category, DeprecationWarning) and "deprecated" in str(w.message) for w in caught)
+
+
+def test_the_migration_says_the_same_thing_without_a_profile() -> None:
+    """The profile's whole content — endpoint address + compat — is
+    `compat=` + `base_url=`; the per-model layer is the request hatch."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        profile = ProviderProfile.inference(provider="local-qwen", api_family="openai_responses",
+                                            base_url="http://localhost:8000/v1", compat=OpenAIResponsesCompat.preset("qwen"))
+        old = OpenAILM.from_profile(api_key="local", profile=profile, transport=_FakeTransport())
+    new = OpenAILM(api_key="local", compat="qwen", base_url="http://localhost:8000/v1", transport=_FakeTransport())
+    request = Request(model="qwen3", messages=(Message.user("Hi"),), config=Config(max_tokens=5))
+    assert old.build_request(request, stream=False).body == new.build_request(request, stream=False).body
+    assert old.base_url == new.base_url
+
+
+def test_base_url_sniffing_is_deprecated_and_names_the_explicit_spelling() -> None:
+    lm = OpenAILM(api_key="k", base_url="https://openrouter.ai/api/v1", transport=_FakeTransport())
+    request = Request(model="m", messages=(Message.user("Hi"),))
+    with pytest.warns(DeprecationWarning, match="compat='openrouter'"):
+        lm.build_request(request, stream=False)
+    explicit = OpenAILM(api_key="k", compat="openrouter", transport=_FakeTransport())
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        explicit.build_request(request, stream=False)  # no guess, no warning
 
 
 def test_openai_responses_compat_none_inherits_but_auto_overrides() -> None:

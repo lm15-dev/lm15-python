@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+**Deprecated: `ProviderProfile` / `EndpointProfile`, `OpenAILM.from_profile`,
+`OpenAILM(profile=...)`, and the compat guessed from `base_url`** — removed in
+1.0.0. Say it with `compat=` (a preset name supplies its address), `base_url=`,
+`OpenAIChatCompat.model_overrides`, or `Config.extensions["openai_responses_compat"]`.
+Each emits a `DeprecationWarning` naming the replacement. `ModelInfo`,
+`ModelRegistry`, the compat policies and the request-level hatch stay.
+Decision: `lm15-contract/changes/2026-09-11-job-handles-live-turns-profiles.md` § 3
+(which also makes `BatchJob` / `VideoJob` and live `turn()` family surface —
+Python already has them — and states the wait-deadline rule: `wait(timeout=)`
+elapsing raises the builtin `TimeoutError`, the caller's own deadline, not an
+lm15 error).
+
 ## 1.0.0rc1 — 2026-09-11
 
 First release candidate for 1.0. Install explicitly with
