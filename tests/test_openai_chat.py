@@ -13,6 +13,7 @@ from lm15.errors import (
     ContextLengthError,
     NotConfiguredError,
     RateLimitError,
+    UnsupportedFeatureError,
     UnsupportedModelError,
 )
 from lm15.providers import HttpResponse, OpenAIChatLM, OpenAILM
@@ -258,10 +259,11 @@ def test_build_request_reasoning_effort_policy() -> None:
         config=Config(reasoning=Reasoning(effort="high")),
     )
     assert _payload(_lm(), request)["reasoning_effort"] == "high"
-    # ollama policy: server does not support reasoning_effort — omit.
-    ollama_payload = _payload(_lm(compat="ollama"), request)
-    assert "reasoning_effort" not in ollama_payload
-    assert "reasoning" not in ollama_payload
+    # ollama policy: no reasoning field on this wire — a set dial is a raise,
+    # never an omission (MAP-5 / MAP-7 rule 2; until 2026-09-11 this test
+    # pinned the silent drop; cases/ollama/reasoning_effort_refused.json).
+    with pytest.raises(UnsupportedFeatureError, match="thinking_format='none'"):
+        _payload(_lm(compat="ollama"), request)
     # openrouter policy: nested reasoning object.
     assert _payload(_lm(compat="openrouter"), request)["reasoning"] == {"effort": "high"}
 
@@ -572,3 +574,16 @@ class TestOllamaLiveSmoke:
                     ends.append(event)
         assert "".join(deltas).strip()
         assert any(e.usage is not None and e.usage.output_tokens > 0 for e in ends)
+
+
+def test_reasoning_dial_on_a_server_without_a_field_raises_before_the_wire():
+    """MAP-5 / MAP-7 rule 2: ollama's preset has thinking_format='none'; a set dial is a raise, never an omission (cases/ollama/reasoning_effort_refused.json)."""
+    from lm15 import Config, Message, OpenAIChatLM, Reasoning, Request, UnsupportedFeatureError
+
+    lm = OpenAIChatLM(api_key="unused", compat="ollama")
+    for effort in ("low", "off"):
+        request = Request(model="qwen3.5:0.8b", messages=(Message.user("Say ok."),), config=Config(max_tokens=64, reasoning=Reasoning(effort=effort)))
+        with pytest.raises(UnsupportedFeatureError, match="thinking_format='none'"):
+            lm.build_request(request, stream=True)
+    plain = Request(model="qwen3.5:0.8b", messages=(Message.user("Say ok."),), config=Config(max_tokens=64))
+    assert b'"reasoning' not in lm.build_request(plain, stream=True).body

@@ -1374,6 +1374,19 @@ class OpenAIChatLM(BaseProviderLM):
             payload["response_format"] = _response_format_to_chat(request.config.response_format)
         if request.config.reasoning:
             reasoning = request.config.reasoning
+            if compat.thinking_format == "none":
+                # No reasoning dial on this server (ollama / LM Studio). MAP-5
+                # and MAP-7 rule 2: a dial the caller set and the wire cannot
+                # carry is a raise, never an omission (until 2026-09-11 this
+                # sent the request with the dial silently dropped; the Rust
+                # port refused, and cases/ollama/reasoning_effort_refused.json
+                # pins the refusal).
+                raise UnsupportedFeatureError(
+                    f"{self.provider}: reasoning.effort={reasoning.effort!r} has no field on this server "
+                    "(compat thinking_format='none'); omit config.reasoning, or pass the server's own knob "
+                    "through extensions",
+                    provider=self.provider,
+                )
             if not reasoning.is_off:
                 # MAP-7: verbatim effort; no budget on this wire; summary
                 # levels are Responses-only; "auto" maps to the dialect's

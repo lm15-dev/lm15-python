@@ -16,6 +16,20 @@ lm15 error).
 
 ## Unreleased
 
+**A reasoning dial on a wire with no reasoning field is a refusal.**
+`OpenAIChatLM` raises `UnsupportedFeatureError` before the wire when
+`config.reasoning` is set and the bound compat's `thinking_format` is
+`none` (the `ollama` and `lmstudio` presets). Until now the request went
+out with the dial silently dropped — a test even pinned that — which is
+the omission the family forbids (MAP-5, MAP-7 rule 2): on a model that
+reasons by default the caller paid for tokens they asked to limit. Found
+by building one request in Python, TypeScript and Rust side by side in
+the lm15-ts playground: Rust already refused. Pinned by
+`cases/ollama/reasoning_effort_refused.json`
+(`changes/2026-09-11-reasoning-dial-without-a-field.md`, pending
+ratification). Stated: a caller who set `reasoning` on an ollama model as
+a harmless default now gets an error naming the two ways out.
+
 **lm15 in a page: `FetchTransport`.** `lm15.transports.FetchTransport` is the
 async transport over the host's `fetch`, for Pyodide (CPython compiled to
 WebAssembly: a browser page, a worker, or Node hosting Pyodide), where there
