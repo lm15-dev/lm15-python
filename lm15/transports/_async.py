@@ -17,7 +17,6 @@ from __future__ import annotations
 import asyncio
 import select
 import socket
-import ssl
 from typing import AsyncIterator
 
 from ._exceptions import (
@@ -35,7 +34,7 @@ from ._http11 import (
     build_request_head,
 )
 from ._proxy import ProxyRoute, connect_payload, proxy_route_for, route_origin
-from ._ssl import make_ssl_context
+from ._ssl import SSLError, make_ssl_context
 from ._timeouts import wait_for
 from ._types import AsyncTransportResponse, TransportRequest
 from ._url import ParsedURL, parse_url
@@ -374,7 +373,7 @@ class StdlibAsyncTransport:
             except asyncio.TimeoutError as exc:
                 tunnel.close()
                 raise ConnectTimeout("TLS handshake through proxy timed out") from exc
-            except ssl.SSLError as exc:
+            except SSLError as exc:
                 tunnel.close()
                 raise ConnectError(f"TLS handshake failed: {exc}") from exc
             except OSError as exc:
@@ -399,7 +398,7 @@ class StdlibAsyncTransport:
             raise ConnectTimeout(
                 f"timed out connecting to {connect_host}:{connect_port}"
             ) from exc
-        except ssl.SSLError as exc:
+        except SSLError as exc:
             raise ConnectError(f"TLS handshake failed: {exc}") from exc
         except OSError as exc:
             raise ConnectError(

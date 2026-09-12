@@ -14,6 +14,28 @@ Python already has them — and states the wait-deadline rule: `wait(timeout=)`
 elapsing raises the builtin `TimeoutError`, the caller's own deadline, not an
 lm15 error).
 
+## Unreleased
+
+**lm15 in a page: `FetchTransport`.** `lm15.transports.FetchTransport` is the
+async transport over the host's `fetch`, for Pyodide (CPython compiled to
+WebAssembly: a browser page, a worker, or Node hosting Pyodide), where there
+is no socket. The async adapters take it as `transport=` and are otherwise
+unchanged; the request bytes are the stdlib transport's. Streams chunk by
+chunk; dropping the response before its end aborts the request. Under
+CPython, constructing it is a `TransportError` naming Pyodide. Stated: a
+page's CORS refusal and a network failure arrive the same way (`fetch`
+says nothing), there is no separate connect timeout, no proxy.
+
+Two import-time faults found by loading the wheel into Pyodide, fixed:
+`_authlock` imported `fcntl` at module level (absent on Pyodide, and on
+any POSIX build without it — the lock now refuses by name when *used*),
+and the socket transports imported `ssl` at module level (unvendored on
+Pyodide — now optional; the socket transports refuse at connect time,
+naming `FetchTransport`). `import lm15` works everywhere the stdlib does.
+Evidence: lm15-ts/tests/pyodide.test.ts runs this package under Pyodide
+and builds every contract request identically to the TypeScript port
+(342 identical, 23 refused identically).
+
 ## 1.0.0rc1 — 2026-09-11
 
 First release candidate for 1.0. Install explicitly with

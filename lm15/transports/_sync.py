@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import select
 import socket
-import ssl
 import threading
 from typing import Iterator
 
@@ -46,7 +45,7 @@ from ._http11 import (
     build_request_head,
 )
 from ._proxy import ProxyRoute, connect_payload, proxy_route_for, route_origin
-from ._ssl import make_ssl_context
+from ._ssl import SSLError, make_ssl_context
 from ._types import TransportRequest, TransportResponse
 from ._url import ParsedURL, parse_url
 
@@ -372,7 +371,7 @@ class StdlibTransport:
                 ctx = self._get_ssl_ctx()
                 sock.settimeout(connect_timeout)
                 sock = ctx.wrap_socket(sock, server_hostname=parsed.host)
-            except (ssl.SSLError, OSError) as exc:
+            except (SSLError, OSError) as exc:
                 try:
                     sock.close()
                 except Exception:

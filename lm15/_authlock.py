@@ -73,8 +73,12 @@ def lock_path_for(path: Path) -> Path:
     return _lock_dir() / f"{digest}.lock"
 
 
-if os.name == "posix":
+try:
     import fcntl
+except ImportError:  # pragma: no cover - Pyodide (and any POSIX build without it)
+    fcntl = None  # type: ignore[assignment]
+
+if fcntl is not None:
 
     def _try_lock(fd: int) -> bool:
         try:
@@ -85,6 +89,17 @@ if os.name == "posix":
 
     def _unlock(fd: int) -> None:
         fcntl.flock(fd, fcntl.LOCK_UN)
+
+elif os.name == "posix":  # pragma: no cover - Pyodide: the lock is asked for, not merely imported
+
+    def _try_lock(fd: int) -> bool:
+        raise CredentialLockTimeout(
+            "shared credential locking needs fcntl, which this Python (Pyodide?) does not have; "
+            "pass an explicit credential instead of a stored login"
+        )
+
+    def _unlock(fd: int) -> None:
+        return None
 
 else:  # pragma: no cover - exercised only on Windows
     import msvcrt
