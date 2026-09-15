@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.9.post1 — 2026-09-15
+
+No code changes. Package links now point to https://lm15.dev (homepage,
+documentation, playground) with the source, issues, and changelog on GitHub.
+
 ## 0.9.9 — 2026-09-15
 
 Same code as 1.0.0rc1, published under a stable version number so that a plain
