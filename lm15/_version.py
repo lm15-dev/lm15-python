@@ -1,3 +1,3 @@
 """The version of this source package, also used when building distributions."""
 
-__version__ = "1.0.0rc1"
+__version__ = "0.9.9"

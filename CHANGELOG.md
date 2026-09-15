@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.9 — 2026-09-15
+
+Same code as 1.0.0rc1, published under a stable version number so that a plain
+`pip install lm15` installs the current API. The earlier public releases
+(0.1.0, 0.2.0, 0.3.0) are yanked on PyPI: they were built from the previous
+repository and describe an API that no longer exists. See the 1.0.0rc1 entry
+below for what changed since them.
+
 ## 1.0.0rc1 — 2026-09-11
 
 First release candidate for 1.0. Install explicitly with
