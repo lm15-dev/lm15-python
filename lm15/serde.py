@@ -19,6 +19,7 @@ from .models import (
 )
 from .types import (
     AudioDelta,
+    DataPart,
     AudioFormat,
     AudioPart,
     BatchEntry,
@@ -208,6 +209,17 @@ def part_to_dict(part: Part) -> dict[str, Any]:
         if part.is_error:
             d["is_error"] = part.is_error
 
+    elif isinstance(part, DataPart):
+        d["value"] = part.value  # opaque, always emitted (null is a value)
+        if part.probabilities is not None:
+            # canonical data, not an opaque payload: floats stay JSON floats
+            d["probabilities"] = {
+                name: {key: float(prob) for key, prob in dist.items()}
+                for name, dist in part.probabilities.items()
+            }
+        if part.method is not None:
+            d["method"] = part.method
+
     continuation = _continuation_to_json(part.continuation)
     if continuation is not None:
         d["continuation"] = continuation
@@ -232,6 +244,12 @@ def part_from_dict(d: dict[str, Any]) -> Part:
 
     if t == "citation":
         return CitationPart(text=d.get("text"), url=d.get("url"), title=d.get("title"), continuation=continuation)
+
+    if t == "data":
+        if "value" not in d:
+            raise ValueError("data part requires 'value' (null is a value; absence is not)")
+        return DataPart(value=d["value"], probabilities=d.get("probabilities"), method=d.get("method"),
+                        continuation=continuation)
 
     if t in ("image", "audio", "video", "document", "binary"):
         cls = PART_TYPES[t]
@@ -498,6 +516,7 @@ def config_to_dict(c: Config) -> dict[str, Any]:
         "user_id": c.user_id,
         "store": c.store,  # False is data (opt-out), not emptiness — emitted
         "logprobs": c.logprobs,  # 0 is data (chosen-only), not emptiness — emitted
+        "probabilities": c.probabilities,
         "extensions": c.extensions,
     })
 
@@ -537,6 +556,7 @@ def config_from_dict(d: dict[str, Any]) -> Config:
         user_id=d.get("user_id"),
         store=d.get("store"),
         logprobs=d.get("logprobs"),
+        probabilities=d.get("probabilities"),
         extensions=d.get("extensions"),
     )
 

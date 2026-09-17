@@ -143,7 +143,7 @@ def _attach_error_metadata(error: ProviderError, headers: "list[tuple[str, str]]
     if error.request_id is not None:
         return
     values = {key.lower(): value for key, value in headers or []}
-    for name in ("x-request-id", "request-id", "x-amzn-requestid", "x-amz-request-id", "x-ms-request-id"):
+    for name in ("x-request-id", "request-id", "x-amzn-requestid", "x-amz-request-id", "x-ms-request-id", "x-typesafe-request-id"):
         if values.get(name):
             error.request_id = values[name]
             break

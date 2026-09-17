@@ -25,6 +25,7 @@ from ..errors import (
 from ..access import ANTHROPIC_API
 from ..compat import ANTHROPIC_PRESET_BASE_URLS, AnthropicCompat, ResolvedAnthropicCompat, preset_base_url, resolve_anthropic_compat
 from ..features import ProviderManifest
+from ..judgments import anthropic_schema, note_unmeasurable_probabilities, replace_text_with_data, request_judgments
 from ..sse import SSEEvent
 from ..transports import TransportRequest
 from ..types import (
@@ -789,7 +790,15 @@ class AnthropicLM(BaseProviderLM):
                       "describe the shape in the prompt",
                       asked=request.config.response_format, provider=self.provider)
             else:
-                output_config = _response_format_to_anthropic_output_config(request.config.response_format)
+                # MAP-14 §2: a judgment property carrying type+anyOf has its
+                # type moved into every branch (the wire 400s otherwise,
+                # receipted 2026-09-17); probabilities cannot be measured here.
+                note_unmeasurable_probabilities(request, self.provider)
+                found = request_judgments(request)
+                fmt = request.config.response_format
+                if found:
+                    fmt = {**fmt, "schema": anthropic_schema(fmt["schema"], found)}
+                output_config = _response_format_to_anthropic_output_config(fmt)
                 payload["output_config"] = {**payload.get("output_config", {}), **output_config}
         # Promoted cross-provider knobs (changes/2026-09-01-extensions-burn-down):
         # user_id rides Anthropic's metadata.user_id; store has no Anthropic
@@ -926,7 +935,7 @@ class AnthropicLM(BaseProviderLM):
         return Response(
             id=str(data.get("id")) if data.get("id") else None,
             model=str(data.get("model") or request.model),
-            message=Message(role="assistant", parts=tuple(parts)),
+            message=Message(role="assistant", parts=replace_text_with_data(parts, request_judgments(request))),
             finish_reason=_finish_reason(data.get("stop_reason"), has_tool_call=has_tool),
             usage=usage,
             provider_data=_attach_unmapped(data, unmapped),

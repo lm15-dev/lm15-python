@@ -141,6 +141,7 @@ DEFAULT_RULES: tuple[RouteRule, ...] = (
     RouteRule("sora-", "openai", note="OpenAI Sora video generation"),
     RouteRule("veo-", "gemini", note="Google Veo video generation"),
     RouteRule("chat-latest", "openai", note="OpenAI rolling chat alias (live /models listing 2026-09-01)"),
+    RouteRule("jev-", "typesafe", note="TypeSafe Jev (live /v1/models listing 2026-09-17: jev-latest, jev-preview; versioned ids jev-1.13.0 accepted)"),
 )
 
 

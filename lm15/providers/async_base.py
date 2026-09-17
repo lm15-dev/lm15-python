@@ -21,7 +21,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Callable, ClassVar, Mapping, Protocol, TypeVar
 
-from ..adaptation import AdaptationPolicy
+from ..adaptation import AdaptationPolicy, adapt, check_policy, collecting
+from ..judgments import request_judgments
 from ..errors import (
     ProviderError,
     TransportError as LM15TransportError,
@@ -58,6 +59,7 @@ from .openai_codex import (
     DEFAULT_CODEX_ORIGINATOR,
     OpenAICodexLM,
 )
+from .typesafe import TypeSafeLM
 from .xai import DEFAULT_XAI_BASE_URL, XaiLM
 
 _T = TypeVar("_T")
@@ -703,6 +705,71 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
         """Pure; the sync sibling's reader under this adapter's provider name."""
         return self._inner.response_from_openai_chat(body, model=model, choice=choice)
 
+    async def complete(self, request: Request) -> Response:
+        """Mirror of OpenAIChatLM.complete: the judgment trie driver (MAP-14
+        §4) over the inner adapter's pure hooks, else the ordinary path."""
+        inner = self._inner
+        if not inner._judgments_via_token_scoring(request):
+            return await AsyncBaseProviderLM.complete(self, request)
+        adaptations = inner._judgment_adaptations(request)
+        found = request_judgments(request)
+        plan = inner._judgment_plan(request)
+
+        async def tokens(req):
+            resp = await self._send(req)
+            if resp.status >= 400:
+                raise inner._http_error(resp)
+            return inner._judgment_tokens_from_body(resp.text())
+
+        tokenized = []
+        calls = 0
+        for entry in plan:
+            prefix = await tokens(entry["prefill"]); calls += 1
+            pairs = await asyncio.gather(*(asyncio.gather(tokens(o), tokens(c)) for o, c in entry["keys"].values()))
+            calls += 2 * len(pairs)
+            keys = {k: (list(o), list(c)) for k, (o, c) in zip(entry["keys"], pairs)}
+            tokenized.append((entry["judgment"], inner._judgment_paths(prefix, keys), prefix))
+        prompts, meta, union, nodes_per = [], [], set(), []
+        for index, (j, paths, prefix) in enumerate(tokenized):
+            nodes = inner._judgment_nodes(paths)
+            nodes_per.append(nodes)
+            for node_prefix, children in nodes.items():
+                prompts.append(list(prefix) + list(node_prefix))
+                meta.append((index, node_prefix))
+                union |= children
+        resp = await self._send(inner._judgment_score_request(request.model, prompts, sorted(union)))
+        if resp.status >= 400:
+            raise inner._http_error(resp)
+        scores, usage, model = inner._judgment_scores_from_body(resp.text(), len(prompts))
+        tables: list[dict] = [{} for _ in tokenized]
+        for (index, node_prefix), got in zip(meta, scores):
+            children = nodes_per[index][node_prefix]
+            if any(t not in got for t in children):
+                return await self._judgment_unmeasured(request, adaptations)
+            tables[index][node_prefix] = {t: got[t] for t in children}
+        per = [(j, paths, tables[i]) for i, (j, paths, _) in enumerate(tokenized)]
+        response = inner._judgment_fold(request, found, per, usage, model, len(prompts), calls)
+        return inner._finish_response(request, response, adaptations, policy=self.adaptations)
+
+    async def _judgment_unmeasured(self, request: Request, adaptations) -> Response:
+        inner = self._inner
+        if request.config.probabilities == "required":
+            raise UnsupportedFeatureError(
+                f"{self.provider}: config.probabilities='required' but this server ignored logprob_token_ids "
+                "(vLLM < 0.29?); no distribution can be measured here",
+                provider=self.provider, feature="config.probabilities",
+            )
+        with collecting(check_policy(self.adaptations), provider=self.provider) as scope:
+            adapt("config.probabilities", "dropped",
+                  "the server accepted the request and returned no log-probs for the requested token ids (logprob_token_ids ignored); "
+                  "answered by structured output instead", asked=request.config.probabilities, provider=self.provider)
+        req, built = await self._build(inner._build, request, stream=False, policy=self.adaptations)
+        resp = await self._send(req)
+        if resp.status >= 400:
+            raise inner._http_error(resp)
+        records = tuple(scope.records) + tuple(a for a in built if a.field != "config.probabilities")
+        return inner._finish_response(request, inner.parse_response(request, resp), records, policy=self.adaptations)
+
 
 # ─── Subscription mirrors (Claude Code / Codex CLI OAuth) ────────────
 #
@@ -903,3 +970,36 @@ __all__ = [
     "AsyncXaiLM",
     "default_async_transport",
 ]
+
+
+@dataclass
+class AsyncTypeSafeLM(AsyncBaseProviderLM):
+    """Async mirror of :class:`TypeSafeLM` (composition; the inner adapter
+    cannot reach the network)."""
+
+    api_key: Credential | None = field(default=None, repr=False)
+    transport: AsyncTransport = field(default_factory=default_async_transport)
+    base_url: str = "https://api.typesafe.ai"
+    access: ProviderManifest | None = field(default=None, repr=False)
+    credentials_path: "str | os.PathLike[str] | None" = field(default=None, repr=False)
+    settings: "Mapping[str, str] | None" = None
+    clock: "Callable[[], datetime] | None" = field(default=None, repr=False)
+    adaptations: AdaptationPolicy = field(default="note", kw_only=True)
+
+    provider: str = field(default="typesafe", init=False)
+    manifest: ClassVar[ProviderManifest] = TypeSafeLM.manifest
+
+    _inner: TypeSafeLM = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        self._inner = TypeSafeLM(
+            adaptations=self.adaptations,
+            api_key=self.api_key,
+            transport=_ForbiddenTransport(),
+            base_url=self.base_url,
+            access=self.access,
+            credentials_path=self.credentials_path,
+            settings=self.settings,
+            clock=self.clock,
+        )
+        self._mirror_binding()

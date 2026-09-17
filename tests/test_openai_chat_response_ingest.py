@@ -115,5 +115,5 @@ def test_door_and_parse_response_agree_on_every_recorded_chat_body(case, data) -
             lm.response_from_openai_chat(data, model=request.model)
         return
     via_adapter = lm.parse_response(request, HttpResponse(status=200, reason="OK", headers={}, body=json.dumps(data).encode()))
-    via_door = lm.response_from_openai_chat(data, model=request.model)
+    via_door = lm.response_from_openai_chat(data, model=request.model, response_format=request.config.response_format)
     assert serde.response_to_dict(via_door, include_provider_data=True) == serde.response_to_dict(via_adapter, include_provider_data=True)

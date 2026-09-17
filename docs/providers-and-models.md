@@ -34,6 +34,7 @@ detail: the list of providers, the shortcuts, and the metadata.
 | OpenAI | `openai` | `OPENAI_API_KEY` | live voice, files, batch, images, speech, video |
 | Google Gemini | `gemini` | `GEMINI_API_KEY` | live voice, files, batch, images, speech, video |
 | xAI | `xai` | `XAI_API_KEY` or Grok subscription | images, video |
+| TypeSafe (Jev) | `typesafe` | `TYPESAFE_API_KEY` | judgments only: declared answers with probabilities, no text generation ([cookbook](cookbooks/20-judgments.md)) |
 | Groq | `groq` | `GROQ_API_KEY` | — |
 | OpenRouter | `openrouter` | `OPENROUTER_API_KEY` | — |
 | DeepSeek | `deepseek` | `DEEPSEEK_API_KEY` | — (see note) |

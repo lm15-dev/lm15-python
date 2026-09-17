@@ -30,6 +30,7 @@ from ..access import OPENAI_API, auth_header
 from ..auth import extract_chatgpt_account_id
 from ..compat import OPENAI_RESPONSES_PRESET_BASE_URLS, OpenAIResponsesCompat, preset_base_url
 from ..features import ProviderManifest
+from ..judgments import note_unmeasurable_probabilities, replace_text_with_data, request_judgments
 from ..result import materialize_response
 from ..live import WebSocketLiveSession, require_websocket_sync_connect
 from ..profiles import ProviderProfile, ResolvedOpenAIResponsesCompat, resolve_openai_responses_compat
@@ -939,6 +940,10 @@ class OpenAILM(BaseProviderLM):
         if request.config.tool_choice and request.config.tool_choice.parallel is not None:
             payload["parallel_tool_calls"] = request.config.tool_choice.parallel
         if request.config.response_format:
+            # MAP-14: the judgment convention goes verbatim (strict honours
+            # anyOf/const/title, receipted 2026-09-17); probabilities cannot
+            # be measured here.
+            note_unmeasurable_probabilities(request, self.provider)
             payload["text"] = _response_format_to_openai_text(request.config.response_format)
         if request.config.reasoning:
             reasoning = request.config.reasoning
@@ -1162,7 +1167,7 @@ class OpenAILM(BaseProviderLM):
         return Response(
             id=str(data.get("id")) if data.get("id") else None,
             model=str(data.get("model") or request.model),
-            message=Message(role="assistant", parts=tuple(parts)),
+            message=Message(role="assistant", parts=replace_text_with_data(parts, request_judgments(request))),
             finish_reason=_finish_from_status(data, has_tool_call=has_tool),
             usage=usage,
             logprobs=tuple(logprob_seq) if logprob_seq else None,

@@ -76,6 +76,17 @@ ANTHROPIC_API = AccessPolicy(
     auth_scheme=("x-api-key",),
 )
 
+# TypeSafe System One (Jev): one judgment call per request, no stream, a
+# models list (changes/2026-09-17-judgments.md D1/D10/D11; receipts
+# 2026-09-17).  Bearer key from the console (console.typesafe.ai/keys).
+TYPESAFE_API = AccessPolicy(
+    provider="typesafe",
+    supports=EndpointSupport(complete=True, stream=False, models=True),
+    auth_modes=("bearer",),
+    env_keys=("TYPESAFE_API_KEY",),
+    auth_scheme=("bearer",),
+)
+
 DEFAULT_CLAUDE_CODE_VERSION = "2.1.170"
 DEFAULT_CLAUDE_CODE_SYSTEM_PROMPT = "You are Claude Code, Anthropic's official CLI for Claude."
 

@@ -39,7 +39,7 @@ class TestShape:
         # A provider string names ONE wire behavior; the adapter class is
         # the dialect, so two entries never share an id (a mapping cannot)
         # and every entry names a dialect the class actually speaks.
-        dialect_of = {"openai-responses": "OpenAI", "openai-chat": "OpenAIChat", "anthropic": "Anthropic", "gemini": "Gemini"}
+        dialect_of = {"openai-responses": "OpenAI", "openai-chat": "OpenAIChat", "anthropic": "Anthropic", "gemini": "Gemini", "typesafe": "TypeSafe"}
         bound_class = {"openai-responses": OpenAILM, "openai-chat": OpenAIChatLM, "anthropic": AnthropicLM, "gemini": GeminiLM}
         for d in PROVIDERS.values():
             assert d.adapter.__name__.endswith("LM")

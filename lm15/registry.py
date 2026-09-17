@@ -67,12 +67,14 @@ from .providers import (
     AsyncOpenAIChatLM,
     AsyncOpenAICodexLM,
     AsyncOpenAILM,
+    AsyncTypeSafeLM,
     AsyncXaiLM,
     ClaudeCodeLM,
     GeminiLM,
     OpenAIChatLM,
     OpenAICodexLM,
     OpenAILM,
+    TypeSafeLM,
     XaiLM,
 )
 
@@ -87,7 +89,7 @@ __all__ = [
 
 # The wire formats lm15 speaks.  A dialect is a class; a provider is a
 # dialect plus an access policy (plus a compat preset for the chat dialect).
-Dialect = Literal["openai-responses", "openai-chat", "anthropic", "gemini"]
+Dialect = Literal["openai-responses", "openai-chat", "anthropic", "gemini", "typesafe"]
 
 # A compat value: a preset name for a registry entry (validated against
 # the dialect's table below), or the object itself for a declared entry.
@@ -412,6 +414,11 @@ _DEFINITIONS: tuple[ProviderDefinition, ...] = (
         "xai", "openai-chat", XaiLM, AsyncXaiLM,
         console_url="https://console.x.ai",
         note="xAI Grok (Chat Completions dialect; XAI_API_KEY or subscription OAuth)",
+    ),
+    _adapter_owned(
+        "typesafe", "typesafe", TypeSafeLM, AsyncTypeSafeLM,
+        console_url="https://console.typesafe.ai/keys",
+        note="TypeSafe System One (Jev): judgments over declared keys with probabilities; no text generation",
     ),
     _adapter_owned(
         "claude-code", "anthropic", ClaudeCodeLM, AsyncClaudeCodeLM,

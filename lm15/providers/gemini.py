@@ -27,6 +27,7 @@ from ..errors import (
 )
 from ..access import GEMINI_API
 from ..features import ProviderManifest
+from ..judgments import gemini_schema, note_unmeasurable_probabilities, replace_text_with_data, request_judgments
 from ..live import WebSocketLiveSession, require_websocket_sync_connect
 from ..sse import SSEEvent
 from ..transports import TransportRequest
@@ -752,7 +753,16 @@ class GeminiLM(BaseProviderLM):
             if request.config.logprobs > 0:
                 generation_config["logprobs"] = request.config.logprobs
         if request.config.response_format:
-            generation_config.update(_response_format_to_gemini_config(request.config.response_format))
+            # MAP-14 §2: judgment properties go as enum with descriptions
+            # folded into the property description — responseJsonSchema
+            # ignores anyOf/const (receipted 2026-09-17: "Bordeaux-blend");
+            # probabilities cannot be measured here.
+            note_unmeasurable_probabilities(request, self.provider)
+            found = request_judgments(request)
+            fmt = request.config.response_format
+            if found:
+                fmt = {**fmt, "schema": gemini_schema(fmt["schema"], found)}
+            generation_config.update(_response_format_to_gemini_config(fmt))
         if request.config.reasoning is not None:
             reasoning = request.config.reasoning
             level_class = gemini_level_class(request.model)
@@ -962,7 +972,7 @@ class GeminiLM(BaseProviderLM):
         return Response(
             id=str(data.get("responseId")) if data.get("responseId") else None,
             model=request.model,
-            message=Message(role="assistant", parts=tuple(parts)),
+            message=Message(role="assistant", parts=replace_text_with_data(parts, request_judgments(request))),
             finish_reason=_finish_reason(candidate.get("finishReason"), has_tool_call=has_tool),
             usage=usage,
             logprobs=logprob_seq or None,
