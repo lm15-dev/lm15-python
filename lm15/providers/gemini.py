@@ -32,6 +32,7 @@ from ..live import WebSocketLiveSession, require_websocket_sync_connect
 from ..sse import SSEEvent
 from ..transports import TransportRequest
 from ..types import (
+    DataPart,
     CacheInfo,
     CachePage,
     VideoGenerationRequest,
@@ -106,7 +107,7 @@ from .base import (
     default_transport,
     resolve_credential,
 )
-from .common import EFFORT_THINKING_BUDGETS, MEDIA_KINDS, build_url, iso_utc, model_infos_from_entries, multipart_related_body, parts_to_text, path_id, unnamed_tool_call_error
+from .common import EFFORT_THINKING_BUDGETS, MEDIA_KINDS, build_url, data_part_text, iso_utc, model_infos_from_entries, multipart_related_body, parts_to_text, path_id, unnamed_tool_call_error
 
 # Canonical builtin tool name → Gemini tool key
 _GEMINI_BUILTIN_MAP: dict[str, str] = {
@@ -603,6 +604,8 @@ class GeminiLM(BaseProviderLM):
         return {"functionResponse": fr}
 
     def _part(self, part, names: dict[str, str] | None = None) -> dict[str, Any]:
+        if isinstance(part, DataPart):
+            return {"text": data_part_text(part)}
         if isinstance(part, TextPart):
             out: dict[str, Any] = {"text": part.text}
             thought = continuation_data(part, "gemini", "thought_signature")

@@ -140,12 +140,23 @@ def test_typesafe_state_shapes_and_refusals() -> None:
     lm = TypeSafeLM(api_key="k")
     one_data = Request(model="jev-latest", messages=(Message.user(data({"note": "x"})),), config=Config(response_format=judgments(ok=yes_no("Ok?"))))
     assert json.loads(lm.build_request(one_data, stream=False).body)["state"] == {"note": "x"}
-    convo = Request(model="jev-latest", system="Triage.", messages=(Message.user("a"), Message.assistant("b"), Message.user("c")),
-                    config=Config(response_format={"type": "json_schema", "name": "t", "schema": {"type": "object", "properties": {"ok": {"type": "boolean"}}}}))
-    wire = json.loads(lm.build_request(convo, stream=False).body)
-    assert wire["state"] == {"system": "Triage.", "messages": [{"role": "user", "content": "a"}, {"role": "assistant", "content": "b"}, {"role": "user", "content": "c"}]}
+    # 2026-09-19 D1: the state is the one user part, verbatim — an array too; a transcript is the caller's object, not the adapter's.
+    fmt = Config(response_format={"type": "json_schema", "name": "t", "schema": {"type": "object", "properties": {"ok": {"type": "boolean"}}}})
+    transcript = Request(model="jev-latest", messages=(Message.user(data({"context": "Triage.", "messages": [{"from": "customer", "text": "a"}, {"from": "agent", "text": "b"}]})),), config=fmt)
+    wire = json.loads(lm.build_request(transcript, stream=False).body)
+    assert wire["state"] == {"context": "Triage.", "messages": [{"from": "customer", "text": "a"}, {"from": "agent", "text": "b"}]}
     assert wire["questions"]["ok"]["instructions"] == "ok"
-    assert [(a.field, a.action, a.applied) for a in lm.plan(convo)] == [("config.response_format.schema.properties.ok.description", "defaulted", "ok")]
+    assert [(a.field, a.action, a.applied) for a in lm.plan(transcript)] == [("config.response_format.schema.properties.ok.description", "defaulted", "ok")]
+    assert json.loads(lm.build_request(Request(model="jev-latest", messages=(Message.user(data(["Hi", "My card was charged twice."])),), config=fmt), stream=False).body)["state"] == ["Hi", "My card was charged twice."]
+    # 2026-09-19 D2: what Jev has no slot for is refused with the native place named, never merged.
+    for req, feature, why in [
+        (Request(model="jev-latest", system="Triage.", messages=(NOTE,), config=fmt), "system", "no system prompt"),
+        (Request(model="jev-latest", messages=(Message.user("a"), Message.assistant("b"), Message.user("c")), config=fmt), "messages", "one state, got 3 messages"),
+        (Request(model="jev-latest", messages=(Message.user(["a", "b"]),), config=fmt), "messages[0].parts", "got 2 parts"),
+    ]:
+        with pytest.raises(UnsupportedFeatureError) as exc:
+            lm.build_request(req, stream=False)
+        assert exc.value.feature == feature and why in str(exc.value)
     for req, feature in [
         (Request(model="jev-latest", messages=(NOTE,)), "config.response_format"),
         (Request(model="jev-latest", messages=(NOTE,), config=Config(response_format={"type": "json_schema", "name": "p", "schema": {"type": "object", "properties": {"name": {"type": "string"}}}})), "config.response_format"),

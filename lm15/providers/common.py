@@ -11,6 +11,7 @@ from ..types import (
     AudioPart,
     BinaryPart,
     CitationPart,
+    DataPart,
     DocumentPart,
     ImagePart,
     Message,
@@ -78,6 +79,8 @@ def parts_to_text(parts: tuple[Part, ...], *, provider: str | None = None,
             )
         if isinstance(part, TextPart):
             out.append(part.text)
+        elif isinstance(part, DataPart):
+            out.append(data_part_text(part))
         elif isinstance(part, ThinkingPart) and part.text:
             out.append(part.text)
         elif isinstance(part, CitationPart):
@@ -89,6 +92,13 @@ def parts_to_text(parts: tuple[Part, ...], *, provider: str | None = None,
 
 def message_text(msg: Message) -> str:
     return parts_to_text(msg.parts)
+
+
+def data_part_text(part: DataPart) -> str:
+    """A data part on a wire that takes only text: its ``value`` as compact
+    canonical JSON, nothing added (changes/2026-09-19-jev-state.md D3;
+    types.md §DataPart). An opaque payload: numbers as written."""
+    return json.dumps(part.value, separators=(",", ":"), ensure_ascii=False)
 
 
 def media_base64(part: ImagePart | AudioPart | VideoPart | DocumentPart | BinaryPart) -> str:
@@ -266,6 +276,8 @@ def part_to_openai_input(part: Part, *, provider: str | None = None) -> dict[str
 
     if isinstance(part, TextPart):
         return {"type": "input_text", "text": part.text}
+    if isinstance(part, DataPart):
+        return {"type": "input_text", "text": data_part_text(part)}
 
     if isinstance(part, ImagePart):
         if part.file_id is not None:

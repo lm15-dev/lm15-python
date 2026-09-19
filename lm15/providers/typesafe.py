@@ -45,12 +45,6 @@ _DROPPED_KNOBS: tuple[str, ...] = (
 )
 
 
-def _message_text(message: Message) -> str | None:
-    if all(isinstance(p, TextPart) for p in message.parts):
-        return "\n".join(p.text for p in message.parts)
-    return None
-
-
 @dataclass
 class TypeSafeLM(BaseProviderLM):
     """TypeSafe System One dialect (``POST /v1/systemone``)."""
@@ -78,8 +72,11 @@ class TypeSafeLM(BaseProviderLM):
         return UnsupportedFeatureError(f"{self.provider}: {why}", provider=self.provider, feature=feature)
 
     def _state(self, request: Request) -> Any:
-        """D6: one text part → string; one data part → its value; else the
-        conversation object.  Media/protocol parts have no wire slot."""
+        """changes/2026-09-19-jev-state.md D1/D2: the state is the one user
+        part, verbatim — a text's string or a data part's value. Jev has
+        no system prompt and no conversation; anything else is refused
+        with the native place named, never merged into a shape of ours.
+        A media part is refused first, as the specific fault it is (MAP-10)."""
         for m_index, message in enumerate(request.messages):
             for p_index, part in enumerate(message.parts):
                 if not isinstance(part, (TextPart, DataPart)):
@@ -87,26 +84,31 @@ class TypeSafeLM(BaseProviderLM):
                         f"messages[{m_index}].parts[{p_index}]",
                         f"a {part.type} part has no slot on the systemone wire (MAP-10); Jev reads text or data",
                     )
-        system = request.system
-        if isinstance(system, tuple):
-            if not all(isinstance(p, (TextPart, DataPart)) for p in system):
-                raise self._refuse("system", "system parts must be text or data on the systemone wire")
-        if system is None and len(request.messages) == 1 and request.messages[0].role == "user":
-            parts = request.messages[0].parts
-            if len(parts) == 1:
-                only = parts[0]
-                return only.text if isinstance(only, TextPart) else only.value
-        state: dict[str, Any] = {}
-        if system is not None:
-            state["system"] = system if isinstance(system, str) else [
-                p.text if isinstance(p, TextPart) else p.value for p in system
-            ]
-        state["messages"] = [
-            {"role": m.role, "content": _message_text(m) if _message_text(m) is not None
-             else [p.text if isinstance(p, TextPart) else p.value for p in m.parts]}
-            for m in request.messages
-        ]
-        return state
+        if request.system is not None:
+            raise self._refuse(
+                "system",
+                "Jev has no system prompt; put context in the state as a named key "
+                "(Message.user(data({\"policy\": ..., \"note\": ...}))), or the framing in each "
+                "question's description (changes/2026-09-19-jev-state.md D2)",
+            )
+        if len(request.messages) != 1:
+            raise self._refuse(
+                "messages",
+                f"Jev judges one state, got {len(request.messages)} messages; put a transcript in the "
+                "state as an array or object (Message.user(data({\"messages\": [...]}))), where a "
+                "question can point at a turn with a backtick path (changes/2026-09-19-jev-state.md D2)",
+            )
+        message = request.messages[0]
+        if message.role != "user":
+            raise self._refuse("messages[0].role", f"Jev's state is a user message, got role {message.role!r}")
+        if len(message.parts) != 1:
+            raise self._refuse(
+                "messages[0].parts",
+                f"Jev's state is one text or data part, got {len(message.parts)} parts; put several pieces "
+                "in one data part as named keys",
+            )
+        only = message.parts[0]
+        return only.text if isinstance(only, TextPart) else only.value  # type: ignore[union-attr]
 
     def _questions(self, request: Request) -> dict[str, Any]:
         fmt = request.config.response_format

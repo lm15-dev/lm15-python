@@ -29,6 +29,7 @@ from ..judgments import anthropic_schema, note_unmeasurable_probabilities, repla
 from ..sse import SSEEvent
 from ..transports import TransportRequest
 from ..types import (
+    DataPart,
     BatchEntry,
     BatchJobInfo,
     BatchRequest,
@@ -71,7 +72,7 @@ from .base import (
     batch_entry_request,
     default_transport,
 )
-from .common import EFFORT_THINKING_BUDGETS, MEDIA_KINDS, anthropic_source, check_tool_result_media, iso_utc, model_infos_from_entries, multipart_form_body, parts_to_text, path_id, unnamed_tool_call_error
+from .common import EFFORT_THINKING_BUDGETS, MEDIA_KINDS, anthropic_source, check_tool_result_media, data_part_text, iso_utc, model_infos_from_entries, multipart_form_body, parts_to_text, path_id, unnamed_tool_call_error
 
 # Canonical builtin tool name → Anthropic tool format
 _ANTHROPIC_BUILTIN_MAP: dict[str, str] = {
@@ -446,6 +447,8 @@ class AnthropicLM(BaseProviderLM):
     def _part(self, part) -> dict[str, Any]:
         if isinstance(part, TextPart):
             return {"type": "text", "text": part.text}
+        if isinstance(part, DataPart):
+            return {"type": "text", "text": data_part_text(part)}
         if isinstance(part, ImagePart):
             return {"type": "image", "source": anthropic_source(part)}
         if isinstance(part, DocumentPart):
@@ -488,6 +491,8 @@ class AnthropicLM(BaseProviderLM):
     def _tool_result_content(self, part) -> dict[str, Any]:
         if isinstance(part, TextPart):
             return {"type": "text", "text": part.text}
+        if isinstance(part, DataPart):
+            return {"type": "text", "text": data_part_text(part)}
         if isinstance(part, ImagePart):
             return {"type": "image", "source": anthropic_source(part)}
         if isinstance(part, DocumentPart):

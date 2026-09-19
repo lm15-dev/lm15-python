@@ -75,6 +75,7 @@ from .common import (
     parse_json_object,
     unnamed_tool_call_error,
     parts_to_text,
+    data_part_text,
 )
 from .openai import (
     OpenAILM,
@@ -132,6 +133,8 @@ def _chat_content_parts(msg: Message, *, force_array: bool = False, provider: st
     parts = [p for p in msg.parts if not isinstance(p, (ToolCallPart, ToolResultPart))]
     if len(parts) == 1 and isinstance(parts[0], TextPart) and not force_array:
         return parts[0].text
+    if len(parts) == 1 and isinstance(parts[0], DataPart) and not force_array:
+        return data_part_text(parts[0])  # a data part is text on this wire (D3): the same string form as a lone text part
     out: list[dict[str, Any]] = []
     for part in parts:
         if isinstance(part, TextPart):

@@ -61,5 +61,6 @@ df["quality"] = pd.Categorical(df.quality, categories=range(5), ordered=True)
 
 - A beginner's `{"enum": ["a", "b"]}` is already a judgment; descriptions (`choice`/`score` helpers) are optional and help the model.
 - Jev's own `confidence` is kept verbatim in `provider_data["typesafe"]["answers"]`; the expected level is computed, never stored.
-- Structured input: `Message.user(data({...}))` sends a JSON object as the state (Jev reads it as such; text-only wires get it as JSON).
+- Structured input: `Message.user(data({...}))` sends a JSON value as the state, verbatim (Jev reads it as such; a text-only wire gets it as compact JSON).
+- Jev's state is the one user part and nothing else: no `system` (put context in the state as a named key, or in the question), no second message (put a transcript in the state as your own object). Both are refused with the native place named — `lm15-contract/changes/2026-09-19-jev-state.md`.
 - Contract: `lm15-contract/changes/2026-09-17-judgments.md`, MAP-14.
