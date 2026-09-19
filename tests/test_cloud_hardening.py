@@ -21,6 +21,7 @@ from lm15.router import AsyncLMRouter, LMRouter, RouterConfig
 from lm15.types import LiveConfig, Message, Request
 
 NOW = dt.datetime(2026, 9, 3, 12, tzinfo=dt.timezone.utc)
+_SRC = chains.CredentialSource(rung="az", label="az account get-access-token")
 SECRET = "SECRET-SENTINEL-DO-NOT-PRINT"
 
 
@@ -147,7 +148,7 @@ def test_azure_tries_developer_commands_through_auth_errors(winner):
         with pytest.raises(AuthError, match="Azure developer credentials failed"):
             chains.resolve(access.AZURE, ctx)
     else:
-        assert chains.resolve(access.AZURE, ctx).value == "test"
+        assert chains.resolve(access.AZURE, ctx)[0].value == "test"
     assert calls == (["az", "pwsh"] if winner == "pwsh" else ["az", "pwsh", "azd"])
 
 
@@ -240,7 +241,7 @@ def test_sigv4_drops_stale_session_token():
 
 
 def test_cache_rejects_expired_refresh_results(monkeypatch):
-    monkeypatch.setattr(chains, "resolve", lambda *a: BearerToken("old", NOW))
+    monkeypatch.setattr(chains, "resolve", lambda *a, **k: (BearerToken("old", NOW), _SRC))
     provider = chains.credential_provider(access.AZURE, chains.ChainContext(env={}, now=lambda: NOW))
     with pytest.raises(AuthError, match="expired"):
         provider()
@@ -249,9 +250,9 @@ def test_cache_rejects_expired_refresh_results(monkeypatch):
 def test_cli_token_without_expiry_is_not_cached_forever(monkeypatch):
     calls = []
 
-    def resolve(*args):
+    def resolve(*args, **kwargs):
         calls.append(1)
-        return BearerToken(str(len(calls)))
+        return BearerToken(str(len(calls))), _SRC
 
     monkeypatch.setattr(chains, "resolve", resolve)
     provider = chains.credential_provider(access.AZURE, chains.ChainContext(env={}, now=lambda: NOW))
@@ -374,11 +375,11 @@ def test_concurrent_cloud_refresh_runs_once(monkeypatch):
     release = threading.Event()
     calls = []
 
-    def resolve(*args):
+    def resolve(*args, **kwargs):
         calls.append(1)
         started.set()
         assert release.wait(5)
-        return BearerToken("fresh", NOW + dt.timedelta(hours=1))
+        return BearerToken("fresh", NOW + dt.timedelta(hours=1)), _SRC
 
     monkeypatch.setattr(chains, "resolve", resolve)
     provider = chains.credential_provider(access.AZURE, chains.ChainContext(env={}, now=lambda: NOW))

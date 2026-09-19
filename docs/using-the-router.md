@@ -155,9 +155,12 @@ is the router's only mutable state.
 a provider's LM a different URL than its default — a proxy in front of
 OpenAI, a vLLM server on another host. The entry is matched by provider
 string (either spelling), the preset's dialect and credential rule are
-unchanged, and a provider without an entry keeps its default. The cloud
-doors (`azure-chat`, `bedrock-*`, `vertex`) build their URL from a
-resource or region and refuse an entry, pointing at
+unchanged, and a provider without an entry keeps its default. On a cloud
+door (`azure-chat`, `bedrock-*`, `vertex`) the entry is the endpoint
+root — what the console shows, a private endpoint, a gateway — and the
+door appends its own path and keeps its auth scheme and error mapping;
+without an entry the vendor's variable (`AZURE_OPENAI_ENDPOINT`,
+`AWS_ENDPOINT_URL_BEDROCK_RUNTIME`) is read, then the URL is built from
 `RouterConfig(settings=...)` — see [Cloud hosts](cloud-hosts.md).
 
 ## Connections: how long to wait, how many at once
@@ -236,8 +239,8 @@ yourself when:
   differ. (A different URL alone does not need this:
   `RouterConfig(base_urls={"vllm": "http://gpu-box:8000/v1"})` replaces
   a provider's default or preset URL, keeping its dialect and
-  credential rule. The cloud doors — Azure, Bedrock, Vertex — build
-  their URL from `settings` instead and refuse a `base_urls` entry.)
+  credential rule; on the cloud doors — Azure, Bedrock, Vertex — it is
+  the endpoint root the door completes.)
 - you are a **library** wrapping lm15: take an LM object from your
   caller; don't impose string parsing on your API.
 - you want **zero resolution logic** in the call path, or several

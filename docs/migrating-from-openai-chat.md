@@ -134,7 +134,7 @@ All three read the same variable, chosen by the provider the model string resolv
 | `moonshot/…` | `moonshotai` | `MOONSHOTAI_API_KEY`, then `MOONSHOT_API_KEY` |
 | `ollama/…` | `ollama` | nothing (a placeholder) |
 | `hosted_vllm/…` | `vllm` | nothing (a placeholder) |
-| `azure/…` | `azure-chat` | `AZURE_OPENAI_API_KEY`, then the Azure identity chain |
+| `azure/…` | `azure-chat` | `AZURE_OPENAI_API_KEY`, then the Azure identity chain (or one named identity, `credentials={"azure-chat": "platform"}`) |
 
 Rather than trust a table, ask. `resolve_openai_chat` reads a model string exactly as the call would and reports the provider and the variable — an offline lookup, with no key required, no credential renewal, and no secret shown:
 
@@ -293,7 +293,7 @@ server_router.complete_from_openai_chat("gpt-4o-mini", messages)
 server_router.complete_from_openai_chat("hosted_vllm/meta-llama/Llama-3.1-8B-Instruct", messages)
 ```
 
-The URL replaces the adapter's default (or the preset's: `vllm`, `ollama`, `groq`, … each know their own) while the preset's dialect stays. The cloud doors are the exception: Azure's and Bedrock's URLs are *built* from a resource name or a region, so an entry for `azure-chat` is refused and points you to `RouterConfig(settings=…)` — see [Cloud hosts](cloud-hosts.md).
+The URL replaces the adapter's default (or the preset's: `vllm`, `ollama`, `groq`, … each know their own) while the preset's dialect stays. On the cloud doors it is the endpoint root — `base_urls={"azure-chat": "https://acct.services.ai.azure.com"}` (or `AZURE_OPENAI_ENDPOINT`) — and the door appends `/openai/v1` itself while keeping Azure's `api-key` scheme and error mapping; without one the URL is built from `RouterConfig(settings=…)` — see [Cloud hosts](cloud-hosts.md).
 
 ## The same call, from LiteLLM
 

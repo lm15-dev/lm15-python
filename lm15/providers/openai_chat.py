@@ -1113,6 +1113,9 @@ class OpenAIChatLM(BaseProviderLM):
     access: ProviderManifest | None = field(default=None, repr=False)
     credentials_path: "str | os.PathLike[str] | None" = field(default=None, repr=False)
     settings: "Mapping[str, str] | None" = None
+    # A named cloud identity ("platform", "workload", "environment", "cli";
+    # AUTH-1) on a cloud door, instead of api_key=.
+    credential: str | None = field(default=None, kw_only=True)
     clock: "Callable[[], datetime] | None" = field(default=None, repr=False)
 
     # MAP-13 policy: "note" (adapt and record), "silent", or "refuse".
@@ -1134,7 +1137,8 @@ class OpenAIChatLM(BaseProviderLM):
 
     def __post_init__(self) -> None:
         check_policy(self.adaptations)
-        self._bind_access(self.access, credentials_path=self.credentials_path, default_base_url=_DEFAULT_BASE_URL, settings=self.settings)
+        self._bind_access(self.access, credentials_path=self.credentials_path, default_base_url=_DEFAULT_BASE_URL, settings=self.settings,
+                          credential=self.credential)
         compat = self.compat if self.compat is not None else self._registry_compat()
         if isinstance(compat, str):
             partial = OpenAIChatCompat.preset(compat)

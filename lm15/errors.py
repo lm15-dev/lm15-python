@@ -270,6 +270,9 @@ class AuthError(ProviderError):
         provider_name = provider or kwargs.get("provider")
         self.env_keys = tuple(env_keys)
         self.credential_hint = credential_hint
+        # AUTH-1 provenance: where the rejected credential came from (a
+        # label, never the value); set by ``with_credential_origin``.
+        self.credential_origin: str | None = None
 
         if credential_hint:
             # Subscription/OAuth adapters: guidance is how to re-login, not
@@ -458,6 +461,35 @@ class AmbiguousModelError(ConfigurationError):
 
 
 _GUIDANCE_MARKER = "\n\n  To fix:"
+
+
+_ORIGIN_MARKER = "\n\n  credential came from: "
+
+
+def with_credential_origin(error: ProviderError, origin: str) -> ProviderError:
+    """Name where an AuthError's credential came from (AUTH-1 provenance,
+    amended 2026-09-19): its own line under the provider's message (a
+    paragraph of its own, so ``__str__`` keeps the provider/HTTP suffix
+    on the provider's line), before the guidance, so a log line at 3 a.m.
+    answers "which identity?" without a second investigation.  Non-auth
+    errors pass through."""
+    if not isinstance(error, AuthError) or not origin:
+        return error
+    base = error.message.split(_GUIDANCE_MARKER, 1)[0]
+    if _ORIGIN_MARKER in base:
+        return error
+    out = AuthError(
+        base.rstrip() + _ORIGIN_MARKER + origin,
+        provider=error.provider,
+        env_keys=error.env_keys,
+        credential_hint=error.credential_hint,
+        provider_code=error.provider_code,
+        status=error.status,
+        request_id=error.request_id,
+        retry_after=error.retry_after,
+    )
+    out.credential_origin = origin
+    return out
 
 
 def with_credential_hint(error: ProviderError, hint: str) -> ProviderError:
