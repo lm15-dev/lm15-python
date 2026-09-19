@@ -521,6 +521,7 @@ class AsyncOpenAILM(AsyncBaseProviderLM):
     access: ProviderManifest | None = field(default=None, repr=False)
     credentials_path: "str | os.PathLike[str] | None" = field(default=None, repr=False)
     settings: "Mapping[str, str] | None" = field(default=None, kw_only=True)
+    credential: str | None = field(default=None, kw_only=True)
     clock: "Callable[[], datetime] | None" = field(default=None, repr=False, kw_only=True)
     account_id: str | None = None
     adaptations: AdaptationPolicy = field(default="note", kw_only=True)
@@ -562,6 +563,7 @@ class AsyncOpenAILM(AsyncBaseProviderLM):
             access=self.access,
             credentials_path=self.credentials_path,
             settings=self.settings,
+            credential=self.credential,
             clock=self.clock,
             account_id=self.account_id,
         )
@@ -581,6 +583,7 @@ class AsyncAnthropicLM(AsyncBaseProviderLM):
     access: ProviderManifest | None = field(default=None, repr=False)
     credentials_path: "str | os.PathLike[str] | None" = field(default=None, repr=False)
     settings: "Mapping[str, str] | None" = None
+    credential: str | None = field(default=None, kw_only=True)
     clock: "Callable[[], datetime] | None" = field(default=None, repr=False)
     adaptations: AdaptationPolicy = field(default="note", kw_only=True)
 
@@ -600,6 +603,7 @@ class AsyncAnthropicLM(AsyncBaseProviderLM):
             access=self.access,
             credentials_path=self.credentials_path,
             settings=self.settings,
+            credential=self.credential,
             clock=self.clock,
         )
         self._mirror_binding()
@@ -618,6 +622,7 @@ class AsyncGeminiLM(AsyncBaseProviderLM):
     access: ProviderManifest | None = field(default=None, repr=False)
     credentials_path: "str | os.PathLike[str] | None" = field(default=None, repr=False)
     settings: "Mapping[str, str] | None" = None
+    credential: str | None = field(default=None, kw_only=True)
     clock: "Callable[[], datetime] | None" = field(default=None, repr=False)
     adaptations: AdaptationPolicy = field(default="note", kw_only=True)
 
@@ -636,6 +641,7 @@ class AsyncGeminiLM(AsyncBaseProviderLM):
             access=self.access,
             credentials_path=self.credentials_path,
             settings=self.settings,
+            credential=self.credential,
             clock=self.clock,
         )
         self._mirror_binding()
@@ -671,6 +677,7 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
     access: ProviderManifest | None = field(default=None, repr=False)
     credentials_path: "str | os.PathLike[str] | None" = field(default=None, repr=False)
     settings: "Mapping[str, str] | None" = None
+    credential: str | None = field(default=None, kw_only=True)
     clock: "Callable[[], datetime] | None" = field(default=None, repr=False)
     adaptations: AdaptationPolicy = field(default="note", kw_only=True)
 
@@ -689,6 +696,7 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
             access=self.access,
             credentials_path=self.credentials_path,
             settings=self.settings,
+            credential=self.credential,
             clock=self.clock,
         )
         self._mirror_binding()

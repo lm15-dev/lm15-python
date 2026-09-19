@@ -9,18 +9,23 @@ Find yourself first — most people need exactly one section:
   you keep secrets — [explicit keys](#explicit-keys).
 - **Behind Azure or an enterprise setup where tokens expire?**
   [Rotating credentials](#rotating-credentials-token-providers).
+- **On Azure, AWS or Google Cloud?** The three lines that cover a
+  laptop, a deployment, and your own credential —
+  [Cloud hosts](cloud-hosts.md).
 - **On a Claude, ChatGPT, or SuperGrok plan, no API account?**
   [Subscriptions](#subscriptions-claude-code-codex-cli-xai).
 - **Everything local?** [No key at all](#keyless-local-servers).
 
 One rule sits behind all of them, and it explains everything else on
-this page: **lm15 places the credential you provide on the wire, in
-the provider's dialect, and does nothing else.** It never fetches,
-refreshes, or stores tokens for you (the one exception: the
-subscription adapters below refresh their own local OAuth credential
-when it expires), and it depends on no auth SDKs —
+this page: **lm15 never picks an identity silently. It either receives
+a credential and puts it on the wire in the provider's dialect, or it
+says which one it picked.** It depends on no auth SDKs —
 [the design rationale](design-rationale.md#why-api_key-accepts-a-callable-and-lm15-still-has-no-auth-dependencies)
-explains why that restraint is the feature.
+explains why that restraint is the feature. Where lm15 does obtain a
+token itself — the subscription adapters refresh their own local OAuth
+credential, and the cloud doors can walk the cloud's own credential
+chain or run one named identity — the doctor shows the choice before
+any request and every auth error names it afterwards.
 
 ## Environment variables (the default)
 
@@ -102,17 +107,22 @@ router = LMRouter(RouterConfig(
 router.complete(Request(model="azure:YOUR-DEPLOYMENT", messages=[...]))
 ```
 
-The `BearerToken(...)` wrap matters on Azure. A plain string means "API
-key", and the Azure doors put an API key in the `api-key` header — an
-Entra token there is a bare 401 from Azure. lm15 recognises a JWT handed
-over as a plain string and refuses before the wire, naming this wrap
-(live 2026-09-04). On doors where a key travels as a bearer anyway
-(OpenAI, DeepSeek, …) a string-returning provider is fine as is.
+The `BearerToken(...)` wrap is optional here. A plain string means "API
+key", and the Azure doors put an API key in the `api-key` header — but a
+JWT is never an API key on any door lm15 has, so a token-provider that
+returns a bare JWT string (`azure.identity.get_bearer_token_provider`
+does) is sent as a bearer token, and the doctor says so
+(`api_keys={"azure": provider}` is enough). Keep the wrap when nothing
+should be read from a token's shape. The scope every Azure door defaults
+to is `https://ai.azure.com/.default`; the classic
+`https://cognitiveservices.azure.com/.default` is also accepted.
 
-You often do not need a provider at all on Azure: with no key set, the
-`azure` door walks `DefaultAzureCredential`'s chain itself — `az login`,
-managed identity, a service principal from `AZURE_*` variables — with no
-extra dependency. See [cloud hosts](cloud-hosts.md).
+You often do not need a provider at all on Azure, AWS or Google Cloud:
+with no key set, the router walks the cloud's own default chain (`az
+login`, managed identity, a service principal from `AZURE_*` variables;
+boto3's and google-auth's orders likewise) with no extra dependency, and
+for a deployment `RouterConfig(credentials={"azure": "platform"})` names
+one identity and never falls through. See [cloud hosts](cloud-hosts.md).
 
 Or your own logic — anything callable:
 
@@ -215,14 +225,21 @@ Worth knowing before a security review asks:
   whichever form it takes.
 - **Nothing is discovered behind your back.** Adapters read only what
   you passed. Env pickup happens in exactly one place (the router),
-  and `resolve()` will tell you which variable it would use.
+  `resolve()` tells you which variable it would use, and on a cloud
+  door `explain_auth()` shows the walk (or the one named identity)
+  before any request. Every auth error from the wire names where the
+  credential came from — the rung, the variable, "an explicit
+  api_key", or "an application-supplied callable" — never its value.
 - **The right header, every time.** Where each credential goes on the
   wire (`Authorization: Bearer`, `x-api-key`, `x-goog-api-key`, …) is
   contract-tested per provider —
   [How lm15 is specified](how-lm15-is-specified.md).
 - **Zero auth dependencies, forever.** For Azure/Bedrock/Vertex-style
-  delegated auth you bring the token provider or a signing transport;
-  lm15 provides the seam.
+  delegated auth you bring the token provider (`azure.identity`,
+  `boto3`, `google-auth` plug into `api_key=` unchanged), or name one
+  identity and let lm15 speak the metadata server and token endpoints
+  directly with the standard library — either way lm15 provides the
+  seam, not a second identity framework.
 
 ## When it goes wrong
 

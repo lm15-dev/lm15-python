@@ -166,7 +166,14 @@ the concurrency ruling in the contract: credential **placement** (which
 header, what format) is spec'd, testable data; credential **acquisition**
 (fetching, refreshing, caching tokens) is behavior, per-language idiom,
 and the *caller's* job. lm15 never depends on `azure-identity`, `boto3`,
-or `google-auth`; it only places what your callable returns.
+or `google-auth`; it only places what your callable returns. The cloud
+doors added a second, deliberately narrow way in (2026-09-03,
+2026-09-19): with no credential at all the router walks the cloud's own
+default chain, and `credentials={"azure": "platform"}` runs one named
+identity — the metadata server or token endpoint spoken directly, with
+the standard library. Both say what they picked (the doctor before, every
+auth error after); neither is a second identity framework, and the
+explicit callable stays the path an expert reaches for.
 
 The subscription adapters (`ClaudeCodeLM`, `OpenAICodexLM`) use the same
 seam internally: they validate the local CLI credential at construction

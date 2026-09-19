@@ -174,24 +174,34 @@ class TestHosts:
         c = dict(later.build_request(_req("m"), stream=False).headers)["authorization"]
         assert a == b != c
 
-    def test_jwt_as_plain_string_on_a_key_first_door_names_the_fix(self):
+    def test_jwt_as_plain_string_on_a_key_first_door_travels_as_bearer(self):
         # azure-identity's get_bearer_token_provider returns a str; on a door
         # whose key header precedes bearer, that str would ride `api-key` and
-        # die as a bare 401 (live 2026-09-04).  lm15 refuses before the wire.
+        # die as a bare 401 (live 2026-09-04).  A JWT is never an API key on
+        # any door lm15 has, so it travels as a bearer token (AUTH-2, amended
+        # 2026-09-19; before that date lm15 refused and named the wrap).
         import base64
 
         jwt = ".".join(base64.urlsafe_b64encode(part).decode().rstrip("=") for part in (b'{"alg":"RS256","typ":"JWT"}', b'{"aud":"x"}', b"sig"))
-        lm = OpenAILM(api_key=lambda: jwt, access=access.AZURE, settings={"resource": "lab"})
-        with pytest.raises(NotConfiguredError, match=r"BearerToken\(token\)"):
-            lm.build_request(_req("dep"), stream=False)
-        # the same value wrapped is a bearer; a real api-key string still travels as api-key
-        ok = OpenAILM(api_key=lambda: BearerToken(jwt), access=access.AZURE, settings={"resource": "lab"})
+
         def headers(lm, model):
             return {k.lower(): v for k, v in lm.build_request(_req(model), stream=False).headers}
 
+        bare = OpenAILM(api_key=lambda: jwt, access=access.AZURE, settings={"resource": "lab"})
+        assert headers(bare, "dep")["authorization"] == f"Bearer {jwt}"
+        assert "api-key" not in headers(bare, "dep")
+        # the wrap is still accepted, and still the form when nothing should be read from the token's shape
+        ok = OpenAILM(api_key=lambda: BearerToken(jwt), access=access.AZURE, settings={"resource": "lab"})
         assert headers(ok, "dep")["authorization"] == f"Bearer {jwt}"
+        # a real api-key string still travels as api-key
         key = OpenAILM(api_key="0123456789abcdef0123456789abcdef", access=access.AZURE, settings={"resource": "lab"})
         assert headers(key, "dep")["api-key"] == "0123456789abcdef0123456789abcdef"
+        # x-api-key-first doors (Foundry Claude) likewise send a JWT as bearer
+        foundry = AnthropicLM(api_key=jwt, access=access.AZURE_ANTHROPIC, settings={"resource": "lab"})
+        assert headers(foundry, "claude-sonnet-4-5")["authorization"] == f"Bearer {jwt}"
+        # a door without bearer (bedrock-anthropic: sigv4, x-api-key) keeps the key header
+        bedrock = AnthropicLM(api_key=jwt, access=access.BEDROCK_ANTHROPIC, settings={"region": "us-east-1"})
+        assert headers(bedrock, "anthropic.claude-opus-5")["x-api-key"] == jwt
         # on a bearer-first door a plain JWT string is fine (OpenAI, DeepSeek…)
         assert headers(OpenAILM(api_key=jwt), "m")["authorization"] == f"Bearer {jwt}"
 
@@ -440,8 +450,9 @@ class TestBearerTokenInKeyHeader:
         from lm15.cloud.chains import ChainContext, resolve
 
         ctx = ChainContext(env={"AWS_BEARER_TOKEN_BEDROCK": "bedrock-api-key-abc", "AWS_REGION": "us-east-1"}, files={}, settings={"region": "us-east-1"})
-        cred = resolve(access.BEDROCK_ANTHROPIC, ctx)
+        cred, source = resolve(access.BEDROCK_ANTHROPIC, ctx)
         assert isinstance(cred, BearerToken)
+        assert source.rung == "env:AWS_BEARER_TOKEN_BEDROCK" and "AWS_BEARER_TOKEN_BEDROCK" in source.describe()
         AnthropicLM(api_key=cred, access=access.BEDROCK_ANTHROPIC, settings={"region": "us-east-1"})
 
 

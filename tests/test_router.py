@@ -748,11 +748,31 @@ class TestRouterBaseUrls:
             finally:
                 lm.close()
 
-    def test_base_url_on_a_cloud_door_is_refused_by_name(self) -> None:
-        router = _router(env={"AZURE_OPENAI_API_KEY": "k"}, base_urls={"azure-chat": "https://x.example/openai/v1"})
-        with pytest.raises(lm15.NotConfiguredError) as exc:
-            router.lm("azure-chat:gpt-4o-mini")
-        assert "settings" in str(exc.value) and "azure-chat" in str(exc.value)
+    def test_base_url_on_a_cloud_door_is_the_endpoint_root(self) -> None:
+        # AUTH-10 (amended 2026-09-19): a cloud door takes a full endpoint;
+        # the door's path is appended unless already present, `resource` is
+        # not needed, and the door (api-key scheme, provider name) stays.
+        router = _router(env={"AZURE_OPENAI_API_KEY": "k"}, base_urls={"azure-chat": "https://acct.services.ai.azure.com"})
+        lm = router.lm("azure-chat:gpt-4o-mini")
+        try:
+            assert lm.base_url == "https://acct.services.ai.azure.com/openai/v1"
+            assert lm.provider == "azure-chat"
+        finally:
+            lm.close()
+        full = _router(env={"AZURE_OPENAI_API_KEY": "k"}, base_urls={"azure-chat": "https://x.example/openai/v1/"})
+        lm = full.lm("azure-chat:gpt-4o-mini")
+        try:
+            assert lm.base_url == "https://x.example/openai/v1"
+        finally:
+            lm.close()
+
+    def test_vendor_endpoint_variable_is_read_on_a_cloud_door(self) -> None:
+        router = _router(env={"AZURE_OPENAI_API_KEY": "k", "AZURE_OPENAI_ENDPOINT": "https://acct.services.ai.azure.com/"})
+        lm = router.lm("azure:gpt-5-mini")
+        try:
+            assert lm.base_url == "https://acct.services.ai.azure.com/openai/v1"
+        finally:
+            lm.close()
 
     def test_base_url_is_not_for_other_providers(self) -> None:
         router = _router(base_urls={"openai": "https://proxy.example/v1"})

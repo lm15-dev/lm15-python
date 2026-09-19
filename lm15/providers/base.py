@@ -84,6 +84,19 @@ def resolve_credential_value(credential: Credential) -> CredentialValue:
     return coerce_credential(raw)
 
 
+def _origin_label(credential: Credential | None, source: str) -> str:
+    """The provenance label for a credential the adapter was handed (AUTH-1
+    provenance).  Honest about what lm15 can see: a callable's identity is
+    not inspected."""
+    if credential is None or credential == "":
+        return "no credential"
+    if source == "stored":
+        return "the stored local login (credentials file)"
+    if callable(credential):
+        return "an application-supplied callable (identity not inspected by lm15)"
+    return "an explicit api_key (value never shown)"
+
+
 def resolve_credential(credential: Credential) -> str:
     """The bearer/key STRING of a credential — the pre-2026-09-03 shape the
     dialects' header code reads.  AWS credentials have no single string;
@@ -261,6 +274,12 @@ class BaseProviderLM:
     # dialect declares it as a constructor field; this is the fallback.
     adaptations: AdaptationPolicy = "note"
     _credential_source: str = "explicit"
+    # AUTH-1 provenance (amended 2026-09-19): where the credential came
+    # from, as a human label, for auth errors.  A static label for an
+    # explicit value / env key / stored login; a cloud chain provider
+    # carries its own (``.source``), read at error time so the label names
+    # the rung that actually won.
+    _credential_origin: str | None = None
     # Cloud-host state (AUTH-10): the resolved host settings and the clock
     # every time-dependent byte (SigV4 date, JWT iat/exp) is read from.  The
     # harness injects a fixed clock; users never touch it.
@@ -290,6 +309,7 @@ class BaseProviderLM:
         credentials_path: "str | os.PathLike[str] | None" = None,
         default_base_url: str | None = None,
         settings: "Mapping[str, str] | None" = None,
+        credential: str | None = None,
     ) -> None:
         """Bind the access policy and resolve the credential it calls for.
 
@@ -300,7 +320,15 @@ class BaseProviderLM:
         and defaults only — the router fills env fallbacks, like it does for
         the key), and ``base_url``: the policy's own, or the host template
         rendered over the settings, when the caller left the dialect's
-        default.
+        default; an explicit ``base_url`` on a cloud door is the endpoint
+        root, and the door's path is appended unless already present
+        (AUTH-10, amended 2026-09-19).
+
+        ``credential`` names one identity on a cloud door (``platform``,
+        ``workload``, ``environment``, ``cli``; AUTH-1 named credentials):
+        that rung only, read from this process's environment, never the
+        chain.  It cannot be combined with ``api_key``: two answers to "who
+        am I" is a configuration error, not a precedence question.
         """
         from ..access import load_credential
         from ..cloud.hosts import render_base_url, resolve_settings
@@ -308,25 +336,66 @@ class BaseProviderLM:
         policy = access if access is not None else type(self).manifest
         self.access = policy
         self.provider = policy.provider
-        loaded = load_credential(policy, self.api_key, credentials_path=credentials_path)
-        self.api_key = loaded.credential
-        self._credential_source = loaded.source
-        if loaded.account_id is not None and self.account_id is None:
-            self.account_id = loaded.account_id
-        if loaded.credential is not None and not callable(loaded.credential):
-            # A static credential of the wrong kind for this door fails now,
-            # not on the first request (a provider callable is checked per call).
-            from ..access import select_scheme
+        endpoint = self.base_url if (policy.host is not None and default_base_url is not None
+                                     and self.base_url != default_base_url) else None
+        if credential is not None:
+            if not policy.cloud_chain:
+                raise NotConfiguredError(
+                    f"{policy.provider}: credential={credential!r} names a cloud identity, and this door is not a "
+                    "cloud door; pass api_key= instead",
+                    provider=policy.provider,
+                )
+            if self.api_key is not None and self.api_key != "":
+                raise NotConfiguredError(
+                    f"{policy.provider}: both api_key= and credential={credential!r} were given; a door has one "
+                    "identity — pass the credential value, or name the identity, not both",
+                    provider=policy.provider,
+                )
+            from ..cloud.chains import ChainContext, credential_provider
 
-            select_scheme(policy, coerce_credential(loaded.credential))
-        self.host_settings = resolve_settings(policy.host, settings, None, provider=policy.provider)
+            self.host_settings = resolve_settings(policy.host, settings, None, provider=policy.provider, endpoint=endpoint)
+            ctx = ChainContext.online()
+            ctx.settings = self.host_settings
+            self.api_key = credential_provider(policy, ctx, named=credential)
+            self._credential_source = "named"
+        else:
+            loaded = load_credential(policy, self.api_key, credentials_path=credentials_path)
+            self.api_key = loaded.credential
+            self._credential_source = loaded.source
+            if loaded.account_id is not None and self.account_id is None:
+                self.account_id = loaded.account_id
+            if loaded.credential is not None and not callable(loaded.credential):
+                # A static credential of the wrong kind for this door fails now,
+                # not on the first request (a provider callable is checked per call).
+                from ..access import select_scheme
+
+                select_scheme(policy, coerce_credential(loaded.credential))
+            self.host_settings = resolve_settings(policy.host, settings, None, provider=policy.provider, endpoint=endpoint)
+        if self._credential_origin is None:
+            self._credential_origin = _origin_label(self.api_key, self._credential_source)
         if getattr(self, "clock", None) is None:
             self.clock = None
         if policy.host is not None:
-            if default_base_url is None or self.base_url == default_base_url:
-                self.base_url = render_base_url(policy.host, self.host_settings)
+            self.base_url = render_base_url(policy.host, self.host_settings, endpoint, provider=policy.provider)
         elif policy.base_url is not None and default_base_url is not None and self.base_url == default_base_url:
             self.base_url = policy.base_url
+
+    def credential_origin(self) -> str:
+        """Where this adapter's credential comes from, as a sentence fragment
+        with no secret in it (AUTH-1 provenance).  For a cloud chain
+        provider this is the rung that last won, or what will be walked
+        when no request has been sent yet."""
+        provider = self.api_key
+        if hasattr(provider, "source") and hasattr(provider, "named"):  # a cloud chain provider
+            source = provider.source
+            if source is not None and hasattr(source, "describe"):
+                return source.describe(self._now())
+            if provider.named:
+                from ..cloud.chains import named_meaning
+
+                return f'named credential "{provider.named}" ({named_meaning(self.access, provider.named)}; not yet resolved)'
+            return f"the {self.access.credential_policy} (not yet resolved)"
+        return self._credential_origin or _origin_label(provider, self._credential_source)
 
     def _registry_compat(self) -> str | None:
         """The compat preset the bound provider names in the registry, for a
@@ -579,10 +648,24 @@ class BaseProviderLM:
         local login: always under an ``oauth`` policy (there is no env var),
         and under ``oauth-unless-explicit`` only when the stored login was
         the rung that won — an explicit key keeps the generic guidance.
-        ``with_credential_hint`` is a no-op on non-auth errors."""
+        ``with_credential_hint`` is a no-op on non-auth errors.
+
+        Every auth error from the wire also names where the credential came
+        from (AUTH-1 provenance, amended 2026-09-19): the rung of a cloud
+        chain, the env variable, the explicit value, or "an
+        application-supplied callable" — never the value."""
         hint = self.access.login_hint
         if hint and (self.access.credential_policy == "oauth" or self._credential_source == "stored"):
-            return with_credential_hint(error, hint)
+            error = with_credential_hint(error, hint)
+        if isinstance(error, AuthError):
+            from ..errors import with_credential_origin
+
+            try:
+                origin = self.credential_origin()
+            except Exception:  # noqa: BLE001 - provenance must never mask the real error
+                origin = None
+            if origin:
+                error = with_credential_origin(error, origin)
         return error
 
     def close(self) -> None:

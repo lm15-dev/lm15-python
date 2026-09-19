@@ -26,6 +26,38 @@ Source version for the fixes below; updating the source does not publish a PyPI 
   over legacy raw-deflate interpretation; corruption is not retried as a
   different format after output. No new runtime dependency.
 
+- Cloud identity and endpoints (spec/auth.md AUTH-1/AUTH-2/AUTH-7/AUTH-10,
+  amended 2026-09-19; `changes/2026-09-19-cloud-identity-and-endpoints.md`):
+  - `RouterConfig(credentials={"azure": "platform"})` (also `"workload"`,
+    `"environment"`, `"cli"`; the same four names on Azure, AWS and Google)
+    runs one named identity on a cloud door and never walks the chain; an
+    absent identity is `NotConfiguredError` naming what was probed. Bare
+    adapters take `credential="platform"`. A key and a name for one door
+    is refused.
+  - Every `AuthError` from the wire names where the credential came from
+    (the chain rung, the env variable, "an explicit api_key", "an
+    application-supplied callable") — never the value. Cloud chain
+    providers expose `.source`; adapters expose `credential_origin()`.
+  - `RouterConfig(base_urls=...)` is accepted on cloud doors as the endpoint
+    root; the door appends its path (`/openai/v1`, `/anthropic/v1`) unless
+    present and keeps its auth scheme, error mapping and doctor. The
+    vendor's variables are read first: `AZURE_OPENAI_ENDPOINT`,
+    `ANTHROPIC_FOUNDRY_BASE_URL`, `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` /
+    `AWS_ENDPOINT_URL_BEDROCK_MANTLE` / `AWS_ENDPOINT_URL`. With an endpoint
+    `resource` is optional; `region` stays required on AWS (it signs).
+    Before this a `base_urls` entry for a cloud door was refused, and the
+    only way to reach a Foundry root was to leave the `azure` door.
+  - A plain JWT string on a key-header-first door (Azure `api-key`, Foundry
+    `x-api-key`) is sent as a bearer token instead of refused;
+    `BearerToken(...)` stays accepted.
+  - `explain_auth` reads `credentials` and `base_urls` from `config=`,
+    walks only the named rungs in named mode, and prints the base URL and
+    where it came from.
+  - The Azure OpenAI template stays `{resource}.openai.azure.com`: the only
+    host a classic `OpenAI`-kind resource answers on (DNS-verified
+    2026-09-19). The Foundry root the console shows goes in
+    `AZURE_OPENAI_ENDPOINT`.
+
 - `RouterConfig(providers=(ProviderDefinition.chat(access, compat=...), ...))`
   declares a provider the registry does not list — a gateway, a service
   lm15 has not receipted — as the same pure-data triple a registry entry
