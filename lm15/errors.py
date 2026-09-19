@@ -30,7 +30,9 @@ Hierarchy:
 from __future__ import annotations
 
 import builtins
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Mapping, Sequence
+
+from .rate_limits import diagnostics_text, freeze_rate_limits
 
 if TYPE_CHECKING:  # pragma: no cover
     from .types import Response
@@ -56,7 +58,9 @@ class LM15Error(Exception):
         status: int | None = None,
         request_id: str | None = None,
         retry_after: float | None = None,
+        rate_limit_headers: Mapping[str, Sequence[str]] | None = None,
     ) -> None:
+        self.rate_limit_headers = freeze_rate_limits(rate_limit_headers)
         self.message = message
         self.code = code or self.default_code
         self.provider = provider
@@ -244,11 +248,10 @@ class ProviderError(LM15Error):
             if item
         )
         base = self.message or self.code
-        if not context:
-            return base
         head, sep, tail = base.partition("\n\n")
-        suffix = f" ({context})"
-        return f"{head}{suffix}\n\n{tail}" if sep else f"{base}{suffix}"
+        suffix = f" ({context})" if context else ""
+        details = diagnostics_text(self.rate_limit_headers, self.retry_after)
+        return f"{head}{suffix}{details}" + (f"\n\n{tail}" if sep else "")
 
 
 class AuthError(ProviderError):
@@ -306,7 +309,7 @@ class RateLimitError(ProviderError):
             "  To fix:\n"
             "    - Wait a moment and retry\n"
             "    - Retry with backoff in your application layer (lm15 never retries for you)\n"
-            "    - Reduce request rate or upgrade your API plan\n"
+            "    - Check the reported limits and deployment capacity; a 429 does not prove the endpoint is unsupported\n"
         )
         super().__init__(_append_guidance(message, guidance), **kwargs)
 
@@ -487,6 +490,7 @@ def with_credential_origin(error: ProviderError, origin: str) -> ProviderError:
         status=error.status,
         request_id=error.request_id,
         retry_after=error.retry_after,
+        rate_limit_headers=error.rate_limit_headers,
     )
     out.credential_origin = origin
     return out
@@ -510,6 +514,7 @@ def with_credential_hint(error: ProviderError, hint: str) -> ProviderError:
         status=error.status,
         request_id=error.request_id,
         retry_after=error.retry_after,
+        rate_limit_headers=error.rate_limit_headers,
     )
 
 

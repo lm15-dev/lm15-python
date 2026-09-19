@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Mapping, Protocol, Sequence
 
@@ -54,6 +54,7 @@ from ..types import (
     Request,
     Response,
     StreamEvent,
+    StreamErrorEvent,
 )
 
 
@@ -148,18 +149,50 @@ def _attach_retry_after(error: ProviderError, headers: "list[tuple[str, str]] | 
     seconds = _retry_after_seconds(value)
     if seconds is not None:
         error.retry_after = seconds
+        return
+    from ..rate_limits import milliseconds_seconds
+
+    for name in ("retry-after-ms", "x-ms-retry-after-ms"):
+        value = next((v for k, v in headers or [] if k.lower() == name), None)
+        seconds = milliseconds_seconds(value)
+        if seconds is not None:
+            error.retry_after = seconds
+            return
 
 
 def _attach_error_metadata(error: ProviderError, headers: "list[tuple[str, str]] | None") -> None:
     """Fill HTTP diagnostics absent from the body; never invent absent fields."""
+    from ..rate_limits import capture_rate_limits
+
+    error.rate_limit_headers = capture_rate_limits(headers or [])
     _attach_retry_after(error, headers)
     if error.request_id is not None:
         return
-    values = {key.lower(): value for key, value in headers or []}
-    for name in ("x-request-id", "request-id", "x-amzn-requestid", "x-amz-request-id", "x-ms-request-id", "x-typesafe-request-id"):
+    values = {}
+    for key, value in headers or []:
+        values.setdefault(key.lower(), value)
+    for name in ("x-request-id", "request-id", "x-amzn-requestid", "x-amz-request-id", "x-ms-request-id", "apim-request-id", "x-typesafe-request-id"):
         if values.get(name):
             error.request_id = values[name]
             break
+
+
+def _stream_error_metadata(event, headers):
+    """Handshake evidence on an in-stream error; never infer status 200."""
+    if not isinstance(event, StreamErrorEvent):
+        return event
+    error = ProviderError()
+    _attach_error_metadata(error, headers)
+    http = {}
+    if error.request_id is not None:
+        http["request_id"] = error.request_id
+    if error.retry_after is not None:
+        http["retry_after"] = error.retry_after
+    if error.rate_limit_headers:
+        http["rate_limit_headers"] = {k: list(v) for k, v in error.rate_limit_headers.items()}
+    if not http:
+        return event
+    return replace(event, error=replace(event.error, http_response=http))
 
 
 @dataclass(frozen=True, slots=True)
@@ -556,7 +589,11 @@ class BaseProviderLM:
         resp = self._send(req)
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._finish_response(request, self.parse_response(request, resp), adaptations)
+        try:
+            return self._finish_response(request, self.parse_response(request, resp), adaptations)
+        except ProviderError as error:
+            _attach_error_metadata(error, resp.headers)
+            raise
 
     def stream(self, request: Request) -> Iterator[StreamEvent]:
         # MAP-3 (docs/mapping-rules.md): adapters may emit one end event per
@@ -584,10 +621,14 @@ class BaseProviderLM:
                     _attach_error_metadata(error, resp.headers)
                     raise error
                 lines = resp.iter_lines() if hasattr(resp, "iter_lines") else _iter_lines(resp)
-                for raw in parse_sse(lines):
-                    for event in self.parse_stream_events(request, raw):
-                        if event is not None:
-                            yield event
+                try:
+                    for raw in parse_sse(lines):
+                        for event in self.parse_stream_events(request, raw):
+                            if event is not None:
+                                yield _stream_error_metadata(event, resp.headers)
+                except ProviderError as error:
+                    _attach_error_metadata(error, resp.headers)
+                    raise
         except NetworkTransportError as exc:
             raise LM15TransportError(str(exc)) from exc
 

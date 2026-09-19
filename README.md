@@ -503,6 +503,12 @@ except ProviderError as exc:
 Check API key: ('OPENAI_API_KEY',)
 ```
 
+Rate/capacity failures also expose `error.rate_limit_headers`: bounded,
+read-only provider evidence (limits, remaining balances, resets and wait hints).
+`str(error)` includes an advisory summary; no automatic retry or endpoint
+switch is added. See [Understanding “no capacity”](docs/error-diagnostics.md),
+including streaming errors and Azure request IDs.
+
 ## Model metadata
 
 `ModelRegistry.discover()` hydrates optional, advisory model metadata (pricing, context windows, capability hints) from installed catalog packages via the `lm15.model_catalogs` entry-point group — the `aimo` catalog is one such package. Hydrated metadata never changes what an adapter sends: requests are byte-identical with or without it. See [docs/model-hydration.md](docs/model-hydration.md) for the contract.

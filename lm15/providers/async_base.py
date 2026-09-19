@@ -48,7 +48,7 @@ from ..types import (
     StreamEvent,
 )
 from .anthropic import AnthropicLM
-from .base import BaseProviderLM, Credential, HttpResponse, _attach_error_metadata, _client_side_stop
+from .base import BaseProviderLM, Credential, HttpResponse, _attach_error_metadata, _client_side_stop, _stream_error_metadata
 from .claude_code import DEFAULT_CLAUDE_CODE_VERSION, ClaudeCodeLM
 from .gemini import GeminiLM
 from .openai import OpenAILM
@@ -166,7 +166,11 @@ class AsyncBaseProviderLM:
         resp = await self._send(req)
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._finish_response(request, self._inner.parse_response(request, resp), adaptations, policy=self.adaptations)
+        try:
+            return self._inner._finish_response(request, self._inner.parse_response(request, resp), adaptations, policy=self.adaptations)
+        except ProviderError as error:
+            _attach_error_metadata(error, resp.headers)
+            raise
 
     def stream(self, request: Request) -> AsyncIterator[StreamEvent]:
         # MAP-3 (docs/mapping-rules.md): adapters may emit one end event per
@@ -200,10 +204,14 @@ class AsyncBaseProviderLM:
                     )
                     _attach_error_metadata(error, resp.headers)
                     raise error
-                async for raw in aparse_sse(_aiter_lines(resp)):
-                    for event in self._inner.parse_stream_events(request, raw):
-                        if event is not None:
-                            yield event
+                try:
+                    async for raw in aparse_sse(_aiter_lines(resp)):
+                        for event in self._inner.parse_stream_events(request, raw):
+                            if event is not None:
+                                yield _stream_error_metadata(event, resp.headers)
+                except ProviderError as error:
+                    _attach_error_metadata(error, resp.headers)
+                    raise
         except NetworkTransportError as exc:
             raise LM15TransportError(str(exc)) from exc
 
@@ -776,7 +784,11 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
         if resp.status >= 400:
             raise inner._http_error(resp)
         records = tuple(scope.records) + tuple(a for a in built if a.field != "config.probabilities")
-        return inner._finish_response(request, inner.parse_response(request, resp), records, policy=self.adaptations)
+        try:
+            return inner._finish_response(request, inner.parse_response(request, resp), records, policy=self.adaptations)
+        except ProviderError as error:
+            _attach_error_metadata(error, resp.headers)
+            raise
 
 
 # ─── Subscription mirrors (Claude Code / Codex CLI OAuth) ────────────

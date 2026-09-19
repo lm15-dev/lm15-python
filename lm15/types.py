@@ -1579,8 +1579,13 @@ class ErrorDetail:
     code: ErrorCode
     message: str
     provider_code: str | None = None
+    # Bounded handshake diagnostics; absent means no HTTP evidence, not success.
+    http_response: JsonObject = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        from .rate_limits import normalize_http_response
+
+        object.__setattr__(self, "http_response", normalize_http_response(self.http_response))
         if self.code not in ERROR_CODES:
             raise ValueError(f"unsupported error code: {self.code}")
         _validate_text(self.message, field_name="ErrorDetail.message")

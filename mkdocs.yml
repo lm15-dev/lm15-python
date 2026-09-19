@@ -57,6 +57,7 @@ nav:
   - Guides:
       - Providers & models: providers-and-models.md
       - Authentication: authentication.md
+      - Rate-limit and capacity diagnostics: error-diagnostics.md
       - Cloud hosts (AWS, Azure, Google Cloud): cloud-hosts.md
       - The router: using-the-router.md
       - Adaptations (switch providers, keep your program): adaptations.md

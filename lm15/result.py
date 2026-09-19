@@ -1148,7 +1148,17 @@ def _exception_from_error(event: StreamEvent) -> Exception:
     message = err.message
     exc_cls = error_class_for_code(code)
     if issubclass(exc_cls, LM15Error):
-        return exc_cls(message, provider_code=err.provider_code)
+        import math
+
+        http = err.http_response
+        http = http if isinstance(http, dict) else {}
+        wait = http.get("retry_after")
+        if not isinstance(wait, (int, float)) or isinstance(wait, bool) or not math.isfinite(wait) or wait < 0:
+            wait = None
+        request_id = http.get("request_id")
+        return exc_cls(message, provider_code=err.provider_code,
+                       request_id=request_id if isinstance(request_id, str) else None,
+                       retry_after=wait, rate_limit_headers=http.get("rate_limit_headers"))
     return exc_cls(message)
 
 

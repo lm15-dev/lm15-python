@@ -618,6 +618,7 @@ def error_detail_to_dict(e: ErrorDetail) -> dict[str, Any]:
         "code": e.code,
         "message": e.message,
         "provider_code": e.provider_code,
+        "http_response": e.http_response,
     })
 
 
@@ -626,6 +627,7 @@ def error_detail_from_dict(d: dict[str, Any]) -> ErrorDetail:
         code=d["code"],
         message=d.get("message", ""),
         provider_code=d.get("provider_code"),
+        http_response=d.get("http_response", {}),
     )
 
 

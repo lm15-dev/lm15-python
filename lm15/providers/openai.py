@@ -528,6 +528,9 @@ class OpenAILM(BaseProviderLM):
     _response_error_code_map: ClassVar[dict[str, type[ProviderError]]] = {
         "server_error": ServerError,
         "rate_limit_exceeded": RateLimitError,
+        # Azure documents these on Responses error frames even under HTTP 200.
+        "no_capacity": RateLimitError,
+        "too_many_requests": RateLimitError,
         "invalid_prompt": InvalidRequestError,
         "vector_store_timeout": TimeoutError,
         "invalid_image": InvalidRequestError,

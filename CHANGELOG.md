@@ -4,6 +4,15 @@
 
 Source version for the fixes below; updating the source does not publish a PyPI release.
 
+- Provider errors retain bounded, immutable `rate_limit_headers` evidence and
+  display advisory retry/limit details without changing the provider message.
+  Add millisecond retry-header fallback and Azure `apim-request-id`; no automatic
+  retry or endpoint switching. `ErrorDetail.http_response` preserves handshake
+  diagnostics through streamed errors and canonical JSON replay (omitted empty).
+  Explicit Responses `no_capacity` / `too_many_requests` codes map to rate limits,
+  not an inferred failure of endpoint compatibility. Shared rules and fixtures:
+  contract `changes/2026-09-19-rate-limit-diagnostics.md`.
+
 - Ordinary and streamed inference requests inherit the configured transport
   read timeout instead of overriding it with 60/120 seconds. With no caller
   setting, the existing 600-second default now applies to these requests.
