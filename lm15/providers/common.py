@@ -364,8 +364,7 @@ def anthropic_source(part: ImagePart | DocumentPart | BinaryPart) -> dict[str, A
     if part.data is not None:
         return {"type": "base64", "media_type": part.media_type, "data": part.data}
     if part.path is not None:
-        data = base64.b64encode(part.path.read_bytes()).decode("ascii")
-        return {"type": "base64", "media_type": part.media_type, "data": data}
+        return {"type": "base64", "media_type": part.media_type, "data": media_base64(part)}
     raise ValueError(f"{part.type} part has no usable source")
 
 

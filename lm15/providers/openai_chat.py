@@ -1883,7 +1883,7 @@ class OpenAIChatLM(BaseProviderLM):
         wire_request = self._wire_request(request)
         if self._judgments_via_token_scoring(wire_request):
             return self._judgment_adaptations(wire_request, policy=policy)
-        return super().plan(request, policy=policy)
+        return BaseProviderLM.plan(self, request, policy=policy)
 
     def complete(self, request: Request) -> Response:
         wire_request = self._wire_request(request)
