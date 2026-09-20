@@ -60,7 +60,10 @@ df["quality"] = pd.Categorical(df.quality, categories=range(5), ordered=True)
 ## What to know
 
 - A beginner's `{"enum": ["a", "b"]}` is already a judgment; descriptions (`choice`/`score` helpers) are optional and help the model.
-- Jev's own `confidence` is kept verbatim in `provider_data["typesafe"]["answers"]`; the expected level is computed, never stored.
+- Jev's own `confidence` and `score` are kept verbatim in `provider_data["typesafe"]["answers"]`; the expected level is computed, never stored. These opaque provider statistics are not substituted for missing probabilities.
+- Every Jev answer must match its declared kind and keys, with a complete distribution of finite numbers in `[0, 1]`. Missing/malformed measurements or undeclared choices raise non-retryable `ProviderError`, not a partial answer or fabricated zero. Absent usage counters stay `None`; reported zeros stay zero.
+- **INV-052 deliberately does not validate distribution totals** (providers round), either in the adapter or in `DataPart`. This was not a DataPart defect. Numbers are not normalized or rewritten; even an unusual total is preserved. A noul's complement `1-p` is the specified boolean mapping, not a normalization.
+- Candidate-sequence likelihood is different: it normalizes measured log-likelihoods once over the key set as MAP-14 requires. A key set whose every likelihood is zero cannot be normalized and raises `ProviderError`. Malformed token/scoring responses are provider faults; missing requested token ids still trigger the documented `if_available` fallback or `required` refusal.
 - Structured input: `Message.user(data({...}))` sends a JSON value as the state, verbatim (Jev reads it as such; a text-only wire gets it as compact JSON).
 - Jev's state is the one user part and nothing else: no `system` (put context in the state as a named key, or in the question), no second message (put a transcript in the state as your own object). Both are refused with the native place named — `lm15-contract/changes/2026-09-19-jev-state.md`.
 - Contract: `lm15-contract/changes/2026-09-17-judgments.md`, MAP-14.

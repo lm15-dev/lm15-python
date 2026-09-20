@@ -853,6 +853,7 @@ class AnthropicLM(BaseProviderLM):
         return payload
 
     def build_request(self, request: Request, stream: bool) -> TransportRequest:
+        request = self._wire_request(request)
         return self._emit(
             method="POST",
             url=f"{self.base_url.rstrip('/')}/messages",
@@ -866,6 +867,7 @@ class AnthropicLM(BaseProviderLM):
     # ─── Response parsing ───────────────────────────────────────────
 
     def parse_response(self, request: Request, response: HttpResponse) -> Response:
+        request = self._wire_request(request)
         data = response.json()
         parts: list[Any] = []
         unmapped: list[dict[str, str]] = []
@@ -951,6 +953,7 @@ class AnthropicLM(BaseProviderLM):
         )
 
     def parse_stream_events(self, request: Request, raw_event: SSEEvent) -> Iterator[StreamEvent]:
+        request = self._wire_request(request)
         if not raw_event.data:
             return
         payload = json.loads(raw_event.data)
@@ -1076,7 +1079,6 @@ class AnthropicLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/models",
             params={"limit": 1000},
             headers=self._headers(),
-            read_timeout=30.0,
         )
 
     def _models_from_body(self, body: str):
@@ -1109,7 +1111,6 @@ class AnthropicLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/files",
             headers=list(headers.items()),
             body=body,
-            read_timeout=300.0,
         )
 
     def _file_info_from_body(self, body: str) -> FileInfo:
@@ -1136,7 +1137,7 @@ class AnthropicLM(BaseProviderLM):
     def _file_get_request(self, file_id: str) -> TransportRequest:
         return self._emit(
             method="GET", url=f"{self.base_url.rstrip('/')}/files/{path_id(file_id)}",
-            headers=self._headers(), read_timeout=60.0,
+            headers=self._headers(),
         )
 
     def _file_list_request(self, limit: int, cursor: str | None) -> TransportRequest:
@@ -1145,7 +1146,7 @@ class AnthropicLM(BaseProviderLM):
             params["page"] = cursor
         return self._emit(
             method="GET", url=f"{self.base_url.rstrip('/')}/files",
-            params=params, headers=self._headers(), read_timeout=60.0,
+            params=params, headers=self._headers(),
         )
 
     def _file_page_from_list_body(self, body: str) -> FilePage:
@@ -1158,18 +1159,19 @@ class AnthropicLM(BaseProviderLM):
     def _file_delete_request(self, file_id: str) -> TransportRequest:
         return self._emit(
             method="DELETE", url=f"{self.base_url.rstrip('/')}/files/{path_id(file_id)}",
-            headers=self._headers(), read_timeout=60.0,
+            headers=self._headers(),
         )
 
     def _file_download_request(self, file_id: str) -> TransportRequest:
         return self._emit(
             method="GET", url=f"{self.base_url.rstrip('/')}/files/{path_id(file_id)}/content",
-            headers=self._headers(), read_timeout=300.0,
+            headers=self._headers(),
         )
 
     # ─── Batch hooks (Message Batches API) ────────────────────────
 
     def _batch_submit_request(self, request: BatchRequest, upload_body: dict[str, Any] | None) -> TransportRequest:
+        self._batch_preflight(request)
         if request.label is not None:
             adapt("label", "dropped",
                   "the Message Batches create body has no metadata field (verified live "
@@ -1187,7 +1189,6 @@ class AnthropicLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/messages/batches",
             headers=self._headers(),
             payload=payload,
-            read_timeout=120.0,
         )
 
     def _batch_job_from_body(self, body: str) -> BatchJobInfo:
@@ -1209,7 +1210,6 @@ class AnthropicLM(BaseProviderLM):
             method="GET",
             url=f"{self.base_url.rstrip('/')}/messages/batches/{path_id(batch_id)}",
             headers=self._headers(),
-            read_timeout=60.0,
         )
 
     def _batch_cancel_request(self, batch_id: str) -> TransportRequest:
@@ -1217,14 +1217,13 @@ class AnthropicLM(BaseProviderLM):
             method="POST",
             url=f"{self.base_url.rstrip('/')}/messages/batches/{path_id(batch_id)}/cancel",
             headers=self._headers(),
-            read_timeout=60.0,
         )
 
     def _batch_result_fetches(self, status_body: dict[str, Any]) -> tuple[TransportRequest, ...]:
         url = status_body.get("results_url")
         if not isinstance(url, str) or not url:
             raise ProviderError("anthropic: ended batch carries no results_url", provider=self.provider)
-        return (self._emit(method="GET", url=url, headers=self._headers(), read_timeout=300.0),)
+        return (self._emit(method="GET", url=url, headers=self._headers()),)
 
     def _batch_entries(self, status_body: dict[str, Any], fetched: tuple[str, ...]) -> tuple[BatchEntry, ...]:
         entries: list[BatchEntry] = []
@@ -1272,7 +1271,6 @@ class AnthropicLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/messages/batches",
             params={"limit": int(limit)},
             headers=self._headers(),
-            read_timeout=60.0,
         )
 
     def _batch_jobs_from_list_body(self, body: str) -> tuple[BatchJobInfo, ...]:

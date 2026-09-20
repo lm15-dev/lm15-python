@@ -48,7 +48,10 @@ from ..types import (
     StreamEvent,
 )
 from .anthropic import AnthropicLM
-from .base import BaseProviderLM, Credential, HttpResponse, _attach_error_metadata, _client_side_stop, _stream_error_metadata
+from .base import (
+    BaseProviderLM, Credential, HttpResponse, _attach_error_metadata, _client_side_stop,
+    _parse_reply, _reply_error_metadata, _reply_object, _stream_error_metadata,
+)
 from .claude_code import DEFAULT_CLAUDE_CODE_VERSION, ClaudeCodeLM
 from .gemini import GeminiLM
 from .openai import OpenAILM
@@ -181,7 +184,7 @@ class AsyncBaseProviderLM:
     async def _astream(self, request: Request) -> AsyncIterator[StreamEvent]:
         from ..result import acoalesce_stream, atruncate_stream_at_stop
         req, adaptations = await self._build(self._inner._build, request, stream=True, policy=self.adaptations)
-        events = acoalesce_stream(self._stream_raw(request, req), model=request.model, adaptations=self._inner._visible(adaptations, policy=self.adaptations))
+        events = acoalesce_stream(self._stream_raw(request, req), model=self._inner._wire_request(request).model, adaptations=self._inner._visible(adaptations, policy=self.adaptations))
         if _client_side_stop(adaptations):
             events = atruncate_stream_at_stop(events, request.config.stop)
         try:
@@ -238,28 +241,35 @@ class AsyncBaseProviderLM:
         resp = await self._send(await self._build(self._inner._models_request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._models_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._models_from_body(reply.text()))
 
     # ── Batch: async drivers over the sync adapter's pure hooks ──────
 
     async def batch_submit(self, request: "BatchRequest"):
+        self._inner._batch_preflight(request)
         upload_body = None
         upload_req = await self._build(self._inner._batch_upload_request, request)
         if upload_req is not None:
             resp = await self._send(upload_req)
             if resp.status >= 400:
                 raise self._inner._http_error(resp)
-            upload_body = resp.json()
-        resp = await self._send(await self._build(self._inner._batch_submit_request, request, upload_body))
+            upload_body = _parse_reply(resp, _reply_object)
+        try:
+            submit_req = await self._build(self._inner._batch_submit_request, request, upload_body)
+        except ProviderError as error:
+            if upload_req is not None:
+                _reply_error_metadata(error, resp)
+            raise
+        resp = await self._send(submit_req)
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._batch_job_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._batch_job_from_body(reply.text()))
 
     async def batch_status(self, batch_id: str):
         resp = await self._send(await self._build(self._inner._batch_status_request, batch_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._batch_job_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._batch_job_from_body(reply.text()))
 
     async def batch_results(self, batch_id: str):
         from ..types import BATCH_TERMINAL_STATUSES
@@ -267,32 +277,37 @@ class AsyncBaseProviderLM:
         resp = await self._send(await self._build(self._inner._batch_status_request, batch_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        job = self._inner._batch_job_from_body(resp.text())
+        job = _parse_reply(resp, lambda reply: self._inner._batch_job_from_body(reply.text()))
         if job.status not in BATCH_TERMINAL_STATUSES:
             raise ValueError(
                 f"batch {batch_id} is not finished (status={job.status!r}); "
                 f"await wait() or poll batch_status() until done"
             )
-        status_body = resp.json()
+        status_body = _parse_reply(resp, _reply_object)
+        try:
+            fetches = await self._build(self._inner._batch_result_fetches, status_body)
+        except ProviderError as error:
+            _reply_error_metadata(error, resp)
+            raise
         texts = []
-        for fetch in await self._build(self._inner._batch_result_fetches, status_body):
+        for fetch in fetches:
             fetched = await self._send(fetch)
             if fetched.status >= 400:
                 raise self._inner._http_error(fetched)
-            texts.append(fetched.text())
-        return self._inner._batch_entries(status_body, tuple(texts))
+            texts.append(self._inner._batch_reply_text(status_body, fetched))
+        return _parse_reply(resp, lambda reply: self._inner._batch_entries(status_body, tuple(texts)), json_body=False)
 
     async def batch_cancel(self, batch_id: str):
         resp = await self._send(await self._build(self._inner._batch_cancel_request, batch_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._batch_job_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._batch_job_from_body(reply.text()))
 
     async def batch_list(self, limit: int = 20):
         resp = await self._send(await self._build(self._inner._batch_list_request, limit))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._batch_jobs_from_list_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._batch_jobs_from_list_body(reply.text()))
 
     async def batch(self, requests, *, model: str | None = None, label: str | None = None,
                     extensions=None):
@@ -322,19 +337,19 @@ class AsyncBaseProviderLM:
         resp = await self._send(await self._build(self._inner._cache_create_request, prefix, ttl_seconds, label))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._cache_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._cache_info_from_body(reply.text()))
 
     async def cache_get(self, cache_id: str):
         resp = await self._send(await self._build(self._inner._cache_get_request, cache_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._cache_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._cache_info_from_body(reply.text()))
 
     async def cache_list(self, limit: int = 20, cursor: str | None = None):
         resp = await self._send(await self._build(self._inner._cache_list_request, limit, cursor))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._cache_page_from_list_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._cache_page_from_list_body(reply.text()))
 
     async def cache_delete(self, cache_id: str) -> None:
         resp = await self._send(await self._build(self._inner._cache_delete_request, cache_id))
@@ -347,15 +362,17 @@ class AsyncBaseProviderLM:
         resp = await self._send(await self._build(self._inner._cache_update_request, cache_id, ttl_seconds))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._cache_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._cache_info_from_body(reply.text()))
 
     async def cache(self, prefix: Request, *, ttl_seconds: int | None = None, label: str | None = None):
         from ..types import CachedPrefix
 
+        wire = self._inner._wire_request(prefix)
+        provider = self.provider if wire.model != prefix.model else None
         if self.supports.caches:
-            return CachedPrefix(prefix, await self.cache_create(prefix, ttl_seconds=ttl_seconds, label=label))
-        self._inner._check_cache_prefix(prefix, ttl_seconds)
-        return CachedPrefix(prefix)
+            return CachedPrefix(wire, await self.cache_create(wire, ttl_seconds=ttl_seconds, label=label), provider=provider)
+        self._inner._check_cache_prefix(wire, ttl_seconds)
+        return CachedPrefix(wire, provider=provider)
 
     # ── Files: async drivers over the sync adapter's pure hooks ──────
 
@@ -363,19 +380,19 @@ class AsyncBaseProviderLM:
         resp = await self._send(await self._build(self._inner._file_upload_request, request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._file_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._file_info_from_body(reply.text()))
 
     async def file_get(self, file_id: str):
         resp = await self._send(await self._build(self._inner._file_get_request, file_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._file_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._file_info_from_body(reply.text()))
 
     async def file_list(self, limit: int = 20, cursor: str | None = None):
         resp = await self._send(await self._build(self._inner._file_list_request, limit, cursor))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._file_page_from_list_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._file_page_from_list_body(reply.text()))
 
     async def file_delete(self, file_id: str) -> None:
         resp = await self._send(await self._build(self._inner._file_delete_request, file_id))
@@ -430,13 +447,13 @@ class AsyncBaseProviderLM:
         resp = await self._send(await self._build(self._inner._video_submit_request, request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._video_job_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._video_job_from_body(reply.text()))
 
     async def video_status(self, video_id: str):
         resp = await self._send(await self._build(self._inner._video_status_request, video_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._video_job_from_body(resp.text(), video_id)
+        return _parse_reply(resp, lambda reply: self._inner._video_job_from_body(reply.text(), video_id))
 
     async def video_result(self, video_id: str):
         from ..types import VIDEO_TERMINAL_STATUSES
@@ -444,26 +461,30 @@ class AsyncBaseProviderLM:
         resp = await self._send(await self._build(self._inner._video_status_request, video_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        job = self._inner._video_job_from_body(resp.text(), video_id)
+        job = _parse_reply(resp, lambda reply: self._inner._video_job_from_body(reply.text(), video_id))
         if job.status not in VIDEO_TERMINAL_STATUSES:
             raise ValueError(
                 f"video {video_id} is not finished (status={job.status!r}); "
                 f"wait() or poll video_status() until done"
             )
-        status_body = resp.json()
-        fetch = await self._build(self._inner._video_result_fetch, status_body)
+        status_body = _parse_reply(resp, _reply_object)
+        try:
+            fetch = await self._build(self._inner._video_result_fetch, status_body)
+        except ProviderError as error:
+            _reply_error_metadata(error, resp)
+            raise
         fetched = None
         if fetch is not None:
             fetched = await self._send(fetch)
             if fetched.status >= 400:
                 raise self._inner._http_error(fetched)
-        return self._inner._video_part(status_body, fetched)
+        return _parse_reply(fetched or resp, lambda reply: self._inner._video_part(status_body, fetched), json_body=False)
 
     async def video_list(self, limit: int = 20, model: str | None = None):
         resp = await self._send(await self._build(self._inner._video_list_request, limit, model))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._video_jobs_from_list_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._inner._video_jobs_from_list_body(reply.text()))
 
     async def video_generate(self, request: "VideoGenerationRequest"):
         from ..video_jobs import AsyncVideoJob
@@ -486,13 +507,13 @@ class AsyncBaseProviderLM:
         resp = await self._send(await self._build(self._inner._image_generate_request, request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._image_generation_from_response(request, resp)
+        return _parse_reply(resp, lambda reply: self._inner._image_generation_from_response(request, reply))
 
     async def speech_generate(self, request: SpeechGenerationRequest):
         resp = await self._send(await self._build(self._inner._speech_generate_request, request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
-        return self._inner._speech_generation_from_response(request, resp)
+        return _parse_reply(resp, lambda reply: self._inner._speech_generation_from_response(request, reply), json_body=False)
 
 
 async def _aiter_lines(resp: AsyncTransportResponse) -> AsyncIterator[bytes]:
@@ -725,17 +746,18 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
         """Mirror of OpenAIChatLM.complete: the judgment trie driver (MAP-14
         §4) over the inner adapter's pure hooks, else the ordinary path."""
         inner = self._inner
-        if not inner._judgments_via_token_scoring(request):
+        wire_request = inner._wire_request(request)
+        if not inner._judgments_via_token_scoring(wire_request):
             return await AsyncBaseProviderLM.complete(self, request)
-        adaptations = inner._judgment_adaptations(request)
+        adaptations = inner._judgment_adaptations(wire_request, policy=self.adaptations)
         found = request_judgments(request)
-        plan = inner._judgment_plan(request)
+        plan = await self._build(inner._judgment_plan, wire_request)
 
         async def tokens(req):
             resp = await self._send(req)
             if resp.status >= 400:
                 raise inner._http_error(resp)
-            return inner._judgment_tokens_from_body(resp.text())
+            return inner._judgment_tokens_from_body(resp)
 
         tokenized = []
         calls = 0
@@ -753,21 +775,48 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
                 prompts.append(list(prefix) + list(node_prefix))
                 meta.append((index, node_prefix))
                 union |= children
-        resp = await self._send(inner._judgment_score_request(request.model, prompts, sorted(union)))
+        scoring_request = await self._build(inner._judgment_score_request, wire_request.model, prompts, sorted(union))
+        resp = await self._send(scoring_request)
         if resp.status >= 400:
             raise inner._http_error(resp)
-        scores, usage, model = inner._judgment_scores_from_body(resp.text(), len(prompts))
+        scores, usage, model = inner._judgment_scores_from_body(resp, len(prompts))
         tables: list[dict] = [{} for _ in tokenized]
         for (index, node_prefix), got in zip(meta, scores):
             children = nodes_per[index][node_prefix]
             if any(t not in got for t in children):
-                return await self._judgment_unmeasured(request, adaptations)
+                return await self._judgment_unmeasured(request, adaptations, usage)
             tables[index][node_prefix] = {t: got[t] for t in children}
         per = [(j, paths, tables[i]) for i, (j, paths, _) in enumerate(tokenized)]
-        response = inner._judgment_fold(request, found, per, usage, model, len(prompts), calls)
-        return inner._finish_response(request, response, adaptations, policy=self.adaptations)
+        try:
+            response = inner._judgment_fold(wire_request, found, per, usage, model, len(prompts), calls)
+        except ProviderError as error:
+            error.status = resp.status
+            _attach_error_metadata(error, resp.headers)
+            raise
+        from dataclasses import replace
 
-    async def _judgment_unmeasured(self, request: Request, adaptations) -> Response:
+        if inner._judgment_mixed(request):
+            generated, _ = await self._judgment_generate(request)
+            response = inner._judgment_merge(response, generated)
+        return replace(response, adaptations=inner._visible(adaptations, policy=self.adaptations))
+
+    async def _judgment_generate(self, request: Request, *, unmeasured: bool = False):
+        from dataclasses import replace
+        from ..result import amaterialize_response
+
+        inner = self._inner
+        generated_request = inner._judgment_generated_request(request)
+        wire, built = await self._build(inner._build, generated_request, stream=False, policy=self.adaptations)
+        if _client_side_stop(built):
+            plain = replace(generated_request, config=replace(generated_request.config, response_format=None))
+            response = await amaterialize_response(self.stream(generated_request), plain)
+            return inner._judgment_generated_value(generated_request, response, unmeasured=unmeasured), built
+        reply = await self._send(wire)
+        if reply.status >= 400:
+            raise inner._http_error(reply)
+        return inner._judgment_generated_response(generated_request, reply, built, policy=self.adaptations, unmeasured=unmeasured), built
+
+    async def _judgment_unmeasured(self, request: Request, adaptations, usage) -> Response:
         inner = self._inner
         if request.config.probabilities == "required":
             raise UnsupportedFeatureError(
@@ -779,16 +828,12 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
             adapt("config.probabilities", "dropped",
                   "the server accepted the request and returned no log-probs for the requested token ids (logprob_token_ids ignored); "
                   "answered by structured output instead", asked=request.config.probabilities, provider=self.provider)
-        req, built = await self._build(inner._build, request, stream=False, policy=self.adaptations)
-        resp = await self._send(req)
-        if resp.status >= 400:
-            raise inner._http_error(resp)
-        records = tuple(scope.records) + tuple(a for a in built if a.field != "config.probabilities")
-        try:
-            return inner._finish_response(request, inner.parse_response(request, resp), records, policy=self.adaptations)
-        except ProviderError as error:
-            _attach_error_metadata(error, resp.headers)
-            raise
+        from dataclasses import replace
+
+        response, built = await self._judgment_generate(request, unmeasured=True)
+        response = inner._judgment_fallback_usage(response, usage)
+        records = tuple(adaptations) + tuple(scope.records) + tuple(a for a in built if a not in adaptations)
+        return replace(response, adaptations=inner._visible(records, policy=self.adaptations))
 
 
 # ─── Subscription mirrors (Claude Code / Codex CLI OAuth) ────────────

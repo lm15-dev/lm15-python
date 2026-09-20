@@ -258,10 +258,12 @@ class StreamAccumulator:
         elif finish == "stop" and has_tool_calls:
             finish = "tool_call"
 
+        from .judgments import replace_text_with_data, request_judgments
+        answer_parts = replace_text_with_data(parts, request_judgments(self.request))
         return Response(
             id=self.started_id,
             model=self.started_model or self.request.model,
-            message=Message(role="assistant", parts=tuple(parts), continuation=tuple(self.message_continuation)),
+            message=Message(role="assistant", parts=answer_parts, continuation=tuple(self.message_continuation)),
             finish_reason=finish,
             usage=self.usage or Usage(),
             logprobs=tuple(self.logprob_seq) if self.logprob_seq else None,

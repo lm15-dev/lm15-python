@@ -488,6 +488,7 @@ def cached_prefix_to_dict(c: CachedPrefix) -> dict[str, Any]:
     return _clean_mapping({
         "prefix": request_to_dict(c.prefix),
         "resource": cache_info_to_dict(c.resource) if c.resource is not None else None,
+        "provider": c.provider,
     })
 
 
@@ -495,6 +496,7 @@ def cached_prefix_from_dict(d: dict[str, Any]) -> CachedPrefix:
     return CachedPrefix(
         prefix=request_from_dict(d["prefix"]),
         resource=cache_info_from_dict(d["resource"]) if isinstance(d.get("resource"), dict) else None,
+        provider=d.get("provider"),
     )
 
 

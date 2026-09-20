@@ -11,6 +11,7 @@ the wire (D8).  Wire facts: receipts/2026-09-17-judgments/ (jev-*.json).
 from __future__ import annotations
 
 import json
+import math
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -32,7 +33,7 @@ from ..features import ProviderManifest
 from ..judgments import MAX_CHOICE_KEYS, MAX_ORDERED_LEVELS, Judgment, non_judgment_properties, request_judgments
 from ..transports import TransportRequest
 from ..types import DataPart, Message, Request, Response, StreamEvent, TextPart, Usage
-from .base import BaseProviderLM, Credential, HttpResponse, SyncTransport, default_transport
+from .base import BaseProviderLM, Credential, HttpResponse, SyncTransport, default_transport, _attach_error_metadata
 from .common import model_infos_from_entries
 from ..sse import SSEEvent
 
@@ -150,7 +151,7 @@ class TypeSafeLM(BaseProviderLM):
                 if len(j.keys) > MAX_ORDERED_LEVELS:
                     raise self._refuse(f"config.response_format.schema.properties.{name}",
                                        f"a Jev score takes at most {MAX_ORDERED_LEVELS} levels, got {len(j.keys)}")
-                criteria = [j.descriptions.get(k) or j.titles.get(k) or k for k in j.keys]
+                criteria = [j.descriptions.get(k) or k for k in j.keys]
                 questions[name] = {"type": "score", "instructions": instruction, "criteria": criteria}
         return questions
 
@@ -170,10 +171,13 @@ class TypeSafeLM(BaseProviderLM):
         payload: dict[str, Any] = {"model": request.model, "state": self._state(request), "questions": questions}
         if cfg.extensions:
             for key, value in cfg.extensions.items():
+                if key == "n" and isinstance(value, (int, float)) and value > 1:
+                    raise self._refuse("config.extensions.n", "n > 1 has no canonical multiple-response representation")
                 payload[key] = value
         return payload
 
     def build_request(self, request: Request, stream: bool) -> TransportRequest:
+        request = self._wire_request(request)
         if stream:
             raise self._refuse("stream", "systemone answers in one piece; there is no stream to wrap")
         return self._emit(
@@ -183,60 +187,96 @@ class TypeSafeLM(BaseProviderLM):
             model=request.model,
             headers={"Content-Type": "application/json"},
             payload=self._payload(request),
-            read_timeout=60.0,
         )
 
     # ─── Response parsing (pure) ────────────────────────────────────
 
     def parse_response(self, request: Request, response: HttpResponse) -> Response:
+        request = self._wire_request(request)
         data = response.json()
         found = request_judgments(request)
-        answers = data.get("answers") if isinstance(data.get("answers"), dict) else {}
+
+        def invalid(path: str, detail: str) -> ProviderError:
+            error = ProviderError(
+                f"malformed systemone reply at {path}: {detail}",
+                provider=self.provider, status=response.status,
+                request_id=self._request_id(response),
+            )
+            _attach_error_metadata(error, response.headers)
+            return error
+
+        def probability(raw: Any, path: str) -> float:
+            # Check bounds before converting: arbitrarily large JSON integers
+            # must be provider faults too, not float-conversion OverflowError.
+            if (isinstance(raw, bool) or not isinstance(raw, (int, float))
+                    or not 0 <= raw <= 1 or not math.isfinite(raw)):
+                raise invalid(path, "expected a finite number in [0, 1]")
+            return float(raw)
+
+        if not isinstance(data, dict):
+            raise invalid("$", "expected an object")
+        answers = data.get("answers")
+        if not isinstance(answers, dict):
+            raise invalid("answers", "expected an object containing every declared judgment")
+        if set(answers) != set(found):
+            raise invalid("answers", "keys must match the declared judgments exactly")
         value: dict[str, Any] = {}
         probabilities: dict[str, dict[str, float]] = {}
-        unmapped: list[dict[str, str]] = []
         for name, j in found.items():
-            answer = answers.get(name)
+            answer = answers[name]
+            path = f"answers.{name}"
             if not isinstance(answer, dict):
-                unmapped.append({"path": f"answers.{name}", "detail": "missing"})
-                continue
-            kind = answer.get("type")
-            if kind == "noul" and j.kind == "boolean":
-                p = float(answer.get("noul", 0.0))
+                raise invalid(path, "expected an answer object")
+            expected = {"boolean": "noul", "choice": "choice", "ordered": "score"}[j.kind]
+            if answer.get("type") != expected:
+                raise invalid(f"{path}.type", f"expected {expected!r}")
+            if j.kind == "boolean":
+                p = probability(answer.get("noul"), f"{path}.noul")
                 value[name] = p >= 0.5
                 probabilities[name] = {"true": p, "false": 1.0 - p}
-            elif kind == "choice" and j.kind == "choice":
-                value[name] = answer.get("choice")
-                dist = answer.get("probabilities") or {}
-                probabilities[name] = {k: float(dist.get(k, 0.0)) for k in j.keys}
-            elif kind == "score" and j.kind == "ordered":
-                dist = answer.get("probabilities") or {}
-                probs = {k: float(dist.get(k, 0.0)) for k in j.keys}
-                probabilities[name] = probs
-                value[name] = int(max(probs, key=probs.get))
+                continue
+            dist = answer.get("probabilities")
+            if not isinstance(dist, dict) or set(dist) != set(j.keys):
+                raise invalid(f"{path}.probabilities", "expected one probability for every declared key, and no other keys")
+            # INV-052: validate measurements individually, NEVER their total.
+            probs = {k: probability(dist[k], f"{path}.probabilities.{k}") for k in j.keys}
+            probabilities[name] = probs
+            if j.kind == "choice":
+                pick = answer.get("choice")
+                if not isinstance(pick, str) or pick not in j.keys:
+                    raise invalid(f"{path}.choice", "expected a declared choice key")
+                value[name] = pick
             else:
-                unmapped.append({"path": f"answers.{name}", "detail": f"unexpected answer type {kind!r}"})
-        for name in answers:
-            if name not in found:
-                unmapped.append({"path": f"answers.{name}", "detail": "answer to no declared judgment"})
-        part = DataPart(value=value, probabilities=probabilities or None,
-                        method="provider_classification" if probabilities else None)
-        usage_raw = data.get("usage") if isinstance(data.get("usage"), dict) else {}
-        usage = Usage(
-            input_tokens=int(usage_raw.get("input_tokens", 0) or 0),
-            output_tokens=int(usage_raw.get("output_tokens", 0) or 0),
-        )
+                value[name] = int(max(probs, key=probs.get))
+        try:
+            part = DataPart(value=value, probabilities=probabilities or None,
+                            method="provider_classification" if probabilities else None)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise invalid("answers", str(exc)) from exc
+        usage_raw = data.get("usage")
+        if usage_raw is None:
+            usage_raw = {}
+        if not isinstance(usage_raw, dict):
+            raise invalid("usage", "expected an object or null")
+        try:
+            usage = Usage(input_tokens=usage_raw.get("input_tokens"), output_tokens=usage_raw.get("output_tokens"))
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise invalid("usage", str(exc)) from exc
+        model = data.get("model")
+        if model is not None and (not isinstance(model, str) or not model):
+            raise invalid("model", "expected a non-empty string")
         provider_data: dict[str, Any] = {"typesafe": {"answers": answers}}
-        if unmapped:
-            provider_data["_lm15_unmapped"] = unmapped
-        return Response(
-            id=self._request_id(response),
-            model=str(data.get("model") or request.model),
-            message=Message(role="assistant", parts=(part,)),
-            finish_reason="stop",
-            usage=usage,
-            provider_data=provider_data,
-        )
+        try:
+            return Response(
+                id=self._request_id(response),
+                model=model if model is not None else request.model,
+                message=Message(role="assistant", parts=(part,)),
+                finish_reason="stop",
+                usage=usage,
+                provider_data=provider_data,
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise invalid("$", str(exc)) from exc
 
     @staticmethod
     def _request_id(response: HttpResponse) -> str | None:
@@ -288,7 +328,6 @@ class TypeSafeLM(BaseProviderLM):
             method="GET",
             url=f"{self.base_url.rstrip('/')}/v1/models",
             headers={"Content-Type": "application/json"},
-            read_timeout=30.0,
         )
 
     def _models_from_body(self, body: str):

@@ -13,9 +13,40 @@ Source version for the fixes below; updating the source does not publish a PyPI 
   not an inferred failure of endpoint compatibility. Shared rules and fixtures:
   contract `changes/2026-09-19-rate-limit-diagnostics.md`.
 
-- Ordinary and streamed inference requests inherit the configured transport
-  read timeout instead of overriding it with 60/120 seconds. With no caller
-  setting, the existing 600-second default now applies to these requests.
+- Provider builders inherit the configured transport budget, including Jev,
+  tokenization/scoring, models, files, batches, caches and media endpoints.
+  Removed fixed 30/60/120/300/600-second builder deadlines; absent a caller
+  setting, the shared 600-second read default applies. Slow/stalled auxiliary
+  operations may now wait longer. Credential exchanges retain their distinct
+  deadlines; no canonical Request/Config transport fields were added.
+- TypeSafe rejects missing/malformed measurements, undeclared answers/choices,
+  incomplete distributions and non-finite/out-of-range probabilities with a
+  non-retryable `ProviderError`. Unknown usage stays `None`; explicit zero
+  stays zero. Reported distributions are not normalized and their totals are
+  **not validated**, as INV-052 requires; DataPart's existing behavior here
+  was correct, not a defect. Previously tolerated malformed replies now fail.
+  Token-scoring replies also reject malformed token/index/log-probability
+  shapes, preserve missing usage, and reject an all-zero-likelihood key set
+  instead of manufacturing a normalized distribution. Missing requested token
+  ids still follow MAP-14's recorded fallback/refusal rule.
+- FetchTransport bounds the initial fetch/header wait and each body read,
+  aborts on timeout/cancellation (including before headers), and releases
+  reader ownership on completion/early close. Closing the transport aborts
+  active requests. Visible unsupported content codings raise `ProtocolError`;
+  host-decoded gzip/deflate bytes are never inflated twice. Browsers control
+  socket connect/write deadlines, pools, compression negotiation and CORS
+  header visibility; hidden codings cannot be checked. These changes have
+  regression tests added but not executed in this repair pass.
+- Non-JSON reply errors retain all supported request-id header spellings on
+  the pure `HttpResponse.json()` path, including TypeSafe and Azure.
+  Sync and async auxiliary decoders (models, files, batches, caches and media)
+  now use the same non-retryable `ProviderError` boundary for malformed JSON
+  and invalid reply shapes, retaining status, request id, retry advice and
+  rate-limit evidence. Batch JSONL faults retain the offending result fetch's
+  diagnostics, not the job-status reply's; blank lines remain accepted.
+  Binary downloads/speech and empty delete acknowledgements are not forced
+  through JSON parsing; local pending-job and unsupported-feature errors
+  retain their existing types. Regression sources were added, not executed.
 - Client-side stop filtering preserves original events, their order and token
   scores. A cut inside a token omits that token's score and marks
   `TextDelta.logprobs_complete` / `Response.logprobs_complete` false; the flag

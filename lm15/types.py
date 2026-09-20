@@ -671,6 +671,7 @@ class ToolResultPart:
                 "ToolResultPart.content cannot contain tool calls, nested tool "
                 "results, thinking parts, or refusals"
             )
+        _validate_input_data_parts("tool results", self.content)
         _validate_continuation_field(self)
 
 
@@ -789,7 +790,6 @@ _TOOL_RESULT_FORBIDDEN_PARTS: tuple[type, ...] = (
     ToolResultPart,
     ThinkingPart,
     RefusalPart,
-    DataPart,
 )
 
 
@@ -835,7 +835,7 @@ ProviderData: TypeAlias = JsonObject
 # (ToolCallPart, ToolResultPart, ThinkingPart, and RefusalPart are excluded
 # both at the type level and in ``ToolResultPart.__post_init__``.)
 ToolResultContentPart: TypeAlias = (
-    TextPart | ImagePart | AudioPart | VideoPart | DocumentPart | BinaryPart | CitationPart
+    TextPart | ImagePart | AudioPart | VideoPart | DocumentPart | BinaryPart | CitationPart | DataPart
 )
 ToolResultContent: TypeAlias = str | ToolResultContentPart | Sequence[str | ToolResultContentPart]
 
@@ -2583,7 +2583,10 @@ class CachedPrefix:
     the reusable part (its config must be default: a cached object has no
     temperature).  ``resource`` is the stored object on providers with
     that tier, ``None`` on providers that mark blocks or cache
-    automatically.  ``request(messages)`` builds a Request that appends
+    automatically. Optional ``provider`` preserves a router destination;
+    prefix/resource models remain wire names, while suffix requests use
+    ``provider:wiremodel``. Reuse with the same router configuration/account.
+    ``request(messages)`` builds a Request that appends
     ``messages`` and sets the cache boundary at the seam; ``cached +
     messages`` is Python sugar for it.  The built Request and its wire
     bytes are what the contract pins; the sugar is per-language.
@@ -2591,8 +2594,15 @@ class CachedPrefix:
 
     prefix: Request
     resource: CacheInfo | None = None
+    provider: str | None = field(default=None, kw_only=True)
 
     def __post_init__(self) -> None:
+        if self.provider is not None:
+            if not isinstance(self.provider, str):
+                raise TypeError("CachedPrefix.provider must be a string")
+            if not self.provider or any(c.isspace() or c in ":/" for c in self.provider):
+                raise ValueError("CachedPrefix.provider must be a non-empty provider name without routing separators")
+            object.__setattr__(self, "provider", self.provider.replace("_", "-"))
         if not isinstance(self.prefix, Request):
             raise TypeError("CachedPrefix.prefix must be a Request")
         if self.prefix.config != Config():
@@ -2631,9 +2641,12 @@ class CachedPrefix:
         tools: the prefix owns those).  ``config`` supplies generation
         settings; its ``cache`` must be unset (the prefix decides).
         """
+        model = f"{self.provider}:{self.prefix.model}" if self.provider is not None else self.prefix.model
         suffix: tuple[Message, ...]
         if isinstance(messages, Request):
-            if messages.model != self.prefix.model:
+            head, sep, rest = messages.model.partition(":")
+            same_route = self.provider is not None and sep and head.replace("_", "-") == self.provider and rest == self.prefix.model
+            if messages.model != self.prefix.model and not same_route:
                 raise ValueError("suffix Request model must equal the prefix model")
             if messages.system is not None or messages.tools:
                 raise ValueError("suffix Request cannot redefine system or tools: the prefix owns them")
@@ -2654,7 +2667,7 @@ class CachedPrefix:
         from dataclasses import replace as _replace
 
         return Request(
-            model=self.prefix.model,
+            model=model,
             system=self.prefix.system,
             tools=self.prefix.tools,
             messages=self.prefix.messages + suffix,
@@ -3013,6 +3026,7 @@ class LiveClientTurnEvent:
             raise TypeError("LiveClientTurnEvent.parts must contain Part objects")
         if any(isinstance(p, _PROMPT_FORBIDDEN_PARTS) for p in self.parts):
             raise TypeError("LiveClientTurnEvent.parts cannot contain model/tool protocol parts")
+        _validate_input_data_parts("live input", self.parts)
         _validate_bool(self.turn_complete, field_name="LiveClientTurnEvent.turn_complete")
 
 
@@ -3068,6 +3082,7 @@ class LiveClientToolResultEvent:
             raise TypeError("LiveClientToolResultEvent.content must contain Part objects")
         if any(isinstance(p, _TOOL_RESULT_FORBIDDEN_PARTS) for p in self.content):
             raise TypeError("LiveClientToolResultEvent.content cannot contain model or protocol parts")
+        _validate_input_data_parts("live tool results", self.content)
 
 
 @dataclass(frozen=True, slots=True)

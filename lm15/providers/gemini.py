@@ -107,7 +107,7 @@ from .base import (
     default_transport,
     resolve_credential,
 )
-from .common import EFFORT_THINKING_BUDGETS, MEDIA_KINDS, build_url, data_part_text, iso_utc, model_infos_from_entries, multipart_related_body, parts_to_text, path_id, unnamed_tool_call_error
+from .common import EFFORT_THINKING_BUDGETS, MEDIA_KINDS, build_url, data_part_text, iso_utc, media_base64, model_infos_from_entries, multipart_related_body, parts_to_text, path_id, unnamed_tool_call_error
 
 # Canonical builtin tool name → Gemini tool key
 _GEMINI_BUILTIN_MAP: dict[str, str] = {
@@ -625,7 +625,7 @@ class GeminiLM(BaseProviderLM):
             if part.data is not None:
                 return {"inlineData": {"mimeType": mime, "data": part.data}}
             if part.path is not None:
-                return {"inlineData": {"mimeType": mime, "data": base64.b64encode(part.path.read_bytes()).decode("ascii")}}
+                return {"inlineData": {"mimeType": mime, "data": media_base64(part)}}
         if isinstance(part, ToolCallPart):
             out: dict[str, Any] = {"functionCall": {"name": part.name, "args": part.input}}
             if part.id:
@@ -862,6 +862,7 @@ class GeminiLM(BaseProviderLM):
         return payload
 
     def build_request(self, request: Request, stream: bool) -> TransportRequest:
+        request = self._wire_request(request)
         endpoint = "streamGenerateContent" if stream else "generateContent"
         params = self._auth_params({"alt": "sse"} if stream else None)
         return self._emit(
@@ -954,6 +955,7 @@ class GeminiLM(BaseProviderLM):
         return parts
 
     def parse_response(self, request: Request, response: HttpResponse) -> Response:
+        request = self._wire_request(request)
         data = response.json()
         inband = self._inband_error(data)
         if inband is not None:
@@ -987,6 +989,7 @@ class GeminiLM(BaseProviderLM):
         )
 
     def parse_stream_events(self, request: Request, raw_event: SSEEvent) -> Iterator[StreamEvent]:
+        request = self._wire_request(request)
         if not raw_event.data:
             return
         payload = json.loads(raw_event.data)
@@ -1086,8 +1089,9 @@ class GeminiLM(BaseProviderLM):
     # ─── Streaming via Gemini Live for live models ──────────────────
 
     def stream(self, request: Request) -> Iterator[StreamEvent]:
-        if self._should_use_live_completion(request):
-            yield from self._stream_via_live_completion(request)
+        wire = self._wire_request(request)
+        if self._should_use_live_completion(wire):
+            yield from self._stream_via_live_completion(wire)
             return
         yield from BaseProviderLM.stream(self, request)
 
@@ -1448,7 +1452,6 @@ class GeminiLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/models",
             params={"pageSize": 1000},
             headers=self._auth_headers(),
-            read_timeout=30.0,
         )
 
     def _models_from_body(self, body: str):
@@ -1510,7 +1513,6 @@ class GeminiLM(BaseProviderLM):
                 "Content-Type": content_type,
             }).items()),
             body=body,
-            read_timeout=300.0,
         )
 
     def _file_info_from_body(self, body: str) -> FileInfo:
@@ -1560,7 +1562,7 @@ class GeminiLM(BaseProviderLM):
     def _file_get_request(self, file_id: str) -> TransportRequest:
         return self._emit(
             method="GET", url=f"{self.base_url.rstrip('/')}/{path_id(self._file_resource(file_id), resource_name=True)}",
-            headers=self._auth_headers(), read_timeout=60.0,
+            headers=self._auth_headers(),
         )
 
     def _file_list_request(self, limit: int, cursor: str | None) -> TransportRequest:
@@ -1569,7 +1571,7 @@ class GeminiLM(BaseProviderLM):
             params["pageToken"] = cursor
         return self._emit(
             method="GET", url=f"{self.base_url.rstrip('/')}/files",
-            params=params, headers=self._auth_headers(), read_timeout=60.0,
+            params=params, headers=self._auth_headers(),
         )
 
     def _file_page_from_list_body(self, body: str) -> FilePage:
@@ -1582,14 +1584,14 @@ class GeminiLM(BaseProviderLM):
     def _file_delete_request(self, file_id: str) -> TransportRequest:
         return self._emit(
             method="DELETE", url=f"{self.base_url.rstrip('/')}/{path_id(self._file_resource(file_id), resource_name=True)}",
-            headers=self._auth_headers(), read_timeout=60.0,
+            headers=self._auth_headers(),
         )
 
     def _file_download_request(self, file_id: str) -> TransportRequest:
         return self._emit(
             method="GET",
             url=f"{self.base_url.rstrip('/')}/{path_id(self._file_resource(file_id), resource_name=True)}:download?alt=media",
-            headers=self._auth_headers(), read_timeout=300.0,
+            headers=self._auth_headers(),
         )
 
     # ─── Cache resource hooks (cachedContents; the stored tier of MAP-6) ──
@@ -1631,7 +1633,7 @@ class GeminiLM(BaseProviderLM):
             body["displayName"] = label
         return self._emit(
             method="POST", url=f"{self.base_url.rstrip('/')}/cachedContents",
-            headers=self._auth_headers({"Content-Type": "application/json"}), payload=body, read_timeout=120.0,
+            headers=self._auth_headers({"Content-Type": "application/json"}), payload=body,
         )
 
     def _cache_info_from_body(self, body: str) -> CacheInfo:
@@ -1661,7 +1663,7 @@ class GeminiLM(BaseProviderLM):
     def _cache_get_request(self, cache_id: str) -> TransportRequest:
         return self._emit(
             method="GET", url=f"{self.base_url.rstrip('/')}/{path_id(self._cache_resource(cache_id), resource_name=True)}",
-            headers=self._auth_headers(), read_timeout=60.0,
+            headers=self._auth_headers(),
         )
 
     def _cache_list_request(self, limit: int, cursor: str | None) -> TransportRequest:
@@ -1670,7 +1672,7 @@ class GeminiLM(BaseProviderLM):
             params["pageToken"] = cursor
         return self._emit(
             method="GET", url=f"{self.base_url.rstrip('/')}/cachedContents",
-            params=params, headers=self._auth_headers(), read_timeout=60.0,
+            params=params, headers=self._auth_headers(),
         )
 
     def _cache_page_from_list_body(self, body: str) -> CachePage:
@@ -1683,14 +1685,14 @@ class GeminiLM(BaseProviderLM):
     def _cache_delete_request(self, cache_id: str) -> TransportRequest:
         return self._emit(
             method="DELETE", url=f"{self.base_url.rstrip('/')}/{path_id(self._cache_resource(cache_id), resource_name=True)}",
-            headers=self._auth_headers(), read_timeout=60.0,
+            headers=self._auth_headers(),
         )
 
     def _cache_update_request(self, cache_id: str, ttl_seconds: int) -> TransportRequest:
         return self._emit(
             method="PATCH", url=f"{self.base_url.rstrip('/')}/{path_id(self._cache_resource(cache_id), resource_name=True)}",
             headers=self._auth_headers({"Content-Type": "application/json"}),
-            payload={"ttl": f"{ttl_seconds}s"}, read_timeout=60.0,
+            payload={"ttl": f"{ttl_seconds}s"},
         )
 
     # ─── Batch hooks (Batch Mode, inline requests) ───────────────────
@@ -1702,6 +1704,7 @@ class GeminiLM(BaseProviderLM):
     # correlation, list → GET /batches?pageSize=N → {"operations": [...]}.
 
     def _batch_submit_request(self, request: BatchRequest, upload_body: dict[str, Any] | None) -> TransportRequest:
+        self._batch_preflight(request)
         model = request.model or request.requests[0].model
         batch: dict[str, Any] = {
             "inputConfig": {
@@ -1721,7 +1724,6 @@ class GeminiLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/{self._model_path(model)}:batchGenerateContent",
             headers=self._auth_headers({"Content-Type": "application/json"}),
             payload=payload,
-            read_timeout=120.0,
         )
 
     def _batch_job_from_body(self, body: str) -> BatchJobInfo:
@@ -1746,7 +1748,6 @@ class GeminiLM(BaseProviderLM):
             method="GET",
             url=f"{self.base_url.rstrip('/')}/{path_id(batch_id, resource_name=True)}",
             headers=self._auth_headers(),
-            read_timeout=60.0,
         )
 
     def _batch_cancel_request(self, batch_id: str) -> TransportRequest:
@@ -1755,7 +1756,6 @@ class GeminiLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/{path_id(batch_id, resource_name=True)}:cancel",
             headers=self._auth_headers({"Content-Type": "application/json"}),
             payload={},
-            read_timeout=60.0,
         )
 
     def _batch_result_fetches(self, status_body: dict[str, Any]) -> tuple[TransportRequest, ...]:
@@ -1804,7 +1804,6 @@ class GeminiLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/batches",
             params={"pageSize": int(limit)},
             headers=self._auth_headers(),
-            read_timeout=60.0,
         )
 
     def _batch_jobs_from_list_body(self, body: str) -> tuple[BatchJobInfo, ...]:
@@ -1842,7 +1841,6 @@ class GeminiLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/{self._model_path(request.model)}:predictLongRunning",
             headers=self._auth_headers({"Content-Type": "application/json"}),
             payload=payload,
-            read_timeout=120.0,
         )
 
     def _video_job_from_body(self, body: str, video_id: "str | None" = None) -> VideoJobInfo:
@@ -1864,7 +1862,6 @@ class GeminiLM(BaseProviderLM):
             method="GET",
             url=f"{self.base_url.rstrip('/')}/{path_id(video_id, resource_name=True)}",
             headers=self._auth_headers({}),
-            read_timeout=60.0,
         )
 
     def _video_result_uri(self, status_body: dict[str, Any]) -> str:
@@ -1883,7 +1880,6 @@ class GeminiLM(BaseProviderLM):
             method="GET",
             url=self._video_result_uri(status_body),
             headers=self._auth_headers({}),
-            read_timeout=600.0,
         )
 
     def _video_part(self, status_body: dict[str, Any], fetched: "HttpResponse | None") -> VideoPart:
@@ -1905,7 +1901,6 @@ class GeminiLM(BaseProviderLM):
             url=f"{self.base_url.rstrip('/')}/{self._model_path(model)}/operations",
             params={"pageSize": int(limit)},
             headers=self._auth_headers({}),
-            read_timeout=60.0,
         )
 
     def _video_jobs_from_list_body(self, body: str) -> tuple[VideoJobInfo, ...]:

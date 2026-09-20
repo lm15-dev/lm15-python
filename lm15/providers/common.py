@@ -107,6 +107,9 @@ def media_base64(part: ImagePart | AudioPart | VideoPart | DocumentPart | Binary
     if part.data is not None:
         return part.data
     if part.path is not None:
+        from ..adaptation import is_planning
+        if is_planning():
+            return ""  # Discarded preview bytes, never a sendable request.
         return base64.b64encode(part.path.read_bytes()).decode("ascii")
     raise ValueError(f"{part.type} part has no inline data or path")
 
@@ -157,6 +160,9 @@ def tool_result_error_text(part: ToolResultPart, text: str) -> str:
 
 
 def media_bytes(part: ImagePart | AudioPart | VideoPart | DocumentPart | BinaryPart) -> bytes:
+    from ..adaptation import is_planning
+    if part.path is not None and is_planning():
+        return b""
     return part.bytes
 
 

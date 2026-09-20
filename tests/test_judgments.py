@@ -247,7 +247,7 @@ def test_trie_driver_scores_every_key_path_in_one_batched_call() -> None:
     assert r.provider_data["judgments"] == {"nodes": 7, "tokenize_calls": 12, "method": "candidate_sequence_likelihood"}
     assert set(r.provider_data["coverage"]) == {"style", "ageing"}
     assert len(transport.prompts) == 7 and transport.prompts[0] == PREFIX  # root node = the prefill alone
-    assert [(a.field, a.action) for a in r.adaptations] == [("config.response_format", "client_side")]
+    assert r.adaptations == ()  # MAP-14: requested measurement is not itself an adaptation.
 
 
 def test_trie_driver_detects_a_server_that_drops_logprob_token_ids() -> None:

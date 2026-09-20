@@ -1253,7 +1253,8 @@ class LMRouter:
     def cache(self, prefix: Request, *, ttl_seconds: int | None = None, label: str | None = None):
         """``router.cache(prefix)``: the MAP-6 door, routed by the prefix's model."""
         resolution = self.resolve(prefix.model)
-        return self.lm(prefix.model).cache(_routed_request(prefix, resolution), ttl_seconds=ttl_seconds, label=label)
+        cached = self.lm(prefix.model).cache(_routed_request(prefix, resolution), ttl_seconds=ttl_seconds, label=label)
+        return replace(cached, provider=resolution.provider)
 
     # ─── the OpenAI-shaped door (api-family § Ingest) ──────────────────
 
@@ -1389,7 +1390,8 @@ class AsyncLMRouter:
 
     async def cache(self, prefix: Request, *, ttl_seconds: int | None = None, label: str | None = None):
         resolution = self.resolve(prefix.model)
-        return await self.lm(prefix.model).cache(_routed_request(prefix, resolution), ttl_seconds=ttl_seconds, label=label)
+        cached = await self.lm(prefix.model).cache(_routed_request(prefix, resolution), ttl_seconds=ttl_seconds, label=label)
+        return replace(cached, provider=resolution.provider)
 
     resolve_openai_chat = LMRouter.resolve_openai_chat
     request_from_openai_chat = LMRouter.request_from_openai_chat

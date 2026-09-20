@@ -5,7 +5,7 @@ import math
 import os
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Mapping, Protocol, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, Mapping, Protocol, Sequence, TypeVar
 
 if TYPE_CHECKING:  # pragma: no cover - import cycle guard for annotations
     from ..batch import BatchJob
@@ -236,12 +236,11 @@ class HttpResponse:
         try:
             return json.loads(self.body)
         except (ValueError, UnicodeDecodeError) as exc:
-            raise ProviderError(
-                _non_json_message(self, exc),
-                provider=self.provider,
-                status=self.status,
-                request_id=self.header("x-request-id") or self.header("request-id"),
-            ) from exc
+            error = ProviderError(
+                _non_json_message(self, exc), provider=self.provider, status=self.status,
+            )
+            _attach_error_metadata(error, self.headers)
+            raise error from exc
 
 
 def _non_json_message(response: "HttpResponse", exc: Exception) -> str:
@@ -254,6 +253,67 @@ def _non_json_message(response: "HttpResponse", exc: Exception) -> str:
         f"{exc}. Body starts: {excerpt!r}. A gateway or proxy in front of the provider is the "
         "usual cause; the request may or may not have been served."
     )
+
+
+_Reply = TypeVar("_Reply")
+
+
+def _reply_error_metadata(error: ProviderError, response: HttpResponse) -> None:
+    """Fill missing provider/status and attach the shared HTTP diagnostics."""
+    if error.provider is None:
+        error.provider = response.provider
+    if error.status is None:
+        error.status = response.status
+    _attach_error_metadata(error, response.headers)
+
+
+def _parse_reply(
+    response: HttpResponse, parser: Callable[[HttpResponse], _Reply], *, json_body: bool = True,
+) -> _Reply:
+    """Pure reply-decoder boundary, shared by sync and async auxiliary drivers.
+
+    Only pass parsing here, never request builders, credentials or user callbacks.
+    Binary media and JSONL opt out of whole-body JSON validation. Local control
+    errors (notably RuntimeError for a not-ready result) deliberately pass through.
+    """
+    try:
+        if json_body:
+            response.json()
+        return parser(response)
+    except ProviderError as error:
+        _reply_error_metadata(error, response)
+        raise
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        error = ProviderError(_non_json_message(response, exc))
+        _reply_error_metadata(error, response)
+        raise error from exc
+    except (TypeError, ValueError, KeyError, AttributeError, IndexError, OverflowError) as exc:
+        # Canonical constructors and provider field access can reject valid
+        # JSON with an unusable shape. This is a reply fault, not bad input.
+        content_type = response.header("content-type") or "no content-type"
+        excerpt = response.body[:200].decode("utf-8", errors="replace")
+        error = ProviderError(
+            f"malformed provider reply (HTTP {response.status}, {content_type}): "
+            f"{exc}. Body starts: {excerpt!r}"
+        )
+        _reply_error_metadata(error, response)
+        raise error from exc
+
+
+def _reply_object(response: HttpResponse) -> dict[str, Any]:
+    data = response.json()
+    if not isinstance(data, dict):
+        raise TypeError("expected a JSON object")
+    return data
+
+
+def _jsonl_reply_text(response: HttpResponse) -> str:
+    # Decode strictly before the legacy text hooks can replace invalid UTF-8.
+    text = response.body.decode("utf-8")
+    for line in text.splitlines():
+        if line.strip():
+            json.loads(line)
+    return text
 
 
 class ProviderDialect(Protocol):
@@ -321,6 +381,19 @@ class BaseProviderLM:
     # The header an ApiKey travels under when the policy says x-api-key
     # (Anthropic ``x-api-key``, Gemini ``x-goog-api-key``).
     _api_key_header: ClassVar[str] = "x-api-key"
+
+    def _wire_request(self, request: Request) -> Request:
+        """Strip exactly this binding's prefix once, at a codec boundary.
+
+        Keep the caller request in drivers so subsequent build/parse boundaries
+        each see the original spelling; other colon-bearing IDs are opaque.
+        """
+        head, sep, model = request.model.partition(":")
+        if sep and model and head.replace("_", "-") == self.provider.replace("_", "-"):
+            from dataclasses import replace
+
+            return replace(request, model=model)
+        return request
 
     @property
     def supports(self) -> EndpointSupport:
@@ -602,7 +675,7 @@ class BaseProviderLM:
         from ..result import coalesce_stream, truncate_stream_at_stop
 
         req, adaptations = self._build(request, stream=True)
-        events = coalesce_stream(self._stream_raw(request, req), model=request.model, adaptations=self._visible(adaptations))
+        events = coalesce_stream(self._stream_raw(request, req), model=self._wire_request(request).model, adaptations=self._visible(adaptations))
         if _client_side_stop(adaptations):
             events = truncate_stream_at_stop(events, request.config.stop)
         return events
@@ -772,7 +845,7 @@ class BaseProviderLM:
         resp = self._send(self._image_generate_request(request))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._image_generation_from_response(request, resp)
+        return _parse_reply(resp, lambda reply: self._image_generation_from_response(request, reply))
 
     def speech_generate(self, request: SpeechGenerationRequest) -> SpeechGenerationResponse:
         """Text-to-speech.  Omitted ``voice``/``format`` mean the server's
@@ -782,7 +855,7 @@ class BaseProviderLM:
         resp = self._send(self._speech_generate_request(request))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._speech_generation_from_response(request, resp)
+        return _parse_reply(resp, lambda reply: self._speech_generation_from_response(request, reply), json_body=False)
 
     # ─── Video generation (job-shaped on every wire: Sora / Veo / grok) ─────
     #
@@ -825,14 +898,14 @@ class BaseProviderLM:
         resp = self._send(self._video_submit_request(request))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._video_job_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._video_job_from_body(reply.text()))
 
     def video_status(self, video_id: str) -> VideoJobInfo:
         self._require("video")
         resp = self._send(self._video_status_request(video_id))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._video_job_from_body(resp.text(), video_id)
+        return _parse_reply(resp, lambda reply: self._video_job_from_body(reply.text(), video_id))
 
     def video_result(self, video_id: str) -> VideoPart:
         """The finished video as a VideoPart, in the provider's own
@@ -843,20 +916,24 @@ class BaseProviderLM:
         resp = self._send(self._video_status_request(video_id))
         if resp.status >= 400:
             raise self._http_error(resp)
-        job = self._video_job_from_body(resp.text(), video_id)
+        job = _parse_reply(resp, lambda reply: self._video_job_from_body(reply.text(), video_id))
         if job.status not in VIDEO_TERMINAL_STATUSES:
             raise ValueError(
                 f"video {video_id} is not finished (status={job.status!r}); "
                 f"wait() or poll video_status() until done"
             )
-        status_body = resp.json()
-        fetch = self._video_result_fetch(status_body)
+        status_body = _parse_reply(resp, _reply_object)
+        try:
+            fetch = self._video_result_fetch(status_body)
+        except ProviderError as error:
+            _reply_error_metadata(error, resp)
+            raise
         fetched = None
         if fetch is not None:
             fetched = self._send(fetch)
             if fetched.status >= 400:
                 raise self._http_error(fetched)
-        return self._video_part(status_body, fetched)
+        return _parse_reply(fetched or resp, lambda reply: self._video_part(status_body, fetched), json_body=False)
 
     def video_list(self, limit: int = 20, model: str | None = None) -> "tuple[VideoJobInfo, ...]":
         """One page of this credential's video jobs.  ``model`` is required
@@ -866,7 +943,7 @@ class BaseProviderLM:
         resp = self._send(self._video_list_request(limit, model))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._video_jobs_from_list_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._video_jobs_from_list_body(reply.text()))
 
     # Ergonomic verbs (ticket handles) ---------------------------------------
 
@@ -912,7 +989,7 @@ class BaseProviderLM:
         resp = self._send(self._models_request())
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._models_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._models_from_body(reply.text()))
 
     # ─── Batch jobs (third execution mode: complete / stream / batch) ───────
     #
@@ -926,8 +1003,22 @@ class BaseProviderLM:
     def _batch_unsupported(self) -> UnsupportedFeatureError:
         return UnsupportedFeatureError(f"{self.provider}: batch not supported", provider=self.provider)
 
+    def _batch_preflight(self, request: BatchRequest) -> None:
+        """Plan every item before credentials or paid work, including direct hooks."""
+        for nested in request.requests:
+            records = self.plan(nested, policy="note")
+            if _client_side_stop(records):
+                raise UnsupportedFeatureError(
+                    f"{self.provider}: batch cannot close the generation source at a client-side stop cut; "
+                    "use a dialect with native stop support or individual complete()/stream() calls",
+                    provider=self.provider, feature="config.stop",
+                )
+            if self.adaptations == "refuse":
+                self.plan(nested, policy="refuse")
+
     def _batch_upload_request(self, request: BatchRequest) -> TransportRequest | None:
         """Optional pre-submit upload step (OpenAI's JSONL file); None = single-step."""
+        self._batch_preflight(request)
         return None
 
     def _batch_submit_request(self, request: BatchRequest, upload_body: "dict[str, Any] | None") -> TransportRequest:
@@ -957,6 +1048,7 @@ class BaseProviderLM:
     def batch_submit(self, request: BatchRequest) -> BatchJobInfo:
         """Submit to the provider's batch queue; returns the ticket snapshot."""
         self._require("batches")
+        self._batch_preflight(request)
         upload_body = None
         # MAP-13: the batch builders run under the adapter's policy so
         # "refuse" refuses here too; a batch ticket has no adaptations field
@@ -967,20 +1059,25 @@ class BaseProviderLM:
             resp = self._send(upload_req)
             if resp.status >= 400:
                 raise self._http_error(resp)
-            upload_body = resp.json()
-        with collecting(check_policy(self.adaptations), provider=self.provider):
-            submit_req = self._batch_submit_request(request, upload_body)
+            upload_body = _parse_reply(resp, _reply_object)
+        try:
+            with collecting(check_policy(self.adaptations), provider=self.provider):
+                submit_req = self._batch_submit_request(request, upload_body)
+        except ProviderError as error:
+            if upload_req is not None:
+                _reply_error_metadata(error, resp)
+            raise
         resp = self._send(submit_req)
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._batch_job_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._batch_job_from_body(reply.text()))
 
     def batch_status(self, batch_id: str) -> BatchJobInfo:
         self._require("batches")
         resp = self._send(self._batch_status_request(batch_id))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._batch_job_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._batch_job_from_body(reply.text()))
 
     def batch_results(self, batch_id: str) -> "tuple[BatchEntry, ...]":
         """Entries in submission order; raises ValueError while the job runs."""
@@ -988,20 +1085,43 @@ class BaseProviderLM:
         resp = self._send(self._batch_status_request(batch_id))
         if resp.status >= 400:
             raise self._http_error(resp)
-        job = self._batch_job_from_body(resp.text())
+        job = _parse_reply(resp, lambda reply: self._batch_job_from_body(reply.text()))
         if job.status not in BATCH_TERMINAL_STATUSES:
             raise ValueError(
                 f"batch {batch_id} is not finished (status={job.status!r}); "
                 f"wait() or poll batch_status() until done"
             )
-        status_body = resp.json()
+        status_body = _parse_reply(resp, _reply_object)
+        try:
+            fetches = self._batch_result_fetches(status_body)
+        except ProviderError as error:
+            _reply_error_metadata(error, resp)
+            raise
         texts = []
-        for fetch in self._batch_result_fetches(status_body):
+        for fetch in fetches:
             fetched = self._send(fetch)
             if fetched.status >= 400:
                 raise self._http_error(fetched)
-            texts.append(fetched.text())
-        return self._batch_entries(status_body, tuple(texts))
+            texts.append(self._batch_reply_text(status_body, fetched))
+        return _parse_reply(resp, lambda reply: self._batch_entries(status_body, tuple(texts)), json_body=False)
+
+    def _batch_reply_text(self, status_body: dict[str, Any], response: HttpResponse) -> str:
+        """Validate each result file against its own HTTP evidence.
+
+        Legacy hooks combine files and fill missing entries from job status.
+        Decode each file once in isolation before that combined pass so both
+        JSONL syntax and entry-shape faults retain the offending fetch's headers.
+        Blank lines remain valid. Hooks are pure; no request is repeated.
+        """
+        text = _parse_reply(response, _jsonl_reply_text, json_body=False)
+        try:
+            _parse_reply(response, lambda reply: self._batch_entries(status_body, (text,)), json_body=False)
+        except ProviderError as error:
+            # Entry decoders may use synthetic HttpResponse(status=200).
+            # The actual reply containing the broken entry is this fetch.
+            error.status = response.status
+            raise
+        return text
 
     def batch_cancel(self, batch_id: str) -> BatchJobInfo:
         """Request cancellation — a request, not a guarantee."""
@@ -1009,7 +1129,7 @@ class BaseProviderLM:
         resp = self._send(self._batch_cancel_request(batch_id))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._batch_job_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._batch_job_from_body(reply.text()))
 
     def batch_list(self, limit: int = 20) -> "tuple[BatchJobInfo, ...]":
         """Enumerate this credential's batch jobs, newest first.
@@ -1021,7 +1141,7 @@ class BaseProviderLM:
         resp = self._send(self._batch_list_request(limit))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._batch_jobs_from_list_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._batch_jobs_from_list_body(reply.text()))
 
     def batch(self, requests: "BatchRequest | Sequence[Request]", *, model: str | None = None,
               label: str | None = None, extensions: "dict[str, Any] | None" = None) -> "BatchJob":
@@ -1093,21 +1213,21 @@ class BaseProviderLM:
         resp = self._send(self._cache_create_request(prefix, ttl_seconds, label))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._cache_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._cache_info_from_body(reply.text()))
 
     def cache_get(self, cache_id: str) -> CacheInfo:
         self._require("caches")
         resp = self._send(self._cache_get_request(cache_id))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._cache_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._cache_info_from_body(reply.text()))
 
     def cache_list(self, limit: int = 20, cursor: str | None = None) -> CachePage:
         self._require("caches")
         resp = self._send(self._cache_list_request(limit, cursor))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._cache_page_from_list_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._cache_page_from_list_body(reply.text()))
 
     def cache_delete(self, cache_id: str) -> None:
         """Returning without an exception IS the confirmation (the files precedent)."""
@@ -1123,7 +1243,7 @@ class BaseProviderLM:
         resp = self._send(self._cache_update_request(cache_id, ttl_seconds))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._cache_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._cache_info_from_body(reply.text()))
 
     def cache(self, prefix: Request, *, ttl_seconds: int | None = None, label: str | None = None) -> CachedPrefix:
         """Make a prompt beginning reusable with the best tier this provider has.
@@ -1133,10 +1253,12 @@ class BaseProviderLM:
         Marks and automatic tiers: pure — the CachedPrefix only records the
         boundary; `cached + messages` places the mark or sends nothing.
         """
+        wire = self._wire_request(prefix)
+        provider = self.provider if wire.model != prefix.model else None
         if self.supports.caches:
-            return CachedPrefix(prefix, self.cache_create(prefix, ttl_seconds=ttl_seconds, label=label))
-        self._check_cache_prefix(prefix, ttl_seconds)
-        return CachedPrefix(prefix)
+            return CachedPrefix(wire, self.cache_create(wire, ttl_seconds=ttl_seconds, label=label), provider=provider)
+        self._check_cache_prefix(wire, ttl_seconds)
+        return CachedPrefix(wire, provider=provider)
 
     # ─── Files (account-scoped storage: upload / get / list / delete / download) ─
     #
@@ -1182,14 +1304,14 @@ class BaseProviderLM:
         resp = self._send(self._file_upload_request(request))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._file_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._file_info_from_body(reply.text()))
 
     def file_get(self, file_id: str) -> FileInfo:
         self._require("files")
         resp = self._send(self._file_get_request(file_id))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._file_info_from_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._file_info_from_body(reply.text()))
 
     def file_list(self, limit: int = 20, cursor: str | None = None) -> FilePage:
         """One page of this credential's stored files.
@@ -1202,7 +1324,7 @@ class BaseProviderLM:
         resp = self._send(self._file_list_request(limit, cursor))
         if resp.status >= 400:
             raise self._http_error(resp)
-        return self._file_page_from_list_body(resp.text())
+        return _parse_reply(resp, lambda reply: self._file_page_from_list_body(reply.text()))
 
     def file_delete(self, file_id: str) -> None:
         """Delete a stored file.  Returning without an exception IS the

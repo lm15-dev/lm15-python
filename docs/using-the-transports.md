@@ -225,7 +225,13 @@ as a value, for `RouterConfig(timeouts=...)`. A read timeout's message says
 so — `this is lm15's read timeout, not a server failure — raise it with
 Timeouts(read=...)` — so it is not mistaken for a dead server and retried.
 
-A request can override any of them:
+Provider builders inherit these settings, including auxiliary model/file/batch/
+cache/media and token-scoring calls. They do not impose their own fixed read
+limits. Authentication exchanges use separate operation-specific deadlines;
+they are not inference transport requests.
+
+A low-level `TransportRequest` can override connect/read/write (not pool).
+These are not canonical `Request` or `Config` fields:
 
 ```python
 req = TransportRequest(
@@ -254,6 +260,36 @@ and CDNs compress anyway; a reply that arrives `Content-Encoding: gzip` (or
 compressed stream still streams. `br` and `zstd` have no stdlib codec and
 raise a `ProtocolError` that names the coding rather than handing compressed
 bytes to a JSON parser.
+
+## Pyodide / FetchTransport
+
+In a page, worker, or Node hosting Pyodide, pass
+`FetchTransport(read_timeout=600)` to an async adapter. The read limit bounds
+both the initial fetch through response headers and each subsequent body read,
+not the total stream duration. A low-level `TransportRequest.read_timeout`
+overrides it; `None` inherits it. Timeout raises transport `ReadTimeout`.
+Cancellation before headers, a read failure, or closing an unfinished response
+aborts the host request. Reader locks are released on completion/close;
+`transport.aclose()` also aborts active requests. Aborting does not guarantee
+the server has not already served or billed the call.
+
+Fetch does not expose separate socket connect/write deadlines, proxy selection,
+a pool-wait budget, or a connection cap. Explicit low-level connect/write
+overrides are refused rather than silently ignored. Its header deadline covers
+whatever connection/upload work the browser performs before returning headers;
+it is not an implementation of the stdlib transport's separate socket budgets.
+
+The host automatically decodes compressed bodies. lm15 checks **visible**
+`Content-Encoding` against INV-053 (`identity`, `gzip`, `x-gzip`, `deflate` only),
+rejecting even host-supported `br`/`zstd`, but never inflates decoded bytes a
+second time. It attempts `Accept-Encoding: identity`; browsers can strip that
+forbidden header and negotiate compression themselves. On cross-origin replies
+`Content-Encoding` is not CORS-safelisted: servers must expose it with
+`Access-Control-Expose-Headers` for this policy check to work. Hidden headers
+cannot be checked, and raw compressed bytes/integrity checks belong to the host.
+A CORS refusal and a network failure both appear as fetch errors; a CORS refusal
+may occur **after** the server has received the request. Host-specific or custom
+fetch implementations must honor Fetch's automatically-decoded-body semantics.
 
 ## TLS verification
 

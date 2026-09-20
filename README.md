@@ -61,6 +61,24 @@ incompatibly in 1.x with a contract change entry. Pin your version when using
 them. See [release scope](docs/roadmap.md#what-ships-in-10-and-what-is-stable)
 for the existing policy and its limits.
 
+## Cached-prefix routing
+
+`router.cache(prefix)` records the resolved destination in the optional canonical
+`CachedPrefix.provider` field. `prefix.model` and `resource.model` remain wire
+model names (and must match); `cached.request(...)` emits `provider:wiremodel`.
+This metadata survives serialization, including router-local provider names.
+Reuse it with the same router configuration/account: it contains no credentials,
+endpoint, or provider declaration. The router's bound `router.lm(...)` also accepts
+the qualified request and strips only its own provider prefix, once.
+
+Direct `lm.cache` with a bare model and manually constructed values without
+`provider` keep the previous unqualified behavior. Explicit own-provider prefixes
+retain their route; underscore input aliases normalize to hyphens. A suffix Request
+may name the wire model or the same qualified destination, not another provider.
+Absent `provider` is omitted from canonical serialization. This routing correction
+and its regression sources have not been execution-verified; no new conformance
+claim is implied.
+
 ## Quickstart
 
 ```python
