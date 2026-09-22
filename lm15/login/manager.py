@@ -374,6 +374,14 @@ class Auth:
                 self._release(provider, attempt_id)
                 raise
             return self._commit(provider, attempt_id, expected, chosen, result, settings)
+        except BaseException:
+            # Any exit without a saved connection ends the attempt — Ctrl-C
+            # (a notebook's cancel) while waiting on the provider or at a
+            # field prompt included — so its reservation must not outlive it
+            # and block the next sign-in. Releasing an attempt that is no
+            # longer this one's is a no-op.
+            self._release(provider, attempt_id)
+            raise
         finally:
             with self._lock:
                 self._active.pop(provider, None)

@@ -454,6 +454,26 @@ def test_one_active_attempt_per_slot(sandbox: Path) -> None:
     auth.login("xai", "device", ui=ScriptUI())
 
 
+def test_an_interrupt_ends_the_attempt_and_frees_the_slot(sandbox: Path) -> None:
+    # Ctrl-C — a notebook's cancel — while waiting for the provider, or at
+    # a prompt: the attempt is over, so its reservation must not block the
+    # next sign-in for the rest of its lifetime.
+    clock = Clock()
+
+    def interrupted(_seconds: float) -> None:
+        raise KeyboardInterrupt
+
+    auth = Auth(FileStore(sandbox / "credentials.json"), clock=clock.wall, monotonic=clock.mono,
+                opener=FakeXai(polls=["pending"] * 5), sleep=interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        auth.login("xai", "device", ui=ScriptUI())
+    document = json.loads((sandbox / "credentials.json").read_text())
+    assert "attempt" not in document["_lm15"]["slots"].get("xai", {})
+    auth._sleep = clock.advance
+    auth._opener = FakeXai()
+    assert auth.login("xai", "device", ui=ScriptUI()).provider == "xai"
+
+
 # ─── MA-032/033/036/037 renewal ────────────────────────────────────────
 
 
