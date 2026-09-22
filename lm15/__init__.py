@@ -166,6 +166,7 @@ from .errors import (
     UnsupportedModelError,
     UnsupportedFeatureError,
     NotConfiguredError,
+    AuthOperationError,
     RETRYABLE_ERRORS,
 )
 
@@ -270,8 +271,10 @@ __all__ = [
     "ProviderError", "AuthError", "BillingError", "RateLimitError",
     "InvalidRequestError", "ContextLengthError", "TimeoutError",
     "ServerError", "UnsupportedModelError", "UnsupportedFeatureError",
-    "NotConfiguredError", "RETRYABLE_ERRORS",
+    "NotConfiguredError", "AuthOperationError", "RETRYABLE_ERRORS",
     "AccessPolicy", "EndpointSupport",
+    # managed authentication (lm15.login / lm15.interactive; loaded on first use)
+    "Auth", "AsyncAuth", "BoundClient", "TerminalUI", "providers", "connect",
     # providers
     "choice", "judgments", "score", "yes_no", "data",
     "OpenAILM", "OpenAIChatLM", "AnthropicLM", "GeminiLM", "ClaudeCodeLM", "OpenAICodexLM", "XaiLM", "TypeSafeLM", "AsyncTypeSafeLM",
@@ -296,3 +299,28 @@ __all__ = [
     "tool", "derive_tool", "ToolConfig", "ToolDerivation", "DerivedParam",
     "ToolDerivationError",
 ]
+
+
+# ── Managed authentication: loaded on first use ──────────────────────
+# ``lm15.login`` pulls in threading, http.server and the login flows;
+# nothing on the request path needs them, and lm15's import time is a
+# promise, so these names resolve lazily (PEP 562).
+_LAZY_LOGIN = {
+    "Auth": ("lm15.login", "Auth"),
+    "AsyncAuth": ("lm15.login", "AsyncAuth"),
+    "BoundClient": ("lm15.login", "BoundClient"),
+    "TerminalUI": ("lm15.login", "TerminalUI"),
+    "providers": ("lm15.login", "providers"),
+    "connect": ("lm15.interactive", "connect"),
+}
+
+
+def __getattr__(name: str):
+    target = _LAZY_LOGIN.get(name)
+    if target is None:
+        raise AttributeError(f"module 'lm15' has no attribute {name!r}")
+    import importlib
+
+    value = getattr(importlib.import_module(target[0]), target[1])
+    globals()[name] = value
+    return value

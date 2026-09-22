@@ -244,6 +244,9 @@ def explain_auth(
         known = sorted(PROVIDERS)
         raise ValueError(f"Unknown provider {provider!r}. Known providers: {', '.join(known)}")
 
+    if config is not None and config.auth is not None:
+        return _explain_managed(canonical, config, api_keys=api_keys, env=env)
+
     policy = _credential_policy(canonical)
     if policy in ("aws-chain", "azure-chain", "gcp-chain") or (
         _bound_definition(canonical) is not None and _bound_definition(canonical).hosted
@@ -286,21 +289,33 @@ def explain_auth(
             )
         )
 
+    blocked = False
     if policy == "oauth-unless-explicit":
         # The stored subscription login outranks env keys (AUTH-1): it
         # spends no money per token.  Only the explicit api_keys entry
-        # above can shadow it.
+        # above can shadow it.  An unusable or signed-out login BLOCKS the
+        # env keys (R3, 2026-09-22): they show as shadowed, and nothing is
+        # selected.
+        from .auth import xai_stored_state
+
         step = _xai_oauth_step(xai_credentials_path, shadowed=selected)
+        state_word = xai_stored_state(xai_credentials_path)
+        if state_word == "logged_out" and not selected:
+            step = AuthStep(kind="oauth-file", source=step.source, detail="signed out (marker present)", state="absent")
+            blocked = True
+        elif state_word == "unusable" and not selected:
+            blocked = True
         steps.append(step)
         selected = selected or step.state == "selected"
 
     for key in _declared_env_keys(canonical, ADAPTERS):
         if environment.get(key):
-            state = "shadowed" if selected else "selected"
-            steps.append(
-                AuthStep(kind=f"env:{key}", source=f"env ${key}", detail="set (value never shown)", state=state)
-            )
-            selected = True
+            state = "shadowed" if (selected or blocked) else "selected"
+            detail = "set (value never shown)"
+            if blocked and not selected:
+                detail = "set, blocked by the failed/signed-out subscription (pass it explicitly to use it)"
+            steps.append(AuthStep(kind=f"env:{key}", source=f"env ${key}", detail=detail, state=state))
+            selected = selected or not blocked
         else:
             steps.append(
                 AuthStep(kind=f"env:{key}", source=f"env ${key}", detail="not set", state="absent")
@@ -322,6 +337,59 @@ def explain_auth(
         selected = True
 
     return AuthReport(provider=canonical, steps=tuple(steps), configured=selected)
+
+
+def _explain_managed(provider: str, config: RouterConfig, *, api_keys, env) -> AuthReport:
+    """AUTH-15 mode B, rung by rung: the explicit entry, the named cloud
+    identity, the scope's saved connection; environment keys are shown
+    and marked not consulted.  Store reads only, no renewal (AUTH-7)."""
+    import os
+
+    from .router import _credentials_entry
+
+    auth = config.auth
+    walk = RouterConfig(env=env, api_keys=api_keys)
+    environment = env if env is not None else os.environ
+    steps: list[AuthStep] = []
+    selected = False
+    entry = _api_keys_source(walk, provider)
+    if entry is not None:
+        steps.append(AuthStep(kind="api_keys", source=_entry_source(provider, entry), detail="provided (value never shown)",
+                              state="selected"))
+        selected = True
+    else:
+        steps.append(AuthStep(kind="api_keys", source="explicit api_keys entry", detail="not provided", state="absent"))
+    named = _credentials_entry(config, provider)
+    if named is not None:
+        steps.append(AuthStep(kind="named_cloud", source=f'named credential "{named}"', detail="explicit",
+                              state="shadowed" if selected else "selected"))
+        selected = True
+    status = auth.status(provider)
+    if status.connection is not None:
+        detail = f"{status.connection.label} ({status.usability}" + (f", expires {status.expires_at}" if status.expires_at else "") + ")"
+        state = "shadowed" if selected else ("selected" if status.ready else "absent")
+        steps.append(AuthStep(kind="connection", source=f"saved connection {status.connection.id}", detail=detail, state=state))
+        selected = selected or state == "selected"
+    else:
+        detail = "signed out (marker present)" if status.logged_out else "none saved in this scope"
+        steps.append(AuthStep(kind="connection", source=f"saved connection in {auth.store.description}", detail=detail,
+                              state="absent"))
+    for key in _declared_env_keys(provider, ADAPTERS):
+        if environment.get(key):
+            steps.append(AuthStep(kind=f"env:{key}", source=f"env ${key}",
+                                  detail="set, not consulted under a managed Auth (pass it explicitly to use it)",
+                                  state="shadowed"))
+        else:
+            steps.append(AuthStep(kind=f"env:{key}", source=f"env ${key}", detail="not set", state="absent"))
+    from .registry import PROVIDERS
+
+    definition = PROVIDERS.get(provider)
+    if definition is not None and definition.placeholder_key is not None and not status.logged_out:
+        state = "shadowed" if selected else "selected"
+        steps.append(AuthStep(kind="placeholder", source="local-server placeholder key",
+                              detail=f"preset default for keyless {provider} servers", state=state))
+        selected = True
+    return AuthReport(provider=provider, steps=tuple(steps), configured=selected)
 
 
 def _entry_source(provider: str, entry: str | None) -> str:

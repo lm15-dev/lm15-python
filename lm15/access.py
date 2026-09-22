@@ -47,6 +47,7 @@ from .auth import (
     get_codex_cli_access_token,
     get_xai_access_token,
     usable_xai_credential,
+    xai_stored_state,
 )
 from .compat import ANTHROPIC_PRESET_BASE_URLS, OPENAI_CHAT_PRESET_BASE_URLS, OPENAI_RESPONSES_PRESET_BASE_URLS
 from .errors import NotConfiguredError
@@ -692,8 +693,19 @@ def load_credential(
 def has_stored_credential(policy: AccessPolicy) -> bool:
     """Offline probe (reads files, never the network) for the router's
     ``oauth-unless-explicit`` chain: is a usable login stored locally?"""
-    probe = _STORED_PROBES.get(policy.provider)
-    return bool(probe()) if probe is not None else False
+    return stored_credential_state(policy) == "usable"
+
+
+_STORED_STATES: dict[str, Callable[[], str]] = {
+    "xai": xai_stored_state,
+}
+
+
+def stored_credential_state(policy: AccessPolicy) -> str:
+    """``usable`` | ``unusable`` | ``logged_out`` | ``absent`` (spec/auth.md
+    AUTH-1 ``oauth-unless-explicit``, R3).  Reads files only."""
+    probe = _STORED_STATES.get(policy.provider)
+    return probe() if probe is not None else "absent"
 
 
 # AUTH-2 (ratified 2026-09-06, lm15-contract/changes/2026-09-06-decisions.md D1): the

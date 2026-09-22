@@ -30,6 +30,10 @@ from typing import Literal, Mapping
 #
 # The router and doctor derive their behavior from this declaration; there
 # is no parallel provider-name list to keep in sync.
+# - "connection" — a managed account route (spec/auth.md AUTH-1, ratified
+#             core 2026-09-22): an accepted explicit credential or a scoped
+#             managed Auth selection; never an environment key, never a
+#             foreign CLI file.  Additive: no existing route was moved to it.
 # - "aws-chain" / "azure-chain" / "gcp-chain" — the cloud SDK's own default
 #             resolution order (spec/auth.md AUTH-1, amended 2026-09-03),
 #             rung by rung in ``lm15.cloud.chains``.  Rung 0 is the explicit
@@ -37,9 +41,9 @@ from typing import Literal, Mapping
 #             the SDK chain.  Same principal as boto3 / azure-identity /
 #             google-auth on the same machine — anything else is a security
 #             bug, not a convenience gap.
-CredentialPolicy = Literal["key", "oauth", "oauth-unless-explicit", "aws-chain", "azure-chain", "gcp-chain"]
+CredentialPolicy = Literal["key", "oauth", "oauth-unless-explicit", "connection", "aws-chain", "azure-chain", "gcp-chain"]
 CREDENTIAL_POLICIES: frozenset[str] = frozenset(
-    {"key", "oauth", "oauth-unless-explicit", "aws-chain", "azure-chain", "gcp-chain"}
+    {"key", "oauth", "oauth-unless-explicit", "connection", "aws-chain", "azure-chain", "gcp-chain"}
 )
 _CLOUD_CHAINS: frozenset[str] = frozenset({"aws-chain", "azure-chain", "gcp-chain"})
 

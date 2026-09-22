@@ -14,6 +14,9 @@ Find yourself first — most people need exactly one section:
   [Cloud hosts](cloud-hosts.md).
 - **On a Claude, ChatGPT, or SuperGrok plan, no API account?**
   [Subscriptions](#subscriptions-claude-code-codex-cli-xai).
+- **Want to sign in once and have lm15 remember how you connect to
+  each provider?** [Managed login](managed-login.md) — `connect()`,
+  `Auth`, and the rule for which identity a request uses.
 - **Everything local?** [No key at all](#keyless-local-servers).
 
 One rule sits behind all of them, and it explains everything else on
@@ -184,6 +187,15 @@ owner-only permissions.
 If you need that key's account — team billing, its rate limits — pass it
 explicitly. When in doubt, run `lm15.doctor.explain_auth("xai")`: it
 shows exactly which credential rung won and which were shadowed.
+
+**And after the login fails or is signed out** (ratified 2026-09-22,
+R3): the stored login *blocks* `XAI_API_KEY` rather than falling back to
+it. An expired login with no refresh token, or a login you signed out of
+with `Auth.logout("xai")`, makes `xai:` requests fail with an error that
+names the login and says the key is used only when passed explicitly.
+Never having logged in leaves the key path exactly as it was. The
+managed side of all this — `connect()`, saved keys, "use my Claude Code
+login" as an explicit choice — is on [Managed login](managed-login.md).
 
 ### What a subscription adapter is
 

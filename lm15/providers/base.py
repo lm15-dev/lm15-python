@@ -408,6 +408,15 @@ class BaseProviderLM:
 
         return has_stored_credential(cls.manifest)
 
+    @classmethod
+    def stored_credential_state(cls) -> str:
+        """Offline: ``usable`` (fresh, or renewable), ``unusable`` (expired
+        with no way to renew), ``logged_out`` (signed out under a managed
+        Auth: a suppression marker blocks ambient keys, R3), or ``absent``."""
+        from ..access import stored_credential_state
+
+        return stored_credential_state(cls.manifest)
+
     def _bind_access(
         self,
         access: ProviderManifest | None,

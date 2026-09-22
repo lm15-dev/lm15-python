@@ -113,6 +113,83 @@ class LockTimeoutError(LM15Error):
         super().__init__(message, **kwargs)
 
 
+# spec/auth.md AUTH-24 (ratified core 2026-09-22): the closed reasons a
+# managed-auth lifecycle operation can fail with.  None is a provider HTTP
+# 401; none is automatically retryable.
+AUTH_OPERATION_REASONS: frozenset[str] = frozenset({
+    "interaction_required", "method_unavailable", "connection_exists",
+    "login_in_progress", "login_required", "connection_changed", "login_denied",
+    "login_expired", "invalid_login_state", "attempt_unavailable", "indeterminate",
+    "storage_unavailable", "unsupported_store_version", "selection_mismatch",
+    "credential_rejected",
+})
+AUTH_OPERATION_STAGES: frozenset[str] = frozenset({
+    "discovery", "reservation", "interaction", "authorization", "polling", "exchange",
+    "persistence", "resolution", "renewal", "verification", "catalog", "dispatch",
+})
+AUTH_OPERATION_RECOVERIES: frozenset[str] = frozenset({
+    "provide_input", "choose_method", "resume_attempt", "inspect_attempt", "restart_login",
+    "select_connection", "repair_storage", "operator_action", "none",
+})
+AUTH_COMMIT_STATES: frozenset[str] = frozenset({"not_committed", "committed", "unknown"})
+
+
+class AuthOperationError(LM15Error):
+    """A managed-auth lifecycle operation failed locally (AUTH-24).
+
+    Root-level, beside :class:`TransportError`: nothing here is a provider
+    HTTP reply, and nothing here is safe to retry blindly.  ``reason`` is
+    one of :data:`AUTH_OPERATION_REASONS`; ``stage`` names where the
+    operation stopped; ``commit_state`` says whether the store changed
+    (``committed``, ``not_committed``, or ``unknown`` after an interrupted
+    write); ``recovery`` is guidance for the caller, never an instruction
+    to retry.  ``provider`` is the route; ``connection_id`` and
+    ``attempt_id`` are safe references, never secrets.
+
+    The message is for people.  Programs match on ``reason``.
+    """
+
+    default_code = "auth_operation"
+
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        reason: str,
+        stage: str = "resolution",
+        commit_state: str = "not_committed",
+        recovery: str = "none",
+        operation: str | None = None,
+        connection_id: str | None = None,
+        attempt_id: str | None = None,
+        method_id: str | None = None,
+        **kwargs,
+    ) -> None:
+        if reason not in AUTH_OPERATION_REASONS:
+            raise ValueError(f"AuthOperationError: unknown reason {reason!r}")
+        if stage not in AUTH_OPERATION_STAGES:
+            raise ValueError(f"AuthOperationError: unknown stage {stage!r}")
+        if commit_state not in AUTH_COMMIT_STATES:
+            raise ValueError(f"AuthOperationError: unknown commit_state {commit_state!r}")
+        if recovery not in AUTH_OPERATION_RECOVERIES:
+            raise ValueError(f"AuthOperationError: unknown recovery {recovery!r}")
+        self.reason = reason
+        self.stage = stage
+        self.commit_state = commit_state
+        self.recovery = recovery
+        self.operation = operation
+        self.connection_id = connection_id
+        self.attempt_id = attempt_id
+        self.method_id = method_id
+        super().__init__(message, **kwargs)
+
+    def __repr__(self) -> str:
+        return (
+            f"AuthOperationError(reason={self.reason!r}, stage={self.stage!r}, "
+            f"commit_state={self.commit_state!r}, provider={self.provider!r})"
+        )
+
+
 class CollectionLimitError(LM15Error):
     """A local turn collector reached its budget, not a provider failure.
 
@@ -579,6 +656,7 @@ _CLASS_TO_CODE: dict[type[LM15Error], str] = {
     AmbiguousModelError: "ambiguous_model",
     TransportError: "transport",
     LockTimeoutError: "lock_timeout",
+    AuthOperationError: "auth_operation",
     StreamAssemblyError: "stream_assembly",
     CollectionLimitError: "collection_limit",
     ProviderError: "provider",
