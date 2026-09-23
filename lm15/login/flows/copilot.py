@@ -14,8 +14,12 @@ policies during login (``POST /models/{id}/policy``).  That changes account
 settings; LM15 does not do it inside authentication.  A future explicit
 ``enable_models`` operation may.
 
-**Availability: unverified**; the ``github-copilot`` route is registered
-but has no wire receipt.
+**Availability: unverified** pending provider-permission review. On
+2026-09-23: github.com device login, Copilot token exchange, account model
+catalog (59 models), gpt-4.1 inference, fresh-process persistence and one early
+renewal were observed live. The ``github-copilot`` route remains a declared
+provider (no contract wire receipt yet). GitHub requires a person to click
+**Authorize** on the consent page; automation must not bypass that.
 """
 
 from __future__ import annotations
@@ -41,7 +45,9 @@ DEFAULT_API_BASE = "https://api.individual.githubcopilot.com"
 
 METHOD_DEVICE = LoginMethod(
     id="device", label="Sign in with GitHub (Copilot subscription)", kind="account", flow="device_code",
-    availability="unverified", reason="no live receipt yet", delivery=("device",), subscription=True,
+    availability="unverified",
+    reason="Login, catalog, inference, persistence and early renewal observed 2026-09-23; permission review pending",
+    delivery=("device",), subscription=True,
     fields=(MethodField(id="enterprise_domain", label="GitHub Enterprise domain (blank for github.com)",
                         required=False, help="e.g. company.ghe.com"),),
     billing_note="Some models require enabling on your account first; LM15 does not change that setting during login.",

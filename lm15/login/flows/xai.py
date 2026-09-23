@@ -8,8 +8,9 @@ this flow, so the legacy entry point and the managed manager share one
 implementation.  Live receipt: the device flow, renewal and inference were
 validated before this migration through ``lm15.auth`` (2026-09-01); the
 managed path re-uses those exact requests and is marked ``supported`` on
-that basis, with a fresh managed-path receipt still owed (see the
-implementation report).
+that basis. The managed path itself was then observed live on 2026-09-22/23:
+device login, inference, streaming, logout blocking the env key, fresh-process
+persistence and one early refresh-token renewal (HTTP 200).
 """
 
 from __future__ import annotations

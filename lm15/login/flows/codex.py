@@ -8,9 +8,12 @@ authorization code + verifier pair that is then exchanged like the browser
 flow).  Pi 0.87.0 ``oauth/openai-codex.ts`` is the implementation
 reference; the client id is the Codex CLI's.
 
-**Availability: unverified** (AUTH-13.5, R1) for both methods, for the same
-reason as Claude: no live receipt yet.  The proven path — the user's
-existing ``codex login`` — remains the default via the external source.
+**Availability: unverified** (AUTH-13.5, R1). On 2026-09-23, browser login,
+model discovery, inference, fresh-process persistence and early renewal worked
+with a managed grant. Device login and inference also worked with a separate
+memory-only grant. Provider permission and billing remain unresolved; device
+renewal/persistence were not separately exercised. Existing CLI access remains
+available via the external source.
 """
 
 from __future__ import annotations
@@ -51,15 +54,17 @@ DEVICE_REDIRECT_URI = f"{AUTH_BASE}/deviceauth/callback"
 DEVICE_TIMEOUT_S = 15 * 60
 SCOPE = "openid profile email offline_access"
 
-_UNVERIFIED = "no live receipt yet that this registration is permitted for LM15 and bills as a subscription"
+_UNVERIFIED = "provider permission and billing remain unverified"
 
 METHOD_BROWSER = LoginMethod(
     id="browser", label="Sign in with ChatGPT (browser)", kind="account", flow="authorization_code",
-    availability="unverified", reason=_UNVERIFIED, delivery=("loopback", "manual"), subscription=True,
+    availability="unverified", reason="Browser login, inference, persistence and early renewal observed 2026-09-23; " + _UNVERIFIED,
+    delivery=("loopback", "manual"), subscription=True,
 )
 METHOD_DEVICE = LoginMethod(
     id="device", label="Sign in with ChatGPT (device code, for SSH/headless)", kind="account", flow="device_code",
-    availability="unverified", reason=_UNVERIFIED, delivery=("device",), subscription=True,
+    availability="unverified", reason="Device login and inference observed 2026-09-23; " + _UNVERIFIED,
+    delivery=("device",), subscription=True,
 )
 
 DESCRIPTOR = ProviderDescriptor(

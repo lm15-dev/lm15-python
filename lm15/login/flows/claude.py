@@ -1,19 +1,17 @@
 """
 lm15.login.flows.claude — Claude subscription login owned by LM15.
 
-Authorization-code + PKCE (S256) against ``claude.ai/oauth/authorize``,
-loopback return on the registered redirect URI, manual paste as the
-supported alternative when the browser is elsewhere.  The token endpoint
-and client registration are the ones Claude Code uses; Pi 0.87.0 is the
-implementation reference (``packages/ai/src/auth/oauth/anthropic.ts``).
+``browser`` uses Claude's hosted return page and asks for the displayed
+code#state (or the complete return URL). No local listener is needed: the
+browser and Python may run on different machines. This matches the observed
+Claude Code 2.1.280 manual login on 2026-09-23. ``loopback`` retains the
+older local callback flow from the Pi 0.87.0 implementation reference.
 
-**Availability: unverified** (AUTH-13.5, R1).  The code is complete, but
-LM15 has no live receipt showing that a login made through this
-registration is permitted for third-party clients, gives the same account
-access as Claude Code, and bills the way the user expects.  Until that
-receipt exists the default picker offers the proven path instead — the
-user's existing Claude Code login as an external source
-(``lm15.login.flows.external``) — and this method needs explicit opt-in.
+**Availability: unverified** (AUTH-13.5, R1). Hosted LM15 login, inference,
+fresh-process persistence and an early renewal were observed on 2026-09-23.
+Provider permission and billing remain unresolved; loopback has no live LM15
+receipt. Both methods still need explicit opt-in. Existing externally owned
+CLI credentials remain available through ``lm15.login.flows.recipes``.
 """
 
 from __future__ import annotations
@@ -21,8 +19,10 @@ from __future__ import annotations
 import secrets
 from typing import Any
 
-from ...authkit import generate_pkce
+from ...auth import CLAUDE_CODE_CLIENT_ID
+from ...authkit import PKCEPair, generate_pkce, pkce_challenge
 from ...credentials import BearerToken
+from ...errors import AuthOperationError
 from ..engine import (
     CallbackListener,
     LoginContext,
@@ -35,26 +35,33 @@ from ..engine import (
 from ..types import AuthUrlNotice, InfoNotice, LoginMethod, ProgressNotice, ProviderDescriptor
 from .base import LoginResult, Material, ProviderFlow, RequestAuth, oauth_material
 
-CLIENT_ID = "9d1c250a-e61b-44d5-88ed-5944d1962f5e"
-AUTHORIZE_URL = "https://claude.ai/oauth/authorize"
+CLIENT_ID = CLAUDE_CODE_CLIENT_ID
+AUTHORIZE_URL = "https://claude.com/cai/oauth/authorize"
+LOOPBACK_AUTHORIZE_URL = "https://claude.ai/oauth/authorize"
 TOKEN_URL = "https://platform.claude.com/v1/oauth/token"
 CALLBACK_PORT = 53692
 CALLBACK_PATH = "/callback"
-REDIRECT_URI = f"http://localhost:{CALLBACK_PORT}{CALLBACK_PATH}"  # the registered value; bind is 127.0.0.1
+REDIRECT_URI = "https://platform.claude.com/oauth/code/callback"
+LOOPBACK_REDIRECT_URI = f"http://localhost:{CALLBACK_PORT}{CALLBACK_PATH}"
 SCOPES = "org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload"
 
 METHOD_BROWSER = LoginMethod(
-    id="browser", label="Sign in with your Claude account (Pro/Max)", kind="account", flow="authorization_code",
+    id="browser", label="Sign in with Claude (paste code from hosted page)", kind="account", flow="authorization_code",
     availability="unverified",
-    reason="no live receipt yet that this registration is permitted for LM15 and bills as a subscription",
+    reason="LM15 hosted login, inference, persistence and early renewal observed 2026-09-23; permission and billing remain unverified",
+    delivery=("manual",), subscription=True,
+    billing_note="Provider permission and included usage must be verified separately for your account.",
+)
+METHOD_LOOPBACK = LoginMethod(
+    id="loopback", label="Sign in with Claude (local browser callback)", kind="account", flow="authorization_code",
+    availability="unverified", reason="no live LM15 receipt for this local callback flow",
     delivery=("loopback", "manual"), subscription=True,
-    billing_note="Anthropic's current terms route third-party usage of a subscription through extra usage; "
-                 "verify on your account before relying on it.",
+    billing_note=METHOD_BROWSER.billing_note,
 )
 
 DESCRIPTOR = ProviderDescriptor(
     id="claude-code", label="Claude (subscription)", service="Anthropic", routes=("claude-code",),
-    methods=(METHOD_BROWSER,),
+    methods=(METHOD_BROWSER, METHOD_LOOPBACK,),
     docs_url="https://docs.claude.com",
 )
 
@@ -71,41 +78,73 @@ class ClaudeFlow(ProviderFlow):
     descriptor = DESCRIPTOR
 
     def login(self, ctx: LoginContext, method: LoginMethod, settings: dict[str, str], answers: dict[str, str]) -> LoginResult:
-        pkce = generate_pkce()
+        if method.id not in ("browser", "loopback"):
+            raise AuthOperationError("Unknown Claude login method", reason="method_unavailable",
+                                     stage="discovery", recovery="choose_method", provider="claude-code")
+        ctx.check()
+        hosted = method.id == "browser"
+        # 32 random bytes -> 43 characters, as in the captured native flow.
+        # Independent state remains essential; it is not the PKCE verifier.
+        verifier = secrets.token_urlsafe(32)
+        pkce = PKCEPair(verifier=verifier, challenge=pkce_challenge(verifier)) if hosted else generate_pkce()
         state = secrets.token_urlsafe(32)
-        listener: CallbackListener | None
+        redirect_uri = REDIRECT_URI if hosted else LOOPBACK_REDIRECT_URI
+        authorize_url = AUTHORIZE_URL if hosted else LOOPBACK_AUTHORIZE_URL
+        listener: CallbackListener | None = None
         try:
-            listener = CallbackListener(path=CALLBACK_PATH, expected_state=state, port=CALLBACK_PORT,
-                                        redirect_host="localhost")
-            listener.start()
-        except Exception as exc:  # port busy: manual return is the supported alternative
-            listener = None
-            ctx.notify(InfoNotice(f"Could not listen on port {CALLBACK_PORT} ({type(exc).__name__}); "
-                                  "paste the redirect URL when the browser finishes."))
-        try:
+            if not hosted:
+                try:
+                    listener = CallbackListener(path=CALLBACK_PATH, expected_state=state, port=CALLBACK_PORT,
+                                                redirect_host="localhost")
+                    listener.start()
+                except AuthOperationError as exc:
+                    if exc.reason != "method_unavailable":
+                        raise
+                    ctx.notify(InfoNotice(f"Could not listen on port {CALLBACK_PORT}; "
+                                          "paste the full redirect URL when the browser finishes."))
             query = {
-                "code": "true", "client_id": CLIENT_ID, "response_type": "code", "redirect_uri": REDIRECT_URI,
+                "code": "true", "client_id": CLIENT_ID, "response_type": "code", "redirect_uri": redirect_uri,
                 "scope": SCOPES, "code_challenge": pkce.challenge, "code_challenge_method": "S256", "state": state,
             }
             import urllib.parse
 
-            url = f"{AUTHORIZE_URL}?{urllib.parse.urlencode(query)}"
-            ctx.notify(AuthUrlNotice(url=url, instructions=(
-                "Sign in to Claude in your browser. If the browser is on another machine, paste the final "
-                "redirect URL (or the code#state it shows) back here.")))
-            prompt = ManualCodePrompt(field_id="return", label="Paste the redirect URL or code here (or wait for the browser)",
-                                      accepted="the full redirect URL, or code#state")
-            returned, pasted = race_callback_and_manual(ctx, listener, prompt)
+            url = f"{authorize_url}?{urllib.parse.urlencode(query)}"
+            instructions = (
+                "Sign in to Claude in your browser. On the Authentication code page, copy the whole "
+                "displayed code (including #state) and paste it here. The full return URL also works. "
+                "Your browser may be on another machine; no localhost connection is needed."
+                if hosted else
+                "Sign in to Claude in your browser. If the local callback cannot be reached, "
+                "paste the full redirect URL (or code#state) here."
+            )
+            ctx.notify(AuthUrlNotice(url=url, instructions=instructions))
+            prompt = ManualCodePrompt(
+                field_id="return", label="Paste the full code#state or return URL here",
+                accepted="the full return URL, or code#state (a bare code without state is not accepted)",
+            )
+            if hosted:
+                returned, pasted = None, ctx.prompt(prompt)
+            else:
+                returned, pasted = race_callback_and_manual(ctx, listener, prompt)
+            ctx.check()
             if returned is None:
-                returned = parse_manual_return(pasted or "", expected_state=state, allow_bare_code=False,
-                                               registered_path=CALLBACK_PATH)
+                returned = parse_manual_return(
+                    pasted or "", expected_state=state, allow_bare_code=False,
+                    registered_path=urllib.parse.urlsplit(redirect_uri).path, registered_uri=redirect_uri,
+                )
+            ctx.check()
             ctx.notify(ProgressNotice(stage="exchange", message="Exchanging the authorization code…"))
             reply = http_json(ctx, TOKEN_URL, {
-                "grant_type": "authorization_code", "client_id": CLIENT_ID, "code": returned.code,
-                "state": returned.state or state, "redirect_uri": REDIRECT_URI, "code_verifier": pkce.verifier,
+                "grant_type": "authorization_code", "code": returned.code, "redirect_uri": redirect_uri,
+                "client_id": CLIENT_ID, "code_verifier": pkce.verifier, "state": state,
             })
             if not reply.ok:
-                raise LoginDenied(f"Claude rejected the authorization code (HTTP {reply.status})")
+                raise LoginDenied(
+                    f"Claude authorization-code exchange failed: {reply.failure_summary()}. "
+                    "The authorization code will not be retried automatically.",
+                    status=reply.status, provider_code=reply.oauth_error, stage="exchange",
+                )
+            ctx.check()
             return LoginResult(material=_tokens(reply.body, now_ms=int(ctx.wall_clock() * 1000)),
                                label="Claude subscription", renewal="refresh_token")
         finally:
@@ -118,7 +157,10 @@ class ClaudeFlow(ProviderFlow):
             raise LoginDenied("Claude credential has no refresh token")
         reply = http_json(ctx, TOKEN_URL, {"grant_type": "refresh_token", "client_id": CLIENT_ID, "refresh_token": refresh})
         if not reply.ok:
-            raise LoginDenied(f"Claude rejected the refresh token (HTTP {reply.status})")
+            raise LoginDenied(
+                f"Claude token renewal failed: {reply.failure_summary()}",
+                status=reply.status, provider_code=reply.oauth_error, stage="renewal",
+            )
         return LoginResult(material=_tokens(reply.body, now_ms=int(ctx.wall_clock() * 1000)),
                            label="Claude subscription", renewal="refresh_token")
 

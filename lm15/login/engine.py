@@ -42,6 +42,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Callable
 from urllib.parse import parse_qsl, urlsplit
 
+from .._version import __version__
 from ..errors import AuthError, AuthOperationError, ServerError, TransportError
 from .types import AuthUI, ManualCodePrompt, Notice, Prompt
 
@@ -89,6 +90,13 @@ class LoginDenied(Exception):
     """A validated provider denial (``access_denied``, ``invalid_grant`` on
     a code exchange, a device code the provider says expired).  The message
     is ours; provider text is never copied into it."""
+
+    def __init__(self, message: str, *, status: int | None = None,
+                 provider_code: str | None = None, stage: str = "authorization") -> None:
+        super().__init__(message)
+        self.status = status
+        self.provider_code = provider_code
+        self.stage = stage
 
 
 # ─── The attempt context ───────────────────────────────────────────────
@@ -161,11 +169,48 @@ class LoginContext:
 # ─── Bounded HTTP (AUTH-18/20/21) ──────────────────────────────────────
 
 
+# Only these fixed protocol words can leave a private auth response. Never
+# reflect arbitrary error descriptions, URLs, header values or response bodies.
+_OAUTH_ERROR_CODES = frozenset({
+    "invalid_request", "invalid_client", "invalid_grant", "unauthorized_client",
+    "unsupported_grant_type", "invalid_scope", "access_denied", "server_error",
+    "temporarily_unavailable", "authorization_pending", "slow_down", "expired_token",
+})
+
+
 @dataclass(frozen=True, slots=True)
 class HttpReply:
     status: int
     body: dict[str, Any] = field(repr=False)  # may hold tokens: never rendered
     ok: bool = False
+    response_format: str = "unknown"
+    oauth_error: str | None = None
+    security_challenge: bool = False
+
+    def failure_summary(self) -> str:
+        details = [f"HTTP {self.status}", f"response={self.response_format}"]
+        if self.oauth_error:
+            details.append(f"OAuth error={self.oauth_error}")
+        else:
+            details.append("no recognized OAuth error code; cause not established")
+        if self.security_challenge:
+            details.append("response explicitly marked as a security challenge")
+        elif self.response_format == "html":
+            details.append("HTML alone does not establish a security block")
+        return "; ".join(details)
+
+
+def _auth_json_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate member in auth response")
+        result[key] = value
+    return result
+
+
+def _reject_auth_number(value: str) -> None:
+    raise ValueError("non-finite number in auth response")
 
 
 def _tls_only(url: str) -> None:
@@ -189,8 +234,13 @@ _OPENER = urllib.request.build_opener(_NoRedirect())
 
 def _send(ctx: LoginContext, request: urllib.request.Request) -> HttpReply:
     _tls_only(request.full_url)
+    # Identify this SDK, not urllib (some auth endpoints reject that default).
+    # Keep an explicit provider-required identification, e.g. Copilot's headers.
+    if not request.has_header("User-agent"):
+        request.add_header("User-Agent", f"lm15/{__version__}")
     timeout = ctx.budget()
     opener = ctx.opener
+    response_headers: Any = {}
     try:
         if opener is not None:
             response = opener(request, timeout)
@@ -198,13 +248,17 @@ def _send(ctx: LoginContext, request: urllib.request.Request) -> HttpReply:
             response = _OPENER.open(request, timeout=timeout)  # noqa: S310 - TLS enforced above
         with response:
             status = getattr(response, "status", None) or response.getcode()
+            response_headers = getattr(response, "headers", None) or {}
             raw = response.read(AUTH_RESPONSE_LIMIT + 1)
     except urllib.error.HTTPError as exc:
         status = exc.code
+        response_headers = exc.headers or {}
         try:
             raw = exc.read(AUTH_RESPONSE_LIMIT + 1)
         except Exception:
             raw = b""
+        finally:
+            exc.close()
     except (urllib.error.URLError, http.client.HTTPException, OSError, TimeoutError) as exc:
         # The URL is safe; the exception text can contain anything the
         # network stack saw, so only its class is named.  ``exchange_uncertain``
@@ -224,19 +278,39 @@ def _send(ctx: LoginContext, request: urllib.request.Request) -> HttpReply:
             provider=ctx.provider or None,
         )
     body: dict[str, Any] = {}
+    # Map headers to fixed categories; never return their raw values.
+    content_type = response_headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+    response_format = "empty"
+    oauth_error = None
     if raw:
+        response_format = "text_or_binary"
+        if content_type in ("text/html", "application/xhtml+xml"):
+            response_format = "html"
+        elif content_type == "application/json" or content_type.endswith("+json"):
+            response_format = "invalid_json"
         try:
-            parsed = json.loads(raw.decode("utf-8"))
-        except (ValueError, UnicodeDecodeError):
+            parsed = json.loads(raw.decode("utf-8"), object_pairs_hook=_auth_json_members,
+                                parse_constant=_reject_auth_number)
+        except (ValueError, UnicodeDecodeError, RecursionError):
             parsed = None
+        else:
+            response_format = "json"
         if isinstance(parsed, dict):
             body = parsed
+            candidate = parsed.get("error")
+            if isinstance(candidate, dict):
+                candidate = candidate.get("code", candidate.get("type"))
+            if isinstance(candidate, str) and candidate in _OAUTH_ERROR_CODES:
+                oauth_error = candidate
+    security_challenge = response_headers.get("cf-mitigated", "").strip().lower() == "challenge"
     if status >= 500:
         raise ServerError(
             f"{ctx.provider or 'auth'}: the authentication server answered HTTP {status}",
             provider=ctx.provider or None, status=status,
         )
-    return HttpReply(status=status, body=body, ok=200 <= status < 300)
+    return HttpReply(status=status, body=body, ok=200 <= status < 300,
+                     response_format=response_format, oauth_error=oauth_error,
+                     security_challenge=security_challenge)
 
 
 def _uncertain(exc: BaseException) -> bool:
@@ -499,11 +573,14 @@ class CallbackListener:
 
 
 def parse_manual_return(text: str, *, expected_state: str | None, allow_bare_code: bool,
-                        registered_path: str | None) -> CallbackReturn:
-    """Read a pasted redirect URL, ``code=...`` query, ``code#state`` or bare
-    code.  A URL is checked against the attempt's registered return path and
-    state; a bare code carries no state, so it is accepted only when the
-    method profile says so (``allow_bare_code``)."""
+                        registered_path: str | None, registered_uri: str | None = None) -> CallbackReturn:
+    """Validate a manual return, including state on provider error callbacks.
+
+    When registered_uri is supplied, a full URL must match its scheme, host,
+    effective port and path. A bare code is allowed only for profiles that
+    explicitly permit it; it is not permission for a URL to omit its state.
+    No pasted value is included in an exception.
+    """
     value = (text or "").strip()
     if not value:
         raise AuthOperationError("nothing was pasted", reason="invalid_login_state", stage="interaction",
@@ -511,43 +588,64 @@ def parse_manual_return(text: str, *, expected_state: str | None, allow_bare_cod
     if len(value) > CALLBACK_TARGET_LIMIT:
         raise AuthOperationError("pasted return is too long", reason="invalid_login_state", stage="interaction",
                                  recovery="provide_input")
+    def invalid(message: str) -> AuthOperationError:
+        return AuthOperationError(message, reason="invalid_login_state", stage="interaction",
+                                  recovery="provide_input")
+
     code: str | None = None
     state: str | None = None
+    params: list[tuple[str, str]] | None = None
+    bare = False
     if "://" in value:
-        split = urlsplit(value)
-        if registered_path is not None and split.path != registered_path:
-            raise AuthOperationError(
-                "the pasted URL is not this sign-in's return URL", reason="invalid_login_state",
-                stage="interaction", recovery="provide_input",
-            )
-        params = parse_qsl(split.query, keep_blank_values=True)
-        names = [k for k, _ in params]
-        if len(names) != len(set(names)):
-            raise AuthOperationError("the pasted URL repeats a parameter", reason="invalid_login_state",
-                                     stage="interaction", recovery="provide_input")
-        query = dict(params)
-        if "error" in query:
-            raise LoginDenied("the pasted return carries a provider error")
-        code, state = query.get("code"), query.get("state")
-    elif "code=" in value:
-        query = dict(parse_qsl(value, keep_blank_values=True))
-        code, state = query.get("code"), query.get("state")
+        try:
+            split = urlsplit(value)
+            if split.username is not None or split.password is not None or split.fragment:
+                raise ValueError("unexpected URL components")
+            if registered_path is not None and split.path != registered_path:
+                raise ValueError("wrong callback path")
+            if registered_uri is not None:
+                expected = urlsplit(registered_uri)
+
+                def address(url):
+                    port = url.port if url.port is not None else {"https": 443, "http": 80}.get(url.scheme)
+                    return url.scheme, url.hostname, port, url.path
+
+                if address(split) != address(expected):
+                    raise ValueError("wrong callback destination")
+            params = parse_qsl(split.query, keep_blank_values=True)
+        except ValueError:
+            raise invalid("the pasted URL is not this sign-in's registered return URL") from None
+    elif value.startswith(("code=", "state=", "error=")):
+        params = parse_qsl(value, keep_blank_values=True)
     elif "#" in value:
         code, _, state = value.partition("#")
     else:
-        code = value
+        code, bare = value, True
+
+    denied = False
+    if params is not None:
+        names = [key for key, _ in params]
+        if len(names) != len(set(names)):
+            raise invalid("the pasted return repeats a parameter")
+        query = dict(params)
+        if "code" in query and "error" in query:
+            raise invalid("the pasted return contains both a code and an error")
+        denied = "error" in query
+        code, state = query.get("code"), query.get("state")
+
+    if bare and not allow_bare_code:
+        raise invalid("paste the complete code#state or return URL, not the code alone")
+    if expected_state is not None:
+        if state is None:
+            if not (bare and allow_bare_code):
+                raise invalid("this provider's return must carry its state value")
+        elif not secrets.compare_digest(state.encode("utf-8"), expected_state.encode("utf-8")):
+            raise invalid("the pasted return does not belong to this sign-in attempt")
+    # A wrong-state error must never terminate the legitimate attempt as denied.
+    if denied:
+        raise LoginDenied("the validated pasted return carries a provider error")
     if not code:
-        raise AuthOperationError("no authorization code in the pasted text", reason="invalid_login_state",
-                                 stage="interaction", recovery="provide_input")
-    if state is None:
-        if expected_state is not None and not allow_bare_code:
-            raise AuthOperationError(
-                "paste the full redirect URL: this provider's return must carry its state value",
-                reason="invalid_login_state", stage="interaction", recovery="provide_input",
-            )
-    elif expected_state is not None and not secrets.compare_digest(state, expected_state):
-        raise AuthOperationError("the pasted return does not belong to this sign-in attempt",
-                                 reason="invalid_login_state", stage="interaction", recovery="provide_input")
+        raise invalid("no authorization code in the pasted text")
     return CallbackReturn(code=code, state=state)
 
 

@@ -8,9 +8,11 @@ key).  The callback is a one-shot loopback listener on an ephemeral port
 with a random path, raced against a manual paste.  No client id: OpenRouter
 binds the key to the callback URL and the PKCE verifier.
 
-**Availability: unverified** (no live LM15 receipt yet).  ``kind=account``
-and ``billing_note`` say what the key is: it spends the user's OpenRouter
-credits.  It is not a subscription (AUTH-13.7).
+**Availability: unverified** pending broader conformance/support review.
+Browser key issuance, limit inspection, model discovery, inference and
+fresh-process persistence were observed on 2026-09-23 with a $1-limited key.
+``kind=account`` means an authorization journey, not a subscription: requests
+spend the user's OpenRouter credits (AUTH-13.7).
 """
 
 from __future__ import annotations
@@ -38,7 +40,8 @@ KEY_URL = "https://openrouter.ai/api/v1/auth/keys"
 
 METHOD_BROWSER = LoginMethod(
     id="browser", label="Sign in with OpenRouter (creates an API key for this app)", kind="account",
-    flow="authorization_code", availability="unverified", reason="no live receipt yet",
+    flow="authorization_code", availability="unverified",
+    reason="Login, key limit, inference and persistence observed 2026-09-23; broader support review pending",
     delivery=("loopback", "manual"), subscription=False,
     billing_note="The minted key spends your OpenRouter credits like any other key.",
 )

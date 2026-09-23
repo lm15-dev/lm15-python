@@ -56,6 +56,7 @@ from pathlib import Path
 from typing import Any
 
 from ._authlock import CredentialLockTimeout, hold_file_lock, write_private_json_atomic
+from ._version import __version__
 from .errors import AuthError, NotConfiguredError, UnsupportedFeatureError
 
 __all__ = [
@@ -101,7 +102,7 @@ def _user_path(*parts: str) -> Path:
 
 
 CLAUDE_CODE_CREDENTIALS_PATH = _user_path(".claude", ".credentials.json")
-CLAUDE_CODE_CLIENT_ID = "9d1c250a-e61b-44d5-88ed-5944d1962f5e"
+CLAUDE_CODE_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 CLAUDE_CODE_TOKEN_URL = "https://platform.claude.com/v1/oauth/token"
 CLAUDE_CODE_LOGIN_HINT = "Log in again: run `claude` and use /login (Claude subscription auth)"
 
@@ -203,7 +204,8 @@ def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
     request = urllib.request.Request(
         url,
         data=body,
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        headers={"Content-Type": "application/json", "Accept": "application/json",
+                 "User-Agent": f"lm15/{__version__}"},
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - provider token endpoint
@@ -216,7 +218,8 @@ def _post_form(url: str, payload: dict[str, Any]) -> dict[str, Any]:
     request = urllib.request.Request(
         url,
         data=body,
-        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json",
+                 "User-Agent": f"lm15/{__version__}"},
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - provider token endpoint

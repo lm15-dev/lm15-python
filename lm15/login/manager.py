@@ -357,8 +357,9 @@ class Auth:
             except LoginDenied as exc:
                 self._release(provider, attempt_id)
                 raise AuthOperationError(
-                    f"{provider}: {exc}", reason="login_denied", stage="authorization", recovery="restart_login",
+                    f"{provider}: {exc}", reason="login_denied", stage=exc.stage, recovery="restart_login",
                     provider=provider, attempt_id=attempt_id, method_id=chosen.id,
+                    status=exc.status, provider_code=exc.provider_code,
                 ) from None
             except TransportError as exc:
                 self._release(provider, attempt_id)
@@ -807,9 +808,10 @@ class Auth:
             except LoginDenied as exc:
                 self._mark(txn, document, slot, material, state="needs_login", drop_material=True)
                 raise AuthOperationError(
-                    f"{provider}: the provider rejected the renewal ({exc}); sign in again",
+                    f"{provider}: renewal failed ({exc}); sign in again",
                     reason="credential_rejected", stage="renewal", commit_state="committed",
                     recovery="restart_login", provider=provider, connection_id=slot.connection_id,
+                    status=exc.status, provider_code=exc.provider_code,
                 ) from None
             except (RateLimitError, ServerError) as exc:
                 self._mark(txn, document, slot, material, state="ready")  # known safe: keep credentials

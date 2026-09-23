@@ -137,9 +137,14 @@ store.
 
 | Provider | Method | Status today |
 |---|---|---|
-| xAI | device code | **supported** (protocol validated live 2026-09-01; managed-path receipt owed) |
+| xAI | device code | **supported**: managed device login, inference, streaming, `connect()`, logout blocking, fresh-process persistence and one early renewal observed live (2026-09-22/23) |
 | Claude / Codex | your existing CLI login (`external:*`) | **supported** (the proven path since 2026-08-31) |
-| Claude, ChatGPT (browser, device), OpenRouter, Meta, Kimi Code, GitHub Copilot | LM15-owned login | **unverified**: implemented, no live receipt; `login(..., allow_unverified=True)` to try |
+| Claude | LM15-owned hosted browser login | Login, inference, fresh-process persistence and one early renewal observed **2026-09-23**. Still **unverified** for provider permission and billing; explicit opt-in remains required. |
+| ChatGPT / Codex | LM15-owned browser login | Login, catalog, inference, fresh-process persistence and one early renewal observed **2026-09-23**. Provider permission and billing remain **unverified**. |
+| ChatGPT / Codex | LM15-owned device login | Separate memory-only login and inference observed **2026-09-23**. Device persistence/renewal were not separately tested; permission and billing remain **unverified**. |
+| OpenRouter | Browser approval → API key | Key issuance, $1 limit inspection, model discovery, inference and fresh-process reuse observed **2026-09-23**. No refresh-token flow; broader support review remains pending. |
+| GitHub Copilot | Device login → Copilot token | github.com login, catalog, inference, fresh-process persistence and one early renewal observed **2026-09-23**. Uses the public Copilot Chat app registration; permission and billing remain **unverified**. |
+| Claude (loopback), Meta, Kimi Code | Other LM15-owned login methods | **unverified**: implemented, no live LM15 receipt; `login(..., allow_unverified=True)` to try |
 | Radius | — | **unavailable**: its model protocol is not in lm15-python |
 
 An unverified method is never offered by the default picker. Promotion to
@@ -147,12 +152,68 @@ An unverified method is never offered by the default picker. Promotion to
 recorded in lm15-contract. Login success alone does not prove a subscription
 entitles you to anything; that is the provider's decision and your account's.
 
+### Claude login with a browser on another machine
+
+```python
+current = auth.status("claude-code").connection
+connection = auth.login(
+    "claude-code", "browser", ui=TerminalUI(), allow_unverified=True,
+    replace=current.id if current else None,
+)
+```
+
+`browser` opens Claude's hosted code page. Copy its complete `code#state` back
+into the waiting prompt; a full hosted return URL is also accepted and checked
+against the exact registered destination. No localhost listener is opened, so
+Python may be on a server while the browser is on your laptop. A new attempt
+needs a new code; it never replays a failed exchange automatically.
+
+The older localhost flow remains available as method `loopback` and still lacks
+live LM15 verification. The hosted method has now completed real LM15 login and
+inference. Separate fresh Python processes confirmed loading the saved credential,
+one successful renewal, and inference after reloading the renewed credential.
+Renewal was triggered early with a process-local freshness override; saved expiry
+and the wall clock were not falsified. This does not prove an unattended full
+expiry cycle, provider permission or included billing. Both methods still require
+`allow_unverified=True`, and the existing CLI credential route remains available.
+
+### OpenRouter: no manual key handling, but still a key
+
+```python
+auth.login("openrouter", "browser", ui=TerminalUI(), allow_unverified=True)
+```
+
+OpenRouter's approval page creates a user-controlled API key for the application.
+LM15 exchanges the authorization code and saves the key, so you do not need to
+create or paste one yourself. Requests spend OpenRouter credits; this is not
+subscription access. The approval page can set a spending limit and expiration.
+The observed live test used a $1 total limit, no automatic reset and no expiration.
+
+The saved key worked from a fresh Python process without another authorization
+or refresh request. Revoking the key or exhausting its limit still stops access.
+Immediate usage reporting may lag, so a zero usage value does not prove calls
+were free. Broader conformance review is still pending; explicit opt-in remains.
+
 ## Errors
 
 `AuthOperationError` (`code="auth_operation"`) is root-level and never
 auto-retried. Match on `.reason`; read `.commit_state` (`committed`,
 `not_committed`, `unknown`) before deciding whether the store changed;
 `.recovery` says what a person can do. Provider text is never copied into it.
+
+For a failed Claude token exchange, `.status` retains the HTTP status and
+`.provider_code` contains only a recognized OAuth error code (otherwise `None`).
+The message identifies JSON, HTML, empty or invalid responses. A security
+challenge is reported only when the response explicitly marks one; HTML or
+HTTP 403 alone does not establish the cause. Unknown provider messages are
+intentionally withheld rather than risking credentials in logs. These clues
+are not proof of registration permission or subscription entitlement, and do
+not authorize retrying a one-use code.
+
+Auth HTTP requests identify this SDK as `lm15/<version>` instead of inheriting
+Python urllib's default User-Agent. Provider-specific identifiers explicitly
+required by a flow are preserved; LM15 does not retry failed token exchanges
+with guessed headers or impersonate another HTTP library.
 
 ## Async
 

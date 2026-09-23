@@ -206,7 +206,9 @@ def test_descriptors_are_data_not_authority(sandbox: Path) -> None:
         auth.login("not-a-provider", ui=ScriptUI())
     assert info.value.reason == "method_unavailable"
     claude = [m for m in auth.methods("claude-code")]
-    assert {m.id: m.availability for m in claude} == {"browser": "unverified", "external:claude-code-cli": "supported"}
+    assert {m.id: m.availability for m in claude} == {
+        "browser": "unverified", "loopback": "unverified", "external:claude-code-cli": "supported",
+    }
     radius = auth.descriptor("radius")
     assert all(m.availability == "unavailable" for m in radius.methods)
 
