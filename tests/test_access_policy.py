@@ -108,13 +108,18 @@ def test_system_prefix_goes_first_and_keeps_the_callers_system() -> None:
 
 def test_codex_backend_consult_points() -> None:
     lm = OpenAILM(api_key="tok", access=OPENAI_CODEX, account_id="acct", transport=FakeTransport([]))
-    _, url, headers, body = _wire(lm, Request(model="gpt-5.5", messages=(Message.user("hi"),), config=Config(max_tokens=5)))
+    _, url, headers, body = _wire(lm, Request(model="gpt-5.5", messages=(Message.user("hi"),)))
     assert url.startswith(OPENAI_CODEX.base_url)
     assert headers["chatgpt-account-id"] == "acct"
     assert headers["originator"] == "lm15" and headers["OpenAI-Beta"] == "responses=experimental"
     assert body["instructions"] == OPENAI_CODEX.system_prefix
     assert body["store"] is False and body["stream"] is True
     assert "max_output_tokens" not in body
+    # A cap or store=True the backend cannot honour is refused, never stripped (MAP-13 rule 4).
+    for config, feature in ((Config(max_tokens=5), "config.max_tokens"), (Config(store=True), "config.store")):
+        with pytest.raises(UnsupportedFeatureError) as refused:
+            _wire(lm, Request(model="gpt-5.5", messages=(Message.user("hi"),), config=config))
+        assert refused.value.feature == feature and "openai-codex" in str(refused.value)
     # The detail envelope is the backend's, classified before the OpenAI shape.
     err = lm.normalize_error(400, json.dumps({"detail": "model gpt-x does not exist"}))
     assert type(err).__name__ == "UnsupportedModelError"

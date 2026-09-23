@@ -1044,7 +1044,21 @@ class OpenAILM(BaseProviderLM):
         if self._codex:
             # Backend facts (live 2026-08-31): the Codex backend is
             # streaming-only, rejects store=true and every max-token knob,
-            # and expects instructions to be present.
+            # and expects instructions to be present.  An explicit cap or
+            # store=True is refused, never stripped: dropping a cap means
+            # unbounded spend (MAP-13 rule 4; Rust and R refuse the same).
+            if request.config.max_tokens is not None:
+                raise UnsupportedFeatureError(
+                    f"{self.provider}: config.max_tokens: this backend has no output cap; "
+                    "dropping it risks unbounded paid generation",
+                    provider=self.provider, feature="config.max_tokens",
+                )
+            if request.config.store is True:
+                raise UnsupportedFeatureError(
+                    f"{self.provider}: config.store: this backend cannot store a retrievable "
+                    "response; the program may depend on retrieval",
+                    provider=self.provider, feature="config.store",
+                )
             if self.access.system_prefix:
                 payload.setdefault("instructions", self.access.system_prefix)
             payload["store"] = False

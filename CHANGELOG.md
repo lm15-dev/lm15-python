@@ -4,6 +4,13 @@
 
 Source version for the fixes below; updating the source does not publish a PyPI release.
 
+- **Codex: an output cap or `store=True` is refused, not silently stripped.**
+  The ChatGPT Codex backend accepts no max-token field; lm15 used to drop
+  `config.max_tokens` without a note, leaving the caller's spending limit
+  unapplied. It now raises `UnsupportedFeatureError` (`feature="config.max_tokens"`,
+  or `"config.store"`), as MAP-13 rule 4 requires and as the Rust and R SDKs
+  already did. Remove the cap for this provider, or use one that honours it.
+
 - **Removed tool derivation from functions** (breaking, before 1.0): `tool`,
   `derive_tool`, `ToolConfig`, `ToolDerivation`, `DerivedParam`,
   `ToolDerivationError` and the `lm15.tools` module. A tool is written as a
