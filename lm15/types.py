@@ -2009,6 +2009,29 @@ def _validate_response_format_shape(value: JsonObject | None) -> None:
 # ─── Request ─────────────────────────────────────────────────────────
 
 
+def _tools_tuple(tools: Any) -> tuple[Any, ...]:
+    """One tool, or a function passed where a tool belongs, becomes a one-tuple so the check below names it."""
+    if isinstance(tools, (FunctionTool, BuiltinTool)) or callable(tools):
+        return (tools,)
+    return tuple(tools)
+
+
+def _require_tools(owner: str, tools: tuple[Any, ...]) -> None:
+    """Tools are data: a request never holds a function. A function gets the fix named."""
+    for item in tools:
+        if isinstance(item, (FunctionTool, BuiltinTool)):
+            continue
+        if callable(item):
+            name = getattr(item, "__name__", None)
+            name = name if isinstance(name, str) and name.isidentifier() else None
+            what, call = (f"the function {name!r}", f"tool({name})") if name else (f"a callable {type(item).__name__} object", "tool(...)")
+            raise TypeError(
+                f"{owner}.tools must contain Tool objects, not {what}: derive its tool "
+                f"with {call} and keep the function to run when the model calls it."
+            )
+        raise TypeError(f"{owner}.tools must contain Tool objects, not {type(item).__name__}")
+
+
 @dataclass(frozen=True, slots=True)
 class _ModelRequest:
     """Base for endpoint requests/configs that require a model."""
@@ -2037,8 +2060,7 @@ class Request(_ModelRequest):
         _ModelRequest.__post_init__(self)
         messages = (self.messages,) if isinstance(self.messages, Message) else tuple(self.messages)
         object.__setattr__(self, "messages", messages)
-        tools = (self.tools,) if isinstance(self.tools, (FunctionTool, BuiltinTool)) else tuple(self.tools)
-        object.__setattr__(self, "tools", tools)
+        object.__setattr__(self, "tools", _tools_tuple(self.tools))
         object.__setattr__(self, "system", _normalize_system(self.system))
         if not self.messages:
             raise ValueError("at least one message is required")
@@ -2047,8 +2069,7 @@ class Request(_ModelRequest):
                 'Request.messages must contain Message objects — wrap plain '
                 'text with Message.user("...").'
             )
-        if not all(isinstance(t, (FunctionTool, BuiltinTool)) for t in self.tools):
-            raise TypeError("Request.tools must contain Tool objects")
+        _require_tools("Request", self.tools)
         tool_names = [t.name for t in self.tools]
         if len(set(tool_names)) != len(tool_names):
             raise ValueError("Request.tools cannot contain duplicate tool names")
@@ -2996,10 +3017,9 @@ class LiveConfig(_ModelRequest):
 
     def __post_init__(self) -> None:
         _ModelRequest.__post_init__(self)
-        object.__setattr__(self, "tools", tuple(self.tools))
+        object.__setattr__(self, "tools", _tools_tuple(self.tools))
         object.__setattr__(self, "system", _normalize_system(self.system))
-        if not all(isinstance(t, (FunctionTool, BuiltinTool)) for t in self.tools):
-            raise TypeError("LiveConfig.tools must contain Tool objects")
+        _require_tools("LiveConfig", self.tools)
         tool_names = [t.name for t in self.tools]
         if len(set(tool_names)) != len(tool_names):
             raise ValueError("LiveConfig.tools cannot contain duplicate tool names")

@@ -689,3 +689,30 @@ def test_non_finite_float_defaults_are_silently_skipped() -> None:
     assert "default" not in props["y"]
     assert props["z"]["default"] == 1.5
     assert "required" not in tool(f).parameters
+
+
+# ─── A function where a tool belongs ─────────────────────────────────
+
+def test_request_refuses_a_function_and_names_the_fix() -> None:
+    """A request holds data, never a function; the error says to derive the tool."""
+    message = lm15.Message.user("hi")
+    for tools in ((get_weather,), [get_weather], get_weather):
+        with pytest.raises(TypeError, match=r"not the function 'get_weather': derive its tool with tool\(get_weather\)"):
+            lm15.Request(model="m", messages=(message,), tools=tools)
+    with pytest.raises(TypeError, match=r"LiveConfig\.tools .* tool\(get_weather\)"):
+        lm15.LiveConfig(model="m", tools=[get_weather])
+
+
+def test_request_refuses_an_unnamed_callable_without_inventing_a_name() -> None:
+    message = lm15.Message.user("hi")
+    with pytest.raises(TypeError, match=r"not a callable function object: derive its tool with tool\(\.\.\.\)"):
+        lm15.Request(model="m", messages=(message,), tools=[lambda city: city])
+    with pytest.raises(TypeError, match=r"must contain Tool objects, not str$"):
+        lm15.Request(model="m", messages=(message,), tools=["get_weather"])
+
+
+def test_request_accepts_one_derived_tool_or_a_list() -> None:
+    message = lm15.Message.user("hi")
+    derived = tool(get_weather)
+    assert lm15.Request(model="m", messages=(message,), tools=derived).tools == (derived,)
+    assert lm15.Request(model="m", messages=[message], tools=[derived]).tools == (derived,)
