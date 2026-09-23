@@ -17,7 +17,7 @@ without spending a token: every LM exposes `build_request`.
 ```python
 import json
 
-from lm15 import Config, LMRouter, Message, Request, tool
+from lm15 import Config, FunctionTool, LMRouter, Message, Request
 
 router = LMRouter()
 
@@ -48,15 +48,9 @@ typo'd key is the provider's 400, not lm15's.
 caps total tool invocations across a Responses API run. Live:
 
 ```python
-def get_weather(city: str) -> str:
-    """Current weather for a city."""
-    return "22 C, clear"
-
-def get_time(city: str) -> str:
-    """Current local time in a city."""
-    return "14:05"
-
-weather, clock = tool(get_weather), tool(get_time)
+city = {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]}
+weather = FunctionTool(name="get_weather", description="Current weather for a city.", parameters=city)
+clock = FunctionTool(name="get_time", description="Current local time in a city.", parameters=city)
 
 request = Request(
     model="gpt-4.1-mini",
@@ -197,7 +191,7 @@ Promoting a blessed key to canonical later is an additive spec change.
 
 - [04 — Controlling generation](04-generation-config.md) — the canonical
   knobs you should exhaust first.
-- [06 — Function tools](06-function-tools.md) — `tool()` and the
+- [06 — Function tools](06-function-tools.md) — `FunctionTool` and the
   tool-call loop you own.
 - [07 — Built-in tools](07-builtin-tools.md) — provider-executed tools,
   whose traces land in `provider_data`.

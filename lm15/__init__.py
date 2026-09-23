@@ -223,16 +223,6 @@ from .transports import Timeouts
 # ── MAP-13 adaptations (lm15.adaptation) ──────────────────────────────
 from .adaptation import Adaptation, AdaptationPolicy
 
-# ── Tool derivation (lm15.tools) ─────────────────────────────────────
-from .tools import (
-    DerivedParam,
-    ToolConfig,
-    ToolDerivation,
-    ToolDerivationError,
-    tool,
-)
-from .tools import derive as derive_tool
-
 # ── Judgments (changes/2026-09-17-judgments.md) ─────────────────────
 from .judgments import choice, judgments, score, yes_no
 from .types import data
@@ -295,9 +285,6 @@ __all__ = [
     "Adaptation", "AdaptationPolicy",
     "UnknownModelError",
     "AmbiguousModelError", "MissingCredentialError",
-    # tool derivation (lm15.tools)
-    "tool", "derive_tool", "ToolConfig", "ToolDerivation", "DerivedParam",
-    "ToolDerivationError",
 ]
 
 

@@ -394,7 +394,7 @@ class TestModelOverrides:
 
     def test_override_applies_at_build_time(self):
         from lm15.errors import UnsupportedFeatureError
-        from lm15.tools import FunctionTool
+        from lm15.types import FunctionTool
         from lm15.types import Config, ToolChoice
 
         tool = FunctionTool(name="f", description="d", parameters={"type": "object"})

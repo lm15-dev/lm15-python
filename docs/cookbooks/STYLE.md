@@ -27,7 +27,7 @@ sentences of connective prose between block pairs — never a wall of code.
 
 Prose. Explain the mechanism: which types are involved, what goes on the
 wire, what lm15 deliberately does NOT do. Link to reference docs
-(`../using-the-router.md`, `../tools-from-functions.md`, etc.) instead of
+(`../using-the-router.md`, `../mapping-rules.md`, etc.) instead of
 re-explaining them.
 
 ## Variations
@@ -88,9 +88,8 @@ prefix='gpt-' — OpenAI GPT family …; key from $OPENAI_API_KEY.
   `AsyncLMRouter` by default. Direct LM construction appears only where
   it is the documented path: custom `base_url`/compat (recipe 16),
   passthrough specifics, library-embedding notes in Variations.
-- **Tools come from `lm15.tool()`.** Recipe 06 leads with
-  `tool(fn)`/`derive(fn)`; hand-written `FunctionTool` is shown once as
-  the canonical escape hatch, not the default.
+- **Tools are written as `FunctionTool`s**: name, description, JSON
+  Schema. lm15 does not derive schemas from functions (2026-09-23).
 - **Imports shown once per page**, in the first code block, complete.
   Later blocks on the same page assume them. Never re-import mid-page.
 - **Env keys are explained ONCE, in recipe 01.** Recipe 01 shows the
@@ -110,8 +109,7 @@ prefix='gpt-' — OpenAI GPT family …; key from $OPENAI_API_KEY.
 - **No try/except around demo code**, unless the recipe is *teaching*
   the error (recipe 17, ambiguity in recipe 18's edge notes). A recipe
   that needs defensive wrapping is a recipe with a broken example.
-- No type annotations on demo locals; full hints on functions passed to
-  `tool()` (they are the input). No `if __name__ == "__main__"`. No
+- No type annotations on demo locals. No `if __name__ == "__main__"`. No
   helper-function scaffolding unless it is the lesson.
 - Code blocks are runnable top-to-bottom within a page: a reader who
   pastes every block in order into one file gets the shown outputs.

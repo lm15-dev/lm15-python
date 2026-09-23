@@ -172,5 +172,4 @@ wants a `name` field alongside `type`, which the adapter fills in.
 - [06 — Function tools: define & dispatch](06-function-tools.md)
 - [05 — Streaming](05-streaming.md)
 - [08 — Structured output](08-structured-output.md)
-- [Tools from functions](../tools-from-functions.md)
 - [Using the router](../using-the-router.md)

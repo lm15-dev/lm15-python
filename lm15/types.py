@@ -2024,10 +2024,11 @@ def _require_tools(owner: str, tools: tuple[Any, ...]) -> None:
         if callable(item):
             name = getattr(item, "__name__", None)
             name = name if isinstance(name, str) and name.isidentifier() else None
-            what, call = (f"the function {name!r}", f"tool({name})") if name else (f"a callable {type(item).__name__} object", "tool(...)")
+            what = f"the function {name!r}" if name else f"a callable {type(item).__name__} object"
             raise TypeError(
-                f"{owner}.tools must contain Tool objects, not {what}: derive its tool "
-                f"with {call} and keep the function to run when the model calls it."
+                f"{owner}.tools must contain Tool objects, not {what}: describe it as "
+                'FunctionTool(name=..., description=..., parameters={...JSON Schema...}) '
+                "and keep the function to run when the model calls it."
             )
         raise TypeError(f"{owner}.tools must contain Tool objects, not {type(item).__name__}")
 

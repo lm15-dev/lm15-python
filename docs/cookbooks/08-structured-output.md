@@ -17,7 +17,7 @@ it on `Config.response_format`.
 ```python
 import json
 
-from lm15 import Config, LMRouter, Message, Request, ToolChoice, tool
+from lm15 import Config, FunctionTool, LMRouter, Message, Request, ToolChoice
 
 invoice_schema = {
     "type": "json_schema",
@@ -112,24 +112,26 @@ print(check_invoice({"vendor": "x", "total": -5, "currency": "GBP"}))
 ['missing line_items', 'bad total: -5', "bad currency: 'GBP'"]
 ```
 
-The other route: tools-as-extraction. Define the target shape as a
-function with `lm15.tool()`, force a call with
-`ToolChoice(mode="required")`, and read `tool_calls[0].input` — already
-a dict, no string parsing. The function body can be empty; nothing
-executes it.
+The other route: tools-as-extraction. Describe the target shape as a
+tool's input schema, force a call with `ToolChoice(mode="required")`,
+and read `tool_calls[0].input` — already a dict, no string parsing.
+No function exists behind the tool; nothing executes.
 
 ```python
-def record_invoice(vendor: str, total: float, currency: str, line_items: list[str]) -> None:
-    """Record one extracted invoice.
-
-    Args:
-        vendor: Company that issued the invoice.
-        total: Grand total, numeric.
-        currency: ISO 4217 code.
-        line_items: One string per line item.
-    """
-
-extract = tool(record_invoice)
+extract = FunctionTool(
+    name="record_invoice",
+    description="Record one extracted invoice.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "vendor": {"type": "string", "description": "Company that issued the invoice."},
+            "total": {"type": "number", "description": "Grand total, numeric."},
+            "currency": {"type": "string", "description": "ISO 4217 code."},
+            "line_items": {"type": "array", "items": {"type": "string"}, "description": "One string per line item."},
+        },
+        "required": ["vendor", "total", "currency", "line_items"],
+    },
+)
 r = router.complete(Request(
     model="claude-sonnet-4-5",
     messages=(Message.user(f"Record this invoice.\n\n{email}"),),
@@ -225,8 +227,7 @@ text to *be* the JSON document (logging, piping onward).
 
 ## See also
 
-- [06 — Function tools](06-function-tools.md) — `tool()`, `derive_tool()`, and dispatch.
+- [06 — Function tools](06-function-tools.md) — `FunctionTool` and dispatch.
 - [05 — Streaming](05-streaming.md) — buffering deltas before `json.loads`.
 - [02 — Conversations](02-conversations.md) — feeding tool results back.
-- [../tools-from-functions.md](../tools-from-functions.md) — schema derivation rules.
 - [../mapping-rules.md](../mapping-rules.md) — full per-provider wire mappings.

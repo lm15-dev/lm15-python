@@ -183,6 +183,11 @@ explicit prefix to use). The harness pins all of this:
 
 ## Part 2 — tools from native callables / types
 
+> **Withdrawn 2026-09-23.** lm15 does not derive tools from functions in
+> any language; Python's `tool(fn)` and Julia's `@tool` were removed before
+> 1.0. The text below is kept as the record of what was proposed. See
+> [Why no tools from functions?](design-rationale.md#why-no-tools-from-functions).
+
 ### Required behavior
 
 1. **Output is a plain canonical `FunctionTool`.** The `parameters`

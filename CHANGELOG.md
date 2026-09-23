@@ -4,6 +4,16 @@
 
 Source version for the fixes below; updating the source does not publish a PyPI release.
 
+- **Removed tool derivation from functions** (breaking, before 1.0): `tool`,
+  `derive_tool`, `ToolConfig`, `ToolDerivation`, `DerivedParam`,
+  `ToolDerivationError` and the `lm15.tools` module. A tool is written as a
+  `FunctionTool` (name, description, JSON Schema), as in every other lm15
+  language. A function passed in `Request.tools` or `LiveConfig.tools` is
+  refused with that fix named. Why: docs/design-rationale.md, "Why no tools
+  from functions?". Code that called `tool(fn)` builds the same tool by
+  writing its `FunctionTool` out; the schema it derived is printable with
+  lm15 1.0.0rc1–rc2 if needed.
+
 - Provider errors retain bounded, immutable `rate_limit_headers` evidence and
   display advisory retry/limit details without changing the provider message.
   Add millisecond retry-header fallback and Azure `apim-request-id`; no automatic

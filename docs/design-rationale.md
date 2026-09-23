@@ -198,39 +198,28 @@ env-key convention + keyless placeholder. Only presets with pinned,
 live-validated base URLs qualify; everything else keeps the explicit
 `OpenAIChatLM(base_url=...)` escape hatch.
 
-## Why `tool(fn)` and not a `@tool` decorator?
+## Why no tools from functions?
 
-A decorator replaces or wraps the function — magic, and an invitation to
-attach execution machinery to it later. `tool(fn)` is a pure function:
-callable in, plain frozen `FunctionTool` out, and you keep `fn` yourself
-(dispatch is `{f.__name__: f for f in (...)}`, in your code, with your
-sandboxing). lm15 still never executes tools.
+A tool is data: a name, a description, and a JSON Schema for its inputs.
+lm15 takes it written out, the same way in every language, and does not
+read one off a function.
 
-Derivation is eager and conservative: errors at definition time, and
-anything not obviously JSON-Schema-able raises `ToolDerivationError`
-rather than guess — soft on prose (missing docstring descriptions are
-fine), hard on types. Required-ness comes solely from defaults;
-`Optional[X]` is value nullability (`anyOf` with null) — orthogonal axes
-that most generators conflate.
+From June to September 2026 the Python package had `tool(fn)`, which
+derived the schema from a signature, its type hints and its docstring
+(Julia had `@tool`). It was removed before 1.0, on 2026-09-23:
 
-The honest trade-offs:
+- **It cannot be the same everywhere.** TypeScript, Rust and Go cannot
+  read a function's input types while a program runs, so the contract
+  already ruled it out for them. A feature that exists in two languages
+  out of six breaks "learn it once, use it in any language".
+- **It had already drifted.** Python's and Julia's versions built
+  different tools from the same function (Julia closed the schema with
+  `"additionalProperties": false`). Two answers to one question is what
+  the contract exists to prevent.
+- **It is a convenience with opinions**: which docstring style, which
+  types map to what, strict or open schemas. That is the job of the
+  library built on lm15, which can make those choices once for all the
+  languages it supports.
 
-- **Hand-written JSON Schema stays primary.** `tool()` covers the
-  common 90%; `format`, `pattern`, `minimum`, recursive `$ref` schemas
-  do not derive. The escape hatches are surgical
-  (`ToolConfig(overrides=...)` per parameter) or total (write the
-  `FunctionTool`).
-- **Docstring parsing is line-marker pragmatism, not a parser.** Google,
-  NumPy, and Sphinx markers are detected best-effort; weird formatting
-  silently yields no descriptions. We accepted that over a docstring
-  dependency (lm15 has zero) or strictness (failing a request because of
-  prose would be absurd).
-- **No `$ref` in v1** means recursion is an error — which makes adding
-  `$ref` later an extension rather than a behavior change.
-
-Cross-language: only the schema *invariants* are meant to port; the
-mechanism is per-language (derive macro in Rust, struct tags in Go,
-builders or structural schema acceptance in TS, reflection in Julia) —
-TypeScript can't even read erased annotations at runtime, which is why
-the diagnostic `derive()`/`ToolDerivation` surface is Python-only. See
-[router-portability](router-portability.md), part 2.
+A request holds only data, so a function passed in `tools` is refused,
+and the error says what to write instead. lm15 never executes tools.

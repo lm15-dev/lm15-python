@@ -16,8 +16,9 @@ same discipline as the code — see
   Completions ingest ship as **provisional**. Contract tests cover recorded
   behavior; they do not promise that every provider/account works live.
   The stability boundary below applies even after the package reaches 1.0.
-- The [model-string router](using-the-router.md) and
-  [tool derivation from functions](tools-from-functions.md) are available.
+- The [model-string router](using-the-router.md) is available. Tool
+  derivation from functions was removed before 1.0 (2026-09-23): a
+  `FunctionTool` is written out, in every language.
   The contract's [API-family playbook](https://github.com/lm15-dev/lm15-contract/blob/main/playbooks/api-family.md)
   governs the shared public names; an older router-portability proposal is
   not the authority for the current implementation.

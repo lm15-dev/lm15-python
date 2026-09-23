@@ -1,74 +1,43 @@
 # Function tools: define & dispatch
 
-**Problem** — You want the model to call your Python functions, but
-hand-writing JSON Schema for every signature is tedious and lm15 has no
-agent loop to do the calling for you. The recipe: derive the schema from
-the function, send the call, run the function yourself, feed the result
-back.
+**Problem** — You want the model to call your Python functions, and lm15
+has no agent loop to do the calling for you. The recipe: describe each
+function as a `FunctionTool`, send the call, run the function yourself,
+feed the result back.
 
 Keys loaded as in [recipe 01](01-first-request.md).
 
 ## Recipe
 
-`tool(fn)` reads a function's signature, type hints, and docstring and
-returns a frozen `FunctionTool`. It does not wrap, register, or execute
-anything — you keep `fn`.
+A `FunctionTool` is data: a name, a description the model reads, and a
+JSON Schema for the inputs. It does not wrap, register, or execute
+anything; the function stays yours.
 
 ```python
 import json
 from pprint import pprint
-from typing import Literal
 
-from lm15 import (
-    Config, FunctionTool, LMRouter, Message, Request, ToolChoice, derive_tool, tool,
-)
+from lm15 import Config, FunctionTool, LMRouter, Message, Request, ToolChoice
 
-def get_weather(city: str, unit: Literal["c", "f"] = "c") -> str:
-    """Get the current weather for a city.
-
-    Args:
-        city: City name, e.g. "Paris".
-        unit: Temperature unit.
-    """
+def get_weather(city: str, unit: str = "c") -> str:
     return f"22°{unit.upper()} in {city}"
 
-weather = tool(get_weather)
-print(weather.name)
-print(weather.description)
-pprint(weather.parameters)
-```
-```output
-get_weather
-Get the current weather for a city.
-{'properties': {'city': {'description': 'City name, e.g. "Paris".',
-                         'type': 'string'},
-                'unit': {'default': 'c',
-                         'description': 'Temperature unit.',
-                         'enum': ['c', 'f'],
-                         'type': 'string'}},
- 'required': ['city'],
- 'type': 'object'}
+weather = FunctionTool(
+    name="get_weather",
+    description="Get the current weather for a city.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "city": {"type": "string", "description": 'City name, e.g. "Paris".'},
+            "unit": {"enum": ["c", "f"], "type": "string", "description": "Temperature unit.", "default": "c"},
+        },
+        "required": ["city"],
+    },
+)
 ```
 
-When the schema looks wrong, ask `derive_tool()` why. It is `tool()` plus a
-full typed account: one `DerivedParam` per parameter, with the hint, the
-emitted fragment, and where each piece came from.
-
-```python
-d = derive_tool(get_weather)
-print(d.docstring_style_detected)
-for p in d.params:
-    print(f"{p.name}: {p.annotation} required={p.required} source={p.source}")
-```
-```output
-google
-city: str required=True source=hint+docstring
-unit: typing.Literal['c', 'f'] required=False source=hint+docstring
-```
-
-When you need schema features Python hints can't express — `pattern`,
-`minimum` — write the `FunctionTool` by hand. It is the canonical escape
-hatch, not the default:
+The schema can say more than Python's types: a `pattern`, a `minimum`,
+an upper bound on a count:
 
 ```python
 def search_flights(origin, dest, max_results=5):
@@ -163,11 +132,11 @@ stop
 ## How it works
 
 `FunctionTool.parameters` is opaque JSON Schema and goes on the wire
-unchanged; `tool(fn)` only fills it in. Derivation is eager — a
-non-derivable signature raises `ToolDerivationError` at `tool()` time,
-never at request time — and the full hint-to-schema table lives in
-[tools-from-functions](../tools-from-functions.md). It is deliberately
-not a decorator: a decorator would replace or wrap the function.
+unchanged. lm15 does not derive schemas from function signatures: that is
+a convenience with opinions (docstring styles, which types map to what,
+strict or open schemas), and it belongs to the library you build on lm15,
+where it can be the same for every language you support. A request holds
+only data; a function passed in `tools` is refused with this recipe named.
 
 On the response side, a model that wants tools answers with
 `finish_reason='tool_call'` and `ToolCallPart`s in `response.message`;
@@ -193,24 +162,9 @@ which builds one `ToolResultPart` per entry.
   `mode="none"` disables tool calls without removing the schemas;
   `parallel=False` asks for at most one call per turn where the
   provider supports it.
-- **When derivation refuses.** Hard inputs fail loudly rather than
-  guess — here, a fixed-length tuple:
-  ```python
-  def lookup(record: tuple[str, int]) -> str: ...
-  tool(lookup)
-  ```
-  ```output
-  ToolDerivationError: cannot derive 'lookup': parameter 'record' has
-  fixed-length tuple annotation tuple[str, int]; only homogeneous
-  tuple[X, ...] is supported; override this parameter via
-  ToolConfig(overrides=...) or pass an explicit FunctionTool with
-  hand-written parameters
-  ```
-  `ToolConfig(overrides=(("record", {...}),))` patches one parameter;
-  the hand-written `FunctionTool` remains the full escape hatch.
-- **Strict modes.** `ToolConfig(additional_properties_false=True)` emits
-  `"additionalProperties": false` for providers' strict tool modes;
-  those modes typically also require every property to be required.
+- **Strict modes.** Add `"additionalProperties": False` to the schema
+  for providers' strict tool modes; those modes typically also require
+  every property to be required.
 - **Provider notes.** Call ids differ in shape (`call_…` on OpenAI,
   `toolu_…` on Anthropic, short opaque ids on Gemini) — treat them as
   opaque and always echo them back in `Message.tool`.
@@ -220,5 +174,4 @@ which builds one `ToolResultPart` per entry.
 - [07 — Built-in provider tools](07-builtin-tools.md)
 - [08 — Structured output](08-structured-output.md)
 - [17 — Errors, retries & testing](17-errors-and-testing.md)
-- [Tools from functions](../tools-from-functions.md) — full derivation rules
 - [Using the router](../using-the-router.md)

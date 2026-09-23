@@ -56,11 +56,7 @@ class TestToolResultErgonomics:
 
 class TestToolsCoercion:
     def test_bare_function_tool_is_coerced(self) -> None:
-        def get_weather(city: str) -> str:
-            """Weather."""
-            return city
-
-        weather = lm15.tool(get_weather)
+        weather = lm15.FunctionTool(name="get_weather", description="Weather.")
         req = Request(model="m", messages=Message.user("hi"), tools=weather)
         assert req.tools == (weather,)
 

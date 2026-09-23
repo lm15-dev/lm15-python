@@ -24,7 +24,7 @@ import base64
 import os
 import wave
 
-from lm15 import LiveConfig, LMRouter, tool
+from lm15 import FunctionTool, LiveConfig, LMRouter
 
 MODEL = "gemini-3.1-flash-live-preview"
 router = LMRouter()
@@ -101,17 +101,20 @@ print("heard:", repr("".join(heard)))
 heard: 'live hello'
 ```
 
-Function tools work in live sessions. Derive one with `tool()`, pass it
+Function tools work in live sessions. Describe one as a `FunctionTool`, pass it
 in `LiveConfig`, answer `tool_call` events with `send_tool_result()` —
 you run the function, exactly as in recipe
 [06](06-function-tools.md):
 
 ```python
 def get_weather(city: str) -> str:
-    """Get current weather for a city."""
     return f"21°C and sunny in {city}"
 
-weather = tool(get_weather)
+weather = FunctionTool(
+    name="get_weather",
+    description="Get current weather for a city.",
+    parameters={"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]},
+)
 
 cfg = LiveConfig(model=MODEL, system="Use tools when useful. Be concise.", tools=(weather,))
 with lm.live(cfg) as session:
@@ -237,8 +240,8 @@ the transcript.
 lm15 deliberately stops there. No audio capture or playback, no
 reconnection, no voice-activity logic of its own, no tool execution —
 the `tool_call`/`send_tool_result` loop above is yours, same as the
-non-live dispatch loop in [tools from
-functions](../tools-from-functions.md). Model resolution is the
+non-live dispatch loop in [recipe
+06](06-function-tools.md). Model resolution is the
 ordinary router walk described in [using the
 router](../using-the-router.md); `live()` itself takes the wire model
 in `LiveConfig`.
@@ -295,4 +298,3 @@ in `LiveConfig`.
 - [06 — Function tools](06-function-tools.md) — the same dispatch loop, non-live.
 - [10 — Audio, video & reasoning models](10-audio-video-reasoning.md) — request/response audio.
 - [Using the router](../using-the-router.md) — resolution and `router.lm()`.
-- [Tools from functions](../tools-from-functions.md) — `tool()` derivation rules.

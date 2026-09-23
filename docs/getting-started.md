@@ -242,13 +242,16 @@ executes anything for you, which means no framework to fight when you
 want control over errors, retries, or budgets.
 
 ```python
-from lm15 import tool
+from lm15 import FunctionTool
 
 def get_weather(city: str) -> str:
-    """Current weather for a city."""
     return f"18°C and sunny in {city}"
 
-weather = tool(get_weather)   # FunctionTool derived from the signature
+weather = FunctionTool(       # what the model sees: name, description, input schema
+    name="get_weather",
+    description="Current weather for a city.",
+    parameters={"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]},
+)
 
 messages = (Message.user("What's the weather in Montreal right now?"),)
 r = router.complete(Request(model="claude-haiku-4-5", messages=messages, tools=(weather,)))

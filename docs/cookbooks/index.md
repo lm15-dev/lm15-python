@@ -19,7 +19,7 @@ capture. Style rules live in [STYLE.md](STYLE.md).
 ## Tools
 
 - [06 — Function tools: define & dispatch](06-function-tools.md) —
-  `tool(fn)` derives the schema; you run the loop. `derive_tool()` explains it.
+  describe a function as a `FunctionTool`; you run the loop.
 - [07 — Built-in provider tools](07-builtin-tools.md) — Web search, code
   execution, and friends: server-side tools you enable, not implement.
 - [08 — Structured output](08-structured-output.md) — JSON schemas in,
