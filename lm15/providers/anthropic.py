@@ -19,6 +19,7 @@ from ..errors import (
     TimeoutError,
     UnsupportedFeatureError,
     UnsupportedModelError,
+    is_pinned_model_not_found,
     canonical_error_code,
     map_http_error,
 )
@@ -359,7 +360,9 @@ class AnthropicLM(BaseProviderLM):
         cls = self._error_type_map.get(provider_code, ProviderError)
         if self._is_context_length_message(message):
             cls = ContextLengthError
-        elif provider_code == "not_found_error" and self._is_model_error(message):
+        elif (provider_code == "not_found_error" and self._is_model_error(message)) or is_pinned_model_not_found(
+            provider_code, message
+        ):  # MAP-15
             cls = UnsupportedModelError
         return ErrorDetail(
             code=canonical_error_code(cls),
@@ -392,7 +395,7 @@ class AnthropicLM(BaseProviderLM):
             # 2026-09-03); the message rule decides, as on the chat wire.
             if err_type == "DeploymentNotFound" or (
                 err_type in ("not_found_error", "resource_not_found_error") and self._is_model_error(msg)
-            ):
+            ) or is_pinned_model_not_found(err_type, msg):  # MAP-15
                 return self._provider_error(
                     UnsupportedModelError,
                     msg,

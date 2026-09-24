@@ -597,6 +597,40 @@ def with_credential_hint(error: ProviderError, hint: str) -> ProviderError:
 
 # ─── HTTP status → error class mapping ───────────────────────────────
 
+# MAP-15: the pinned forms of a provider's "no such model" answer that carry no
+# model-specific code and no not-found class (lm15-contract
+# spec/model-not-found.json, carried verbatim; each form has a live receipt).
+MODEL_NOT_FOUND_FORMS: tuple[dict[str, str], ...] = (
+    {"code": "not_found_error", "prefix": "model: "},  # Anthropic, Claude Code
+    {"code": "invalid_request_error", "contains": "The supported API model names are "},  # DeepSeek
+    {"code": "1211"},  # Z.AI: Unknown Model
+    {"code": "1214", "prefix": "modelCode: "},  # Z.AI: the model field is invalid
+    {"code": "400", "suffix": " is not a valid model ID"},  # OpenRouter
+    {"code": "invalid-argument", "prefix": "Model not found: "},  # xAI (2026-09-01)
+    {"code": "validation_error", "contains": "The provided model identifier is invalid"},  # Bedrock Chat
+)
+
+
+def is_pinned_model_not_found(provider_code: str | None, message: str | None) -> bool:
+    """True when the error is one of the pinned MAP-15 forms: the provider
+    code matches exactly and the message passes every text test the form
+    gives.  Never widened beyond the captured answers."""
+    if not provider_code:
+        return False
+    text = message or ""
+    for form in MODEL_NOT_FOUND_FORMS:
+        if form["code"] != provider_code:
+            continue
+        if "prefix" in form and not text.startswith(form["prefix"]):
+            continue
+        if "contains" in form and form["contains"] not in text:
+            continue
+        if "suffix" in form and not text.endswith(form["suffix"]):
+            continue
+        return True
+    return False
+
+
 def map_http_error(
     status: int,
     message: str,

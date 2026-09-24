@@ -23,6 +23,7 @@ from ..errors import (
     TimeoutError,
     UnsupportedFeatureError,
     UnsupportedModelError,
+    is_pinned_model_not_found,
     canonical_error_code,
     map_http_error,
 )
@@ -630,6 +631,8 @@ class OpenAILM(BaseProviderLM):
 
     def _error_detail(self, provider_code: str, message: str) -> ErrorDetail:
         cls = self._stream_error_code_map.get(provider_code, ProviderError)
+        if is_pinned_model_not_found(provider_code, message):  # MAP-15
+            cls = UnsupportedModelError
         return ErrorDetail(
             code=canonical_error_code(cls),
             message=message or provider_code or "provider error",
@@ -664,7 +667,7 @@ class OpenAILM(BaseProviderLM):
                 )
             if code in self._model_error_codes or (
                 status == 404 and self._is_model_error(msg, code, err_type)
-            ):
+            ) or is_pinned_model_not_found(provider_code, msg):  # MAP-15
                 return self._provider_error(
                     UnsupportedModelError,
                     msg,
