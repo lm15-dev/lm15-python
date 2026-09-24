@@ -170,10 +170,14 @@ def test_explicit_key_always_wins() -> None:
 def test_stored_probe_comes_from_the_policy(monkeypatch) -> None:
     import lm15.access as access
 
-    monkeypatch.setitem(access._STORED_PROBES, "xai", lambda: True)
+    # The router's probe is the four-state one (R3): only "usable" counts as stored.
+    monkeypatch.setitem(access._STORED_STATES, "xai", lambda: "usable")
     assert has_stored_credential(XAI) is True
     assert XaiLM.has_stored_credential() is True
     assert has_stored_credential(ANTHROPIC_API) is False
+    for blocked in ("unusable", "logged_out", "absent"):
+        monkeypatch.setitem(access._STORED_STATES, "xai", lambda state=blocked: state)
+        assert has_stored_credential(XAI) is False
 
 
 # ─── The value itself ────────────────────────────────────────────────

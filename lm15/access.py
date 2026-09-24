@@ -46,7 +46,6 @@ from .auth import (
     get_claude_code_access_token,
     get_codex_cli_access_token,
     get_xai_access_token,
-    usable_xai_credential,
     xai_stored_state,
 )
 from .compat import ANTHROPIC_PRESET_BASE_URLS, OPENAI_CHAT_PRESET_BASE_URLS, OPENAI_RESPONSES_PRESET_BASE_URLS
@@ -658,11 +657,6 @@ _CREDENTIAL_LOADERS: dict[str, Callable[[str | os.PathLike[str] | None], LoadedC
     "openai-codex": _load_openai_codex,
     "xai": _load_xai,
 }
-
-_STORED_PROBES: dict[str, Callable[[], bool]] = {
-    "xai": usable_xai_credential,
-}
-
 
 def load_credential(
     policy: AccessPolicy,
