@@ -256,7 +256,20 @@ def _cache_common_payload(request: Request, payload: dict, cache_control: str, p
     swallows silently — Meta, live 2026-09-03).
     """
     cache_cfg = request.config.cache
-    if cache_cfg is None or cache_control not in ("openai", "openai_implicit"):
+    if cache_cfg is None:
+        return
+    if cache_control not in ("openai", "openai_implicit"):
+        # MAP-13: the key and the lifetime have no home on a server without
+        # OpenAI's cache fields; dropped and recorded (implicit caching, where
+        # the server has it, still applies).
+        if cache_cfg.key is not None:
+            adapt("config.cache.key", "dropped",
+                  "this server has no cache affinity field; implicit caching still applies",
+                  asked=cache_cfg.key, provider=provider)
+        if cache_cfg.retention == "long":
+            adapt("config.cache.retention", "dropped",
+                  "this server has no in-request cache lifetime knob; implicit caching still applies",
+                  asked="long", provider=provider)
         return
     if cache_control == "openai_implicit":
         if cache_cfg.mode != "off":

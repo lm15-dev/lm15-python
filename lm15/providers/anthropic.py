@@ -594,13 +594,19 @@ class AnthropicLM(BaseProviderLM):
         # which walks backwards silently when the last block is ineligible.
         # prefix="stable" (and plain auto) mark the system block below.
         # key / resource name mechanisms the Messages API does not have.
+        if cache_cfg is not None and cache_cfg.key is not None:
+            # MAP-13: a best-effort routing hint by definition; no home on
+            # this wire, whether or not the server takes marks.
+            adapt("config.cache.key", "dropped",
+                  "the Messages API has no cache affinity key (OpenAI's prompt_cache_key); "
+                  "marks on blocks are its mechanism",
+                  asked=cache_cfg.key, provider=self.provider)
+        if cache_cfg is not None and cache_cfg.retention == "long" and compat.cache_control != "anthropic":
+            # MAP-13: the TTL rides a cache mark, and this server takes none.
+            adapt("config.cache.retention", "dropped",
+                  "this server caches implicitly and has no cache-control TTL",
+                  asked="long", provider=self.provider)
         if use_cache and cache_cfg is not None:
-            if cache_cfg.key is not None:
-                # MAP-13: a best-effort routing hint by definition; no home here.
-                adapt("config.cache.key", "dropped",
-                      "the Messages API has no cache affinity key (OpenAI's prompt_cache_key); "
-                      "marks on blocks are its mechanism and were placed",
-                      asked=cache_cfg.key, provider=self.provider)
             if cache_cfg.resource is not None:
                 # MAP-13 rule 4(b): the program references a stored object
                 # that does not exist on this provider.
