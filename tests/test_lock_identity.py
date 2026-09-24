@@ -159,3 +159,16 @@ def test_windows_ambiguous_missing_names_fail_closed(tmp_path):
     for target in (r"C:relative.json", r"\\.\NUL", r"\\?\GLOBALROOT\Device\X"):
         with pytest.raises(ValueError):
             lock_path_for(target)
+
+
+def test_no_home_directory_is_the_typed_not_configured_error(monkeypatch):
+    """Where "~" cannot be expanded (Windows with no USERPROFILE has no passwd
+    fallback), the lock path fails with the same NotConfiguredError and remedy
+    as the lock directory, not a bare ValueError."""
+    from lm15._authlock import _real_path_allow_missing
+    from lm15.errors import NotConfiguredError
+
+    monkeypatch.setattr(os.path, "expanduser", lambda path: path)
+    with pytest.raises(NotConfiguredError) as info:
+        _real_path_allow_missing("~/.claude/.credentials.json")
+    assert "LM15_LOCK_DIR" in str(info.value)

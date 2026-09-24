@@ -93,9 +93,21 @@ def test_all_readme_python_examples(monkeypatch, tmp_path):
     def no_network(*args, **kwargs):
         raise AssertionError("README tests must never access real services")
 
+    # Loopback is not a service: on Windows, asyncio's event loop connects a
+    # socket pair to itself over 127.0.0.1 (no Unix pipes there).
+    real_connect, real_connect_ex = socket.socket.connect, socket.socket.connect_ex
+
+    def loopback_only(real):
+        def connect(sock, address, *args, **kwargs):
+            host = address[0] if isinstance(address, tuple) else address
+            if host in ("127.0.0.1", "::1", "localhost"):
+                return real(sock, address, *args, **kwargs)
+            return no_network()
+        return connect
+
     monkeypatch.setattr(socket, "create_connection", no_network)
-    monkeypatch.setattr(socket.socket, "connect", no_network)
-    monkeypatch.setattr(socket.socket, "connect_ex", no_network)
+    monkeypatch.setattr(socket.socket, "connect", loopback_only(real_connect))
+    monkeypatch.setattr(socket.socket, "connect_ex", loopback_only(real_connect_ex))
     for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"):
         monkeypatch.setenv(key, "offline-test-key")
 

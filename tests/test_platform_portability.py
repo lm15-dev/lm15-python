@@ -108,6 +108,7 @@ def test_imports_without_a_home_directory(tmp_path: Path) -> None:
     assert "LM15_LOCK_DIR" in message
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows' own subprocess module imports msvcrt, so a Windows Python without it cannot start lm15 at all")
 def test_lock_refuses_by_name_without_fcntl_or_msvcrt(tmp_path: Path) -> None:
     env = _base_env(tmp_path)
     env["LM15_LOCK_DIR"] = str(tmp_path / "locks")
