@@ -1,5 +1,6 @@
 """Offline regression tests for cloud routing and credential boundaries."""
 
+import os
 import datetime as dt
 import inspect
 import io
@@ -291,21 +292,32 @@ def test_credential_tags_cannot_be_overridden():
         AwsCredentials("id", 123)
 
 
-@pytest.mark.parametrize("path", ["/private/key", "/var/opt/azcmagent/tokens/../key", "/var/opt/azcmagent/tokens/key.txt"])
+# Azure Arc keeps its challenge token in one folder per platform. Each test
+# runs on the platform whose rules it checks: pathlib reads paths the host's
+# way, so faking os.name on the other platform tests nothing real.
+_WINDOWS = os.name == "nt"
+_ARC_DIR = r"C:\ProgramData\AzureConnectedMachineAgent\Tokens" if _WINDOWS else "/var/opt/azcmagent/tokens"
+_ARC_ENV = {"IDENTITY_ENDPOINT": "http://localhost/identity", "IMDS_ENDPOINT": "http://localhost",
+            **({"PROGRAMDATA": r"C:\ProgramData"} if _WINDOWS else {})}
+_ARC_OUTSIDE = (
+    [r"C:\private\key.key", _ARC_DIR + r"\..\key.key", _ARC_DIR + r"\key.txt"]
+    if _WINDOWS else
+    ["/private/key", "/var/opt/azcmagent/tokens/../key", "/var/opt/azcmagent/tokens/key.txt"]
+)
+
+
+@pytest.mark.parametrize("path", _ARC_OUTSIDE)
 def test_arc_challenge_cannot_read_arbitrary_files(monkeypatch, path):
-    monkeypatch.setattr(chains.os, "name", "posix")
-    ctx = chains.ChainContext(env={"IDENTITY_ENDPOINT": "http://localhost/identity", "IMDS_ENDPOINT": "http://localhost"},
-                              files={path: SECRET},
+    ctx = chains.ChainContext(env=_ARC_ENV, files={path: SECRET},
                               http=lambda *a: (401, {"www-authenticate": f'Basic realm="{path}"'}, b""))
     monkeypatch.setattr(ctx, "read", lambda path: pytest.fail("untrusted challenge file read"))
     with pytest.raises(AuthError, match="invalid challenge file location"):
         chains._azure_msi_acquire(ctx)
 
 
-def test_arc_valid_challenge_uses_only_the_agent_token(monkeypatch):
-    monkeypatch.setattr(chains.os, "name", "posix")
+def test_arc_valid_challenge_uses_only_the_agent_token():
     calls = []
-    path = "/var/opt/azcmagent/tokens/token.key"
+    path = (_ARC_DIR + "\\token.key") if _WINDOWS else "/var/opt/azcmagent/tokens/token.key"
 
     def http(method, url, headers, body, timeout):
         calls.append(headers)
@@ -313,8 +325,7 @@ def test_arc_valid_challenge_uses_only_the_agent_token(monkeypatch):
             return 401, {"www-authenticate": f'Basic realm="{path}"'}, b""
         return 200, {}, b'{"access_token":"test","expires_in":3600}'
 
-    ctx = chains.ChainContext(env={"IDENTITY_ENDPOINT": "http://localhost/identity", "IMDS_ENDPOINT": "http://localhost"},
-                              files={path: SECRET}, http=http, now=lambda: NOW)
+    ctx = chains.ChainContext(env=_ARC_ENV, files={path: SECRET}, http=http, now=lambda: NOW)
     assert chains._azure_msi_acquire(ctx).value == "test"
     assert calls[1]["Authorization"] == f"Basic {SECRET}"
 

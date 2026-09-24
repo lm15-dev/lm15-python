@@ -122,7 +122,7 @@ def test_tutorial_stream_and_auth_blocks_run_offline(capsys):
     """Execute the actual public examples, not a separately maintained copy."""
     import re
     from pathlib import Path
-    doc = (Path(__file__).resolve().parents[1] / "docs/migrating-from-openai-chat.md").read_text()
+    doc = (Path(__file__).resolve().parents[1] / "docs/migrating-from-openai-chat.md").read_text(encoding="utf-8")
     blocks = re.findall(r"^```python\n(.*?)^```", doc, re.M | re.S)
     transport = FakeTransport([FakeResponse(200, SSE)])
     keyed_router = LMRouter(RouterConfig(env={"OPENAI_API_KEY": "ambient-test-key"},

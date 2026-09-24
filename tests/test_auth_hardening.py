@@ -47,6 +47,15 @@ from lm15.authkit import (
 from lm15.doctor import explain_auth
 from lm15.errors import AuthError
 
+
+def _assert_owner_only(path) -> None:
+    """0600 where the file system has POSIX modes. Windows has none: chmod
+    can only set read-only, and a file in the user's profile inherits its
+    owner-only ACL. The atomic-write checks around each call still run."""
+    if os.name == "nt":
+        return
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
 SENTINEL = "SECRET-SENTINEL-DO-NOT-PRINT"
 
 
@@ -69,8 +78,8 @@ class TestAtomicWrite:
     def test_writes_content_with_0600_and_no_temp_leftovers(self, tmp_path) -> None:
         target = tmp_path / "creds.json"
         write_private_json_atomic(target, {"k": "v"})
-        assert json.loads(target.read_text()) == {"k": "v"}
-        assert stat.S_IMODE(target.stat().st_mode) == 0o600
+        assert json.loads(target.read_text(encoding="utf-8")) == {"k": "v"}
+        _assert_owner_only(target)
         assert [p.name for p in tmp_path.iterdir()] == ["creds.json"]
 
     def test_failed_replace_preserves_old_file_and_cleans_temp(self, tmp_path, monkeypatch) -> None:
@@ -84,7 +93,7 @@ class TestAtomicWrite:
         with pytest.raises(OSError, match="simulated crash"):
             write_private_json_atomic(target, {"new": True})
         monkeypatch.undo()
-        assert json.loads(target.read_text()) == {"old": True}
+        assert json.loads(target.read_text(encoding="utf-8")) == {"old": True}
         assert [p.name for p in tmp_path.iterdir()] == ["creds.json"]
 
     def test_creates_parent_directories(self, tmp_path) -> None:
@@ -205,7 +214,7 @@ class TestDoubleCheckedRefresh:
         monkeypatch.setattr(auth_module, "refresh_claude_code_credential", fake_refresh)
         assert get_claude_code_access_token(path) == "fresh"
         assert calls == ["rt-old"]
-        stored = json.loads(path.read_text())["claudeAiOauth"]
+        stored = json.loads(path.read_text(encoding="utf-8"))["claudeAiOauth"]
         assert stored["accessToken"] == "fresh"
         assert stored["refreshToken"] == "rt-rotated"
 
@@ -214,8 +223,8 @@ class TestDoubleCheckedRefresh:
         write_claude_code_credential(
             LocalOAuthCredential(access_token="a", refresh_token="r", expires_at=123), path
         )
-        assert stat.S_IMODE(path.stat().st_mode) == 0o600
-        assert json.loads(path.read_text())["claudeAiOauth"]["accessToken"] == "a"
+        _assert_owner_only(path)
+        assert json.loads(path.read_text(encoding="utf-8"))["claudeAiOauth"]["accessToken"] == "a"
 
 
 # ─── PKCE ────────────────────────────────────────────────────────────
@@ -373,7 +382,7 @@ class TestCredentialFileStore:
     def test_file_is_private_and_atomic(self, tmp_path) -> None:
         store = CredentialFileStore(tmp_path / "credentials.json")
         store.write("p", {"key": "v"})
-        assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
+        _assert_owner_only(store.path)
         assert [p.name for p in tmp_path.iterdir() if p.is_file()] == ["credentials.json"]
 
     def test_mutate_sees_current_value_inside_lock(self, tmp_path) -> None:
@@ -417,7 +426,7 @@ class TestCredentialFileStore:
     def test_corrupt_store_is_a_typed_error_not_a_json_traceback(self, tmp_path) -> None:
         path = tmp_path / "credentials.json"
         path.write_text("{not json", encoding="utf-8")
-        with pytest.raises(ValueError, match=str(path)):
+        with pytest.raises(ValueError, match=re.escape(str(path))):
             CredentialFileStore(path).read("p")
 
 

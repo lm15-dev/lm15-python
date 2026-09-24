@@ -9,6 +9,7 @@ WASI reports ``posix`` without ``fcntl``, and ``Path.expanduser()`` raises
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import textwrap
@@ -27,18 +28,27 @@ def _run(source: str, *, env: dict[str, str] | None = None) -> dict:
         cwd=_REPO,
         env=env,
         timeout=60,
+        encoding="utf-8",
     )
     assert proc.returncode == 0, proc.stderr
     return json.loads(proc.stdout.strip().splitlines()[-1])
 
 
 def _base_env(tmp_path: Path) -> dict[str, str]:
-    return {
+    """A minimal environment, per platform. Windows keeps SYSTEMROOT (sockets
+    cannot initialize without it: WinError 10106) and puts the home folder in
+    USERPROFILE."""
+    env = {
         "PATH": "/usr/bin:/bin",
         "HOME": str(tmp_path),
         "PYTHONPATH": str(_REPO),
         "PYTHONDONTWRITEBYTECODE": "1",
     }
+    if os.name == "nt":
+        env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+        env["PATH"] = os.path.join(os.environ["SYSTEMROOT"], "System32")
+        env["USERPROFILE"] = str(tmp_path)
+    return env
 
 
 def test_imports_and_serves_plain_http_without_ssl(tmp_path: Path) -> None:
@@ -67,6 +77,7 @@ def test_imports_and_serves_plain_http_without_ssl(tmp_path: Path) -> None:
 def test_imports_without_a_home_directory(tmp_path: Path) -> None:
     env = _base_env(tmp_path)
     del env["HOME"]
+    env.pop("USERPROFILE", None)
     out = _run(
         """
         import json, pathlib

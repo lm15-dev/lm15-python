@@ -31,17 +31,17 @@ from lm15.registry import PROVIDERS
 from lm15.types import Message, Request
 
 CONTRACT = Path(__file__).resolve().parents[2] / "lm15-contract"
-SIGV4 = json.loads((CONTRACT / "auth" / "sigv4-vectors.json").read_text())
-TOKENS = json.loads((CONTRACT / "auth" / "token-vectors.json").read_text())
-TEST_KEY = (CONTRACT / "auth" / "test-keys" / "rsa-2048-test-only.pem").read_text()
-TEST_CERT = (CONTRACT / "auth" / "test-keys" / "rsa-2048-test-only.cert.pem").read_text()
+SIGV4 = json.loads((CONTRACT / "auth" / "sigv4-vectors.json").read_text(encoding="utf-8"))
+TOKENS = json.loads((CONTRACT / "auth" / "token-vectors.json").read_text(encoding="utf-8"))
+TEST_KEY = (CONTRACT / "auth" / "test-keys" / "rsa-2048-test-only.pem").read_text(encoding="utf-8")
+TEST_CERT = (CONTRACT / "auth" / "test-keys" / "rsa-2048-test-only.cert.pem").read_text(encoding="utf-8")
 NOW = dt.datetime(2026, 9, 3, 12, 0, 0, tzinfo=dt.timezone.utc)
 AWS = AwsCredentials("AKIDEXAMPLE", "wJalrXUtNFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY".replace("tNF", "tnF"), session_token="SESSION-VECTOR")
 
 
 def _expand(value):
     if isinstance(value, dict) and "$file" in value:
-        text = (CONTRACT / value["$file"]).read_text()
+        text = (CONTRACT / value["$file"]).read_text(encoding="utf-8")
         if value.get("strip_comment_lines"):
             text = "\n".join(line for line in text.splitlines() if not line.startswith("#")) + "\n"
         return text
@@ -63,7 +63,7 @@ class TestCredentials:
         for value in (ApiKey("s3cret"), BearerToken("s3cret"), AwsCredentials("AKID", "s3cret", session_token="s3cret")):
             assert "s3cret" not in repr(value)
 
-    @pytest.mark.parametrize("case", [c for c in json.loads((CONTRACT / "serde" / "canonical.json").read_text())["cases"] if c["kind"] == "credential"],
+    @pytest.mark.parametrize("case", [c for c in json.loads((CONTRACT / "serde" / "canonical.json").read_text(encoding="utf-8"))["cases"] if c["kind"] == "credential"],
                              ids=lambda c: c["id"])
     def test_canonical_roundtrip(self, case):
         assert credential_to_dict(credential_from_dict(case["value"])) == case["value"]

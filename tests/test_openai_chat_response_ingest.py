@@ -25,7 +25,7 @@ from lm15.providers.openai_chat import response_from_openai_chat
 from lm15.types import Message, TextPart, ToolCallPart
 from lm15.vet import adapter_for_provider
 
-FIXTURES = json.loads((Path(__file__).parent / "fixtures" / "litellm_responses.json").read_text())
+FIXTURES = json.loads((Path(__file__).parent / "fixtures" / "litellm_responses.json").read_text(encoding="utf-8"))
 
 
 def test_exported_and_on_both_adapters() -> None:
@@ -86,7 +86,7 @@ def test_model_fallback_and_error_envelope() -> None:
 def _recorded_chat_bodies():
     root = contract_root()
     for path in sorted((root / "cases").glob("*/*.json")):
-        case = json.loads(path.read_text())
+        case = json.loads(path.read_text(encoding="utf-8"))
         req = case.get("request") or {}
         if not str(req.get("url", "")).split("?", 1)[0].endswith("/chat/completions"):
             continue

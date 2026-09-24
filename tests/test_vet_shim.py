@@ -54,7 +54,7 @@ ALL_OPS = [
 
 
 def load_case(provider: str, feature: str) -> dict:
-    return json.loads((CONTRACT_ROOT / "cases" / provider / f"{feature}.json").read_text())
+    return json.loads((CONTRACT_ROOT / "cases" / provider / f"{feature}.json").read_text(encoding="utf-8"))
 
 
 def pinned_body_b64(case: dict) -> str:
@@ -72,6 +72,7 @@ def run_shim(requests: list[dict]) -> dict[str, dict]:
         text=True,
         cwd=REPO_ROOT,
         timeout=120,
+        encoding="utf-8",
     )
     assert proc.returncode == 0, proc.stderr
     lines = proc.stdout.splitlines()
@@ -91,9 +92,9 @@ def replies() -> dict[str, dict]:
     basic = load_case("openai", "basic_text")
     streaming = load_case("openai", "streaming")
     streaming_synth = load_case("gemini", "streaming")
-    error_cases = json.loads((CONTRACT_ROOT / "errors" / "cases" / "openai.json").read_text())["cases"]
+    error_cases = json.loads((CONTRACT_ROOT / "errors" / "cases" / "openai.json").read_text(encoding="utf-8"))["cases"]
     auth_case = next(c for c in error_cases if c["id"] == "openai.auth_invalid_key")
-    serde_cases = json.loads((CONTRACT_ROOT / "serde" / "canonical.json").read_text())["cases"]
+    serde_cases = json.loads((CONTRACT_ROOT / "serde" / "canonical.json").read_text(encoding="utf-8"))["cases"]
 
     requests = [
         {"op": "capabilities", "id": "capabilities"},

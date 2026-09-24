@@ -35,7 +35,7 @@ EXPIRED_ENTRY = {"type": "oauth", "access": "at-old", "refresh": "rt-old", "expi
 
 def _store(tmp_path, entry, name="credentials.json"):
     path = tmp_path / name
-    path.write_text(json.dumps({"xai": entry}))
+    path.write_text(json.dumps({"xai": entry}), encoding="utf-8")
     return path
 
 
@@ -87,7 +87,7 @@ def test_expired_token_refreshes_and_writes_back(tmp_path, monkeypatch):
 
     monkeypatch.setattr(auth, "_post_form", fake_post_form)
     assert get_xai_access_token(path) == "at-new"
-    stored = json.loads(path.read_text())["xai"]
+    stored = json.loads(path.read_text(encoding="utf-8"))["xai"]
     assert stored["access"] == "at-new"
     assert stored["refresh"] == "rt-new"  # rotated token persisted
     assert stored["expires"] > NOW_MS
@@ -97,7 +97,7 @@ def test_refresh_without_rotation_keeps_old_refresh_token(tmp_path, monkeypatch)
     path = _store(tmp_path, EXPIRED_ENTRY)
     monkeypatch.setattr(auth, "_post_form", lambda url, payload: {"access_token": "at-new"})
     assert get_xai_access_token(path) == "at-new"
-    assert json.loads(path.read_text())["xai"]["refresh"] == "rt-old"
+    assert json.loads(path.read_text(encoding="utf-8"))["xai"]["refresh"] == "rt-old"
 
 
 def test_expired_without_refresh_token_raises(tmp_path):

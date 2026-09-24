@@ -45,7 +45,7 @@ LINE = re.compile(r"^(?P<path>[^:]+):(?P<line>\d+): error: (?P<message>.*?)  \[(
 
 
 def mypy(args: list[str]) -> list[str]:
-    done = subprocess.run([sys.executable, "-m", "mypy", *args], cwd=ROOT, capture_output=True, text=True)
+    done = subprocess.run([sys.executable, "-m", "mypy", *args], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
     if done.returncode not in (0, 1):
         raise SystemExit(f"mypy failed to run:\n{done.stdout}{done.stderr}")
     return [line for line in done.stdout.splitlines() if ": error:" in line]
@@ -74,7 +74,7 @@ def package_findings() -> collections.Counter[str]:
 
 def read_baseline() -> collections.Counter[str]:
     known: collections.Counter[str] = collections.Counter()
-    for line in BASELINE.read_text().splitlines():
+    for line in BASELINE.read_text(encoding="utf-8").splitlines():
         if line and not line.startswith("#"):
             count, key = line.split(" ", 1)
             known[key] = int(count)
@@ -85,7 +85,7 @@ def write_baseline(found: collections.Counter[str]) -> None:
     header = ("# Known mypy findings inside lm15/ (tools/typecheck.py). Count, then path|code|message.\n"
               "# The gate fails on anything new, and on any entry that no longer occurs.\n"
               f"# Total: {sum(found.values())}\n")
-    BASELINE.write_text(header + "".join(f"{n} {k}\n" for k, n in sorted(found.items())))
+    BASELINE.write_text(header + "".join(f"{n} {k}\n" for k, n in sorted(found.items())), encoding="utf-8")
 
 
 def check_package(update: bool) -> int:
@@ -117,13 +117,13 @@ def refresh_examples(website: Path) -> None:
         "console.log(JSON.stringify(tourPrograms('python', 'anthropic', 'claude-haiku-4-5')));"
     )
     out = subprocess.run(["node", "--experimental-strip-types", "--no-warnings", "--input-type=module", "-e", script],
-                         cwd=website, capture_output=True, text=True, check=True).stdout
+                         cwd=website, capture_output=True, text=True, check=True, encoding="utf-8").stdout
     for old in EXAMPLES.glob("*.py"):
         old.unlink()
     EXAMPLES.mkdir(parents=True, exist_ok=True)
     for program in json.loads(out):
         name = re.sub(r"[^a-z0-9]+", "_", program["name"].lower())
-        (EXAMPLES / f"docs_{name}.py").write_text(program["source"].rstrip("\n") + "\n")
+        (EXAMPLES / f"docs_{name}.py").write_text(program["source"].rstrip("\n") + "\n", encoding="utf-8")
     # Pages whose examples are steps of one session: joined in page order.
     sessions = {
         "judgments_page": ("judgments", ["answers", "ask", "expected", "chat", "required", "table"]),
@@ -133,8 +133,8 @@ def refresh_examples(website: Path) -> None:
         "authentication_login": ("authentication", ["login"]),
     }
     for target, (folder, steps) in sessions.items():
-        parts = [(website / "src/data" / folder / f"{s}.py").read_text().rstrip("\n") for s in steps]
-        (EXAMPLES / f"{target}.py").write_text("\n\n".join(parts) + "\n")
+        parts = [(website / "src/data" / folder / f"{s}.py").read_text(encoding="utf-8").rstrip("\n") for s in steps]
+        (EXAMPLES / f"{target}.py").write_text("\n\n".join(parts) + "\n", encoding="utf-8")
     print(f"examples refreshed from {website}: {len(list(EXAMPLES.glob('*.py')))} programs")
 
 

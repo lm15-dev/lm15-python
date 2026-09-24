@@ -54,7 +54,7 @@ def test_custom_server_tutorial(monkeypatch, capsys, token):
 
     monkeypatch.setattr(lm15, "OpenAIChatLM", client)
     scope = {}
-    blocks = list(BLOCKS.finditer(DOC.read_text()))
+    blocks = list(BLOCKS.finditer(DOC.read_text(encoding="utf-8")))
     assert len(blocks) == 6, "Review new examples and their expected output"
     live_count = 0
     for block in blocks:

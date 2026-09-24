@@ -34,7 +34,7 @@ class CaseResult:
 
 
 def load_logical_cases() -> list[JsonObject]:
-    data = json.loads(CASES_FILE.read_text())
+    data = json.loads(CASES_FILE.read_text(encoding="utf-8"))
     return list(data.get("cases", []))
 
 
@@ -43,7 +43,7 @@ def load_fixture(case_id: str) -> JsonObject | None:
     path = FIXTURE_ROOT / provider / f"{feature}.json"
     if not path.exists():
         return None
-    return json.loads(path.read_text())
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def expected_request(fixture: JsonObject) -> JsonObject:
@@ -211,7 +211,7 @@ def write_markdown(results: list[CaseResult], path: Path) -> None:
     for result in results:
         reason = (result.reason or "").replace("|", "\\|")
         lines.append(f"| `{result.case_id}` | {result.provider} | {result.status} | {reason} |")
-    path.write_text("\n".join(lines) + "\n")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -242,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
         "total": len(results),
         "results": [result_to_dict(result) for result in results],
     }
-    json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_markdown(results, md_path)
 
     print(f"request fixture conformance: {counts} / total={len(results)}")

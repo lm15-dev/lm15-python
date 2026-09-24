@@ -11,7 +11,13 @@
   values) accept an ordinary `dict`, since their contents are checked at
   runtime; `Message.tool` accepts any mapping. The transport `release`
   callbacks and three annotations naming unimported types are corrected.
-- CI: tests on Python 3.10–3.14 × Linux, macOS, Windows; a type-checking gate.
+- **Windows.** A local path in canonical JSON (`FileUploadRequest.path`, media
+  parts' `path`) is written with `/` on every OS, as INV-009 now says; on
+  Windows it was `\data\clip.mp4`, so the same request serialized
+  differently there. A cloud CLI's output (`az`, `gcloud`) is decoded as UTF-8
+  leniently, so an unusual character in its messages cannot crash a sign-in.
+- CI: tests on Python 3.10–3.14 × Linux, macOS, Windows, with deprecations and
+  text I/O that does not name its encoding as errors; a type-checking gate.
 
 ## 1.0.0rc3 — 2026-09-24
 

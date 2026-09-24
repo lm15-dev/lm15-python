@@ -244,7 +244,7 @@ def test_device_login_saves_actual_expiry_and_one_owner(sandbox: Path) -> None:
     notice = next(n for n in ui.notices if isinstance(n, DeviceCodeNotice))
     assert notice.user_code == "ABCD-1234" and notice.verification_url.startswith("https://")
     no_secret(notice, connection, ui.notices, auth.status("xai"))
-    document = json.loads((sandbox / "credentials.json").read_text())
+    document = json.loads((sandbox / "credentials.json").read_text(encoding="utf-8"))
     entry = document["xai"]
     assert entry["type"] == "oauth" and entry["expires"] == int(clock.t * 1000) + 3600 * 1000
     assert entry["issued_at"] == int(clock.t * 1000) and entry["lifetime_s"] == 3600.0
@@ -399,7 +399,7 @@ def test_logout_is_scoped_idempotent_and_leaves_a_marker(sandbox: Path) -> None:
     assert auth.logout(xai.id).forgot is False  # the old id does not remove anything newer
     status = auth.status("xai")
     assert status.presence == "absent" and status.logged_out
-    assert "xai" not in json.loads((sandbox / "credentials.json").read_text())  # material gone
+    assert "xai" not in json.loads((sandbox / "credentials.json").read_text(encoding="utf-8"))  # material gone
     assert auth.request_auth("groq").credential.value == "k1"  # other slots untouched
     with pytest.raises(AuthOperationError) as info:
         auth.request_auth("xai")
@@ -433,7 +433,7 @@ def test_cancel_before_commit_wins_and_after_commit_does_not(sandbox: Path) -> N
     thread.join(10)
     assert isinstance(outcome.get("error"), LoginCancelled)
     assert auth.status("xai").presence == "absent"
-    document = json.loads((sandbox / "credentials.json").read_text())
+    document = json.loads((sandbox / "credentials.json").read_text(encoding="utf-8"))
     assert "attempt" not in document["_lm15"]["slots"].get("xai", {})
     # After a commit, cancel reports complete and undo is logout.
     auth._sleep = clock.advance
@@ -469,7 +469,7 @@ def test_an_interrupt_ends_the_attempt_and_frees_the_slot(sandbox: Path) -> None
                 opener=FakeXai(polls=["pending"] * 5), sleep=interrupted)
     with pytest.raises(KeyboardInterrupt):
         auth.login("xai", "device", ui=ScriptUI())
-    document = json.loads((sandbox / "credentials.json").read_text())
+    document = json.loads((sandbox / "credentials.json").read_text(encoding="utf-8"))
     assert "attempt" not in document["_lm15"]["slots"].get("xai", {})
     auth._sleep = clock.advance
     auth._opener = FakeXai()
@@ -491,7 +491,7 @@ def test_renewal_is_due_at_lead_and_bumps_revision(sandbox: Path) -> None:
     assert auth.status("xai").usability == "renewal_due"
     assert auth.request_auth("xai").credential.value == f"{ACCESS}2"
     assert auth.status("xai").connection.credential_revision == "2"
-    document = json.loads((sandbox / "credentials.json").read_text())
+    document = json.loads((sandbox / "credentials.json").read_text(encoding="utf-8"))
     assert document["xai"]["refresh"] == f"{REFRESH}2" and "renewal_in_flight" not in document["_lm15"]["slots"]["xai"]
     refreshes = [d for u, d in server.calls if d.get("grant_type") == "refresh_token"]
     assert len(refreshes) == 1
@@ -571,17 +571,17 @@ def test_uncertain_exchange_is_indeterminate_not_retried(sandbox: Path) -> None:
 
 def test_unreadable_store_is_not_absence(sandbox: Path) -> None:
     path = sandbox / "credentials.json"
-    path.write_text("{not json")
+    path.write_text("{not json", encoding="utf-8")
     auth = Auth.local(path)
     with pytest.raises(AuthOperationError) as info:
         auth.status("xai")
     assert info.value.reason == "storage_unavailable"
-    assert path.read_text() == "{not json"  # never overwritten
-    path.write_text(json.dumps({"_lm15": {"version": 99, "slots": {}}}))
+    assert path.read_text(encoding="utf-8") == "{not json"  # never overwritten
+    path.write_text(json.dumps({"_lm15": {"version": 99, "slots": {}}}), encoding="utf-8")
     with pytest.raises(AuthOperationError) as info:
         auth.connections()
     assert info.value.reason == "unsupported_store_version"
-    path.write_text('{"xai": {"a": 1}, "xai": {"b": 2}}')
+    path.write_text('{"xai": {"a": 1}, "xai": {"b": 2}}', encoding="utf-8")
     with pytest.raises(AuthOperationError):
         auth.status("xai")
 
@@ -590,13 +590,13 @@ def test_generations_are_decimal_strings_and_survive_reload(sandbox: Path) -> No
     clock = Clock()
     auth = make_auth(sandbox, clock)
     auth.set_api_key("groq", "k")
-    document = json.loads((sandbox / "credentials.json").read_text())
+    document = json.loads((sandbox / "credentials.json").read_text(encoding="utf-8"))
     document["_lm15"]["slots"]["groq"]["generation"] = str(2**60)
-    (sandbox / "credentials.json").write_text(json.dumps(document))
+    (sandbox / "credentials.json").write_text(json.dumps(document), encoding="utf-8")
     assert auth.status("groq").connection.identity_generation == str(2**60)
     auth.logout("groq")
     assert auth.status("groq").presence == "absent"
-    assert json.loads((sandbox / "credentials.json").read_text())["_lm15"]["slots"]["groq"]["generation"] == str(2**60 + 1)
+    assert json.loads((sandbox / "credentials.json").read_text(encoding="utf-8"))["_lm15"]["slots"]["groq"]["generation"] == str(2**60 + 1)
 
 
 # ─── MA-005/007/060 identity selection and the legacy boundary ────────
@@ -658,7 +658,7 @@ def test_mode_a_subscription_first_then_blocks_after_failure(sandbox: Path, monk
     # explicit key after logout is deliberate
     assert "explicit" in LMRouter(RouterConfig(env=env, api_keys={"xai": "k"})).lm("xai:grok-4").credential_origin()
     # expired without refresh: unusable, blocks too
-    (sandbox / "credentials.json").write_text(json.dumps({"xai": {"type": "oauth", "access": SENTINEL, "expires": 1}}))
+    (sandbox / "credentials.json").write_text(json.dumps({"xai": {"type": "oauth", "access": SENTINEL, "expires": 1}}), encoding="utf-8")
     with pytest.raises(NotConfiguredError) as info:
         LMRouter(RouterConfig(env=env)).lm("xai:grok-4")
     assert "expired and cannot be renewed" in str(info.value)
@@ -845,7 +845,7 @@ def test_external_claude_cli_source_reads_in_place(sandbox: Path, monkeypatch: p
 
     claude = sandbox / "claude.json"
     claude.write_text(json.dumps({"claudeAiOauth": {"accessToken": ACCESS, "refreshToken": REFRESH,
-                                                    "expiresAt": int(time.time() * 1000) + 3_600_000}}))
+                                                    "expiresAt": int(time.time() * 1000) + 3_600_000}}), encoding="utf-8")
     monkeypatch.setattr(legacy, "CLAUDE_CODE_CREDENTIALS_PATH", claude)
     auth = Auth.memory()
     with pytest.raises(AuthOperationError):
@@ -855,4 +855,4 @@ def test_external_claude_cli_source_reads_in_place(sandbox: Path, monkeypatch: p
     assert auth.store.read()["claude-code"] == {"type": "external", "source": "claude-code-cli"}  # no token copied
     assert auth.request_auth("claude-code").credential.value == ACCESS
     auth.logout("claude-code")
-    assert json.loads(claude.read_text())["claudeAiOauth"]["accessToken"] == ACCESS  # the tool's file is untouched
+    assert json.loads(claude.read_text(encoding="utf-8"))["claudeAiOauth"]["accessToken"] == ACCESS  # the tool's file is untouched

@@ -45,7 +45,7 @@ def provider_lm(provider: str):
 def load_cases() -> list[JsonObject]:
     cases: list[JsonObject] = []
     for path in sorted(CASES_ROOT.glob("*.json")):
-        payload = json.loads(path.read_text())
+        payload = json.loads(path.read_text(encoding="utf-8"))
         cases.extend(payload.get("cases", []))
     return cases
 
@@ -114,7 +114,7 @@ def write_markdown(results: list[ErrorResult], path: Path) -> None:
     for result in results:
         reason = (result.reason or "").replace("|", "\\|")
         lines.append(f"| `{result.case_id}` | {result.provider} | {result.status} | {reason} |")
-    path.write_text("\n".join(lines) + "\n")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -139,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
     REPORT_DIR.mkdir(exist_ok=True)
     json_path = args.json or REPORT_DIR / "error-fixtures.json"
     md_path = args.markdown or REPORT_DIR / "error-fixtures.md"
-    json_path.write_text(json.dumps({"summary": counts, "total": len(results), "results": [result_to_dict(r) for r in results]}, indent=2, sort_keys=True) + "\n")
+    json_path.write_text(json.dumps({"summary": counts, "total": len(results), "results": [result_to_dict(r) for r in results]}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_markdown(results, md_path)
 
     print(f"error fixture conformance: {counts} / total={len(results)}")

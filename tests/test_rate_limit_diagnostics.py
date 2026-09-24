@@ -15,7 +15,7 @@ from lm15.testing import FakeResponse, FakeTransport
 from lm15.types import ErrorDetail, StreamErrorEvent
 from tests.test_auxiliary_retry_after import CASES, AsyncTransport, make_client
 
-FIXTURE = json.loads(contract_path('errors', 'diagnostic-headers.json').read_text())
+FIXTURE = json.loads(contract_path('errors', 'diagnostic-headers.json').read_text(encoding="utf-8"))
 REQUEST = Request(model='deployment', messages=[Message.user('hi')])
 HEADERS = [('Retry-After', '39'), ('x-ratelimit-limit-requests', '1'),
            ('x-ratelimit-remaining-requests', '-1'), ('x-ratelimit-reset-requests', '105'),

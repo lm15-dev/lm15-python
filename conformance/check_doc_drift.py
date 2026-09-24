@@ -39,7 +39,7 @@ class DocReport:
 
 
 def load_features() -> dict[str, Any]:
-    return yaml.safe_load(FEATURES_PATH.read_text())
+    return yaml.safe_load(FEATURES_PATH.read_text(encoding="utf-8"))
 
 
 def extract_openai_params(text: str) -> list[str]:
@@ -113,7 +113,7 @@ def report_provider(provider: str, features: dict[str, Any]) -> DocReport:
             "next to this repo (and run its scrapes/<provider>/update.sh) "
             "or set LM15_API_REFERENCES"
         )
-    text = doc_path.read_text()
+    text = doc_path.read_text(encoding="utf-8")
     params = extract(text)
     feature_keys = sorted(features.get(provider, {}).get("features", {}))
     feature_text_blob = " ".join(
@@ -155,7 +155,7 @@ def write_markdown(reports: list[DocReport], path: Path) -> None:
         else:
             lines.append("- No unmapped doc params")
         lines.append("")
-    path.write_text("\n".join(lines) + "\n")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def report_to_dict(report: DocReport) -> JsonObject:
@@ -181,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     REPORT_DIR.mkdir(exist_ok=True)
     json_path = args.json or REPORT_DIR / "doc-drift.json"
     md_path = args.markdown or REPORT_DIR / "doc-drift.md"
-    json_path.write_text(json.dumps([report_to_dict(r) for r in reports], indent=2, sort_keys=True) + "\n")
+    json_path.write_text(json.dumps([report_to_dict(r) for r in reports], indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_markdown(reports, md_path)
 
     total_unmapped = sum(len(report.unmapped_params) for report in reports)

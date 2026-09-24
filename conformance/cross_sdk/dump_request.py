@@ -203,7 +203,7 @@ def _load_case(argv: list[str]) -> JsonObject:
         arg = argv[1]
         path = Path(arg)
         if path.exists():
-            return json.loads(path.read_text())
+            return json.loads(path.read_text(encoding="utf-8"))
         return json.loads(arg)
     return json.load(sys.stdin)
 

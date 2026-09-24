@@ -75,7 +75,7 @@ def test_model_overrides_apply_per_model() -> None:
 def _chat_cases():
     root = contract_root()
     for path in sorted((root / "cases").glob("*/*.json")):
-        case = json.loads(path.read_text())
+        case = json.loads(path.read_text(encoding="utf-8"))
         req = case.get("request") or {}
         if not str(req.get("url", "")).split("?", 1)[0].endswith("/chat/completions"):
             continue

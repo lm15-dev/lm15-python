@@ -47,7 +47,7 @@ def load_cases() -> list[JsonObject]:
             f"serde vector not found at {FIXTURE_PATH}; check out lm15-contract "
             "next to this repo or set LM15_CONTRACT_DIR"
         )
-    return list(json.loads(FIXTURE_PATH.read_text()).get("cases", []))
+    return list(json.loads(FIXTURE_PATH.read_text(encoding="utf-8")).get("cases", []))
 
 
 def clean_json(value: Any) -> Any:
@@ -108,7 +108,7 @@ def write_markdown(results: list[SerdeResult], path: Path) -> None:
     for result in results:
         reason = (result.reason or "").replace("|", "\\|")
         lines.append(f"| `{result.case_id}` | {result.kind} | {result.check} | {result.status} | {reason} |")
-    path.write_text("\n".join(lines) + "\n")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -130,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     REPORT_DIR.mkdir(exist_ok=True)
     json_path = args.json or REPORT_DIR / "serde-fixtures.json"
     md_path = args.markdown or REPORT_DIR / "serde-fixtures.md"
-    json_path.write_text(json.dumps({"summary": counts, "total": len(results), "results": [result_to_dict(r) for r in results]}, indent=2, sort_keys=True) + "\n")
+    json_path.write_text(json.dumps({"summary": counts, "total": len(results), "results": [result_to_dict(r) for r in results]}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_markdown(results, md_path)
 
     print(f"serde fixture conformance: {counts} / total={len(results)}")

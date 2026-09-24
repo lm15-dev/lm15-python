@@ -165,7 +165,7 @@ def block(cls: type, indent: str) -> str:
 def rewrite(module_name: str, names: tuple[str, ...]) -> tuple[Path, str, str]:
     module = importlib.import_module(module_name)
     path = Path(module.__file__)
-    original = path.read_text()
+    original = path.read_text(encoding="utf-8")
     text = original
     for name in names:
         cls = getattr(module, name)
@@ -231,7 +231,7 @@ def main() -> int:
         if text != original:
             stale.append(path.relative_to(ROOT))
             if not args.check:
-                path.write_text(text)
+                path.write_text(text, encoding="utf-8")
     if args.check and stale:
         print("stale __init__ signatures in: " + ", ".join(map(str, stale)) + "; run python tools/gen_init_signatures.py")
         return 1

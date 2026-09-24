@@ -47,7 +47,7 @@ KEY_MAP = {
 def load_dotenv(path: Path = DOTENV_PATH):
     if not path.exists():
         return
-    for raw_line in path.read_text().splitlines():
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -104,7 +104,7 @@ def _curl_json(method: str, url: str, headers: dict[str, str], body: dict | None
         cmd.extend(["-H", f"{k}: {v}"])
     if body is not None:
         cmd.extend(["-d", json.dumps(body)])
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8")
     return json.loads(proc.stdout)
 
 
@@ -114,7 +114,7 @@ def _curl_multipart(url: str, headers: dict[str, str], form_parts: list[tuple[st
         cmd.extend(["-H", f"{k}: {v}"])
     for k, v in form_parts:
         cmd.extend(["-F", f"{k}={v}"])
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8")
     return json.loads(proc.stdout)
 
 
@@ -169,10 +169,10 @@ def run_curl(case: dict, api_key: str, timeout: int = 45):
         cmd.extend(["-d", json.dumps(body)])
 
     started = time.time()
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, encoding="utf-8")
     ended = time.time()
     http_code = proc.stdout.strip()
-    raw_body = body_file.read_text() if body_file.exists() else ""
+    raw_body = body_file.read_text(encoding="utf-8") if body_file.exists() else ""
     if body_file.exists():
         body_file.unlink()
     return {
@@ -418,14 +418,14 @@ def save_body(case_id: str, tested_at: str, raw_body: str) -> str | None:
     out_dir = BODIES_DIR / safe_case
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{stamp}.txt"
-    path.write_text(raw_body)
+    path.write_text(raw_body, encoding="utf-8")
     return str(path.relative_to(ROOT))
 
 
 def load_latest():
     if not LATEST_JSON.exists():
         return {"generated_at": None, "cases": {}}
-    with open(LATEST_JSON) as f:
+    with open(LATEST_JSON, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -434,9 +434,9 @@ def persist_results(run_results: dict):
     latest = load_latest()
     latest["generated_at"] = now_iso()
     latest.setdefault("cases", {}).update(run_results)
-    with open(LATEST_JSON, "w") as f:
+    with open(LATEST_JSON, "w", encoding="utf-8") as f:
         json.dump(latest, f, indent=2, sort_keys=True)
-    with open(HISTORY_JSONL, "a") as f:
+    with open(HISTORY_JSONL, "a", encoding="utf-8") as f:
         for result in run_results.values():
             f.write(json.dumps(result, sort_keys=True) + "\n")
 
@@ -482,7 +482,7 @@ def main():
             case_id = f"{provider}.{feature}"
             if filter_task and case_id != filter_task:
                 continue
-            case = json.loads(case_file.read_text())
+            case = json.loads(case_file.read_text(encoding="utf-8"))
             tested_at = now_iso()
 
             if dry_run:

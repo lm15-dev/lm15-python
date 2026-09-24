@@ -94,7 +94,10 @@ def _default_http(method: str, url: str, headers: Mapping[str, str], body: bytes
 
 def _default_run(argv: list[str], timeout: float, *, env: Mapping[str, str] | None = None) -> str:
     try:
-        out = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False, env=env)
+        # A cloud CLI's output: the token is ASCII JSON; any other text may be in
+        # the console code page on Windows, so decode leniently, never crash.
+        out = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                             timeout=timeout, check=False, env=env)
     except (OSError, subprocess.SubprocessError):
         raise AuthError("credential command failed") from None
     if out.returncode != 0:

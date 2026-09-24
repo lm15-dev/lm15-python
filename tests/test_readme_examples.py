@@ -101,12 +101,12 @@ def test_all_readme_python_examples(monkeypatch, tmp_path):
 
     # Use fresh dummy CLI credentials, never the developer's files or refresh tokens.
     claude = tmp_path / "claude.json"
-    claude.write_text(json.dumps({"claudeAiOauth": {"accessToken": "offline-claude", "expiresAt": 4102444800000}}))
+    claude.write_text(json.dumps({"claudeAiOauth": {"accessToken": "offline-claude", "expiresAt": 4102444800000}}), encoding="utf-8")
     codex = tmp_path / "codex.json"
     def segment(data):
         return base64.urlsafe_b64encode(json.dumps(data).encode()).rstrip(b"=").decode()
     token = ".".join([segment({"alg": "none"}), segment({"exp": 4102444800, "https://api.openai.com/auth": {"chatgpt_account_id": "offline-account"}}), "signature"])
-    codex.write_text(json.dumps({"auth_mode": "chatgpt", "tokens": {"access_token": token}}))
+    codex.write_text(json.dumps({"auth_mode": "chatgpt", "tokens": {"access_token": token}}), encoding="utf-8")
     monkeypatch.setattr(lm15.auth, "CLAUDE_CODE_CREDENTIALS_PATH", claude)
     monkeypatch.setattr(lm15.auth, "CODEX_CLI_AUTH_PATH", codex)
 
@@ -129,7 +129,7 @@ def test_all_readme_python_examples(monkeypatch, tmp_path):
 
     monkeypatch.setattr(StdlibTransport, "stream", sync_stream)
     monkeypatch.setattr(StdlibAsyncTransport, "stream", async_stream)
-    blocks = re.findall(r"^```python\n(.*?)^```", README.read_text(), re.M | re.S)
+    blocks = re.findall(r"^```python\n(.*?)^```", README.read_text(encoding="utf-8"), re.M | re.S)
     assert len(blocks) == 15, "Review coverage when adding or removing README examples"
     outputs = []
     scope = {}

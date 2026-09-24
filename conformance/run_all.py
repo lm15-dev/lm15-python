@@ -67,7 +67,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"elapsed: {elapsed}s")
 
     (REPORT_DIR / "summary.json").write_text(
-        json.dumps({"summary": summary, "elapsed_seconds": elapsed}, indent=2, sort_keys=True) + "\n"
+        json.dumps({"summary": summary, "elapsed_seconds": elapsed}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
 
     return 1 if failed and args.strict else 0

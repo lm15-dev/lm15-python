@@ -121,7 +121,7 @@ def write_markdown(results: list[ResponseResult], path: Path) -> None:
         reason = (result.reason or "").replace("|", "\\|")
         body = result.body_path or ""
         lines.append(f"| `{result.case_id}` | {result.kind} | {result.status} | `{body}` | {reason} |")
-    path.write_text("\n".join(lines) + "\n")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -151,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
         "total": len(results),
         "results": [result_to_dict(result) for result in results],
     }
-    json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_markdown(results, md_path)
 
     print(f"response fixture conformance: {counts} / total={len(results)}")

@@ -62,7 +62,7 @@ def test_groq_recipe_runs_as_documented(monkeypatch, capsys):
         pytest.fail("The recipe test must not make network calls")
 
     monkeypatch.setattr(socket.socket, "connect", no_network)
-    doc = (Path(__file__).parents[1] / "docs/cookbooks/10-audio-video-reasoning.md").read_text()
+    doc = (Path(__file__).parents[1] / "docs/cookbooks/10-audio-video-reasoning.md").read_text(encoding="utf-8")
     section = doc.split("## Groq/Qwen: keep thinking out of the answer\n", 1)[1].split("## How it works", 1)[0]
     blocks = re.findall(r"^```python\n(.*?)^```", section, re.M | re.S)
     assert len(blocks) == 1

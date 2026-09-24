@@ -139,7 +139,16 @@ def test_windows_prefix_case_and_missing_leaf(tmp_path):
     unicode_file = real / "ΟΣ.json"
     unicode_file.write_text("{}", encoding="utf-8")
     assert lock_path_for(real / "οσ.json") == lock_path_for(unicode_file)
-    assert lock_path_for(real / "ος.json") == lock_path_for(unicode_file)
+    # Final sigma: whether the volume's upcase table folds "ς" to "Σ" varies
+    # (the GitHub Windows runner's NTFS does not: "ος.json" is another, missing
+    # file there). The safety property is never a DIFFERENT lock for what may be
+    # the same file: the same lock, or a refusal (a missing non-ASCII name).
+    try:
+        other = lock_path_for(real / "ος.json")
+    except ValueError:
+        pass
+    else:
+        assert other == lock_path_for(unicode_file)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows unsupported namespaces")

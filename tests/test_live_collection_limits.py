@@ -51,7 +51,7 @@ CORPUS = Path(__file__).resolve().parents[2] / "lm15-contract" / "consumer" / "l
 def shared_cases():
     if not CORPUS.exists():
         return [pytest.param(None, marks=pytest.mark.skip(reason="sibling contract collection vectors unavailable"))]
-    return [pytest.param(c, id=c["id"]) for c in json.loads(CORPUS.read_text())["cases"]]
+    return [pytest.param(c, id=c["id"]) for c in json.loads(CORPUS.read_text(encoding="utf-8"))["cases"]]
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
@@ -129,7 +129,7 @@ def test_default_limits_match_shared_contract():
     assert DEFAULT_TURN_MAX_BYTES == 16 * 1024 * 1024
     assert DEFAULT_TURN_MAX_EVENTS == 10_000
     if CORPUS.exists():
-        assert json.loads(CORPUS.read_text())["defaults"] == {
+        assert json.loads(CORPUS.read_text(encoding="utf-8"))["defaults"] == {
             "max_bytes": DEFAULT_TURN_MAX_BYTES, "max_events": DEFAULT_TURN_MAX_EVENTS,
         }
 

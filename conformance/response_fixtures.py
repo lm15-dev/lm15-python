@@ -55,12 +55,12 @@ def http_response(body: bytes) -> HttpResponse:
 
 
 def load_case(provider: str, feature: str) -> dict[str, Any]:
-    return json.loads((CASES_ROOT / provider / f"{feature}.json").read_text())
+    return json.loads((CASES_ROOT / provider / f"{feature}.json").read_text(encoding="utf-8"))
 
 
 def iter_cases_with_expect_lm15() -> Iterator[tuple[str, str, dict[str, Any]]]:
     for path in sorted(CASES_ROOT.glob("*/*.json")):
-        case = json.loads(path.read_text())
+        case = json.loads(path.read_text(encoding="utf-8"))
         if "expect_lm15" not in case:
             continue
         yield str(case["provider"]), str(case["feature"]), case

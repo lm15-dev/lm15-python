@@ -481,3 +481,19 @@ def test_serde_file_info_roundtrip_keeps_false() -> None:
 def test_serde_file_page_roundtrip() -> None:
     page = FilePage(items=(FileInfo(id="f1"),), next_cursor="tok")
     assert file_page_from_dict(file_page_to_dict(page)) == page
+
+
+def test_a_local_path_serializes_with_forward_slashes_on_every_os():
+    """spec/types.md (clarified 2026-09-24): the same request serializes the
+    same on Windows, where str(Path("/data/clip.mp4")) is "\\\\data\\\\clip.mp4"."""
+    from pathlib import PurePosixPath, PureWindowsPath
+
+    from lm15.serde import _wire_path
+
+    assert _wire_path(PureWindowsPath("/data/clip.mp4")) == "/data/clip.mp4"
+    assert _wire_path(PureWindowsPath(r"C:\Users\me\clip.mp4")) == "C:/Users/me/clip.mp4"
+    assert _wire_path(PurePosixPath("/data/clip.mp4")) == "/data/clip.mp4"
+    assert _wire_path("/data/clip.mp4") == "/data/clip.mp4"
+    assert _wire_path(PureWindowsPath(r"\\server\share\clip.mp4")) == "//server/share/clip.mp4"
+    # On POSIX a backslash is part of a name, never a separator.
+    assert _wire_path(PurePosixPath("odd\\name.mp4")) == "odd\\name.mp4"

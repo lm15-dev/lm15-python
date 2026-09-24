@@ -30,7 +30,7 @@ from lm15 import (  # noqa: E402
 
 def test_generated_signatures_are_up_to_date():
     done = subprocess.run([sys.executable, str(ROOT / "tools/gen_init_signatures.py"), "--check"],
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, encoding="utf-8")
     assert done.returncode == 0, done.stdout + done.stderr
 
 
@@ -41,7 +41,7 @@ def test_every_type_that_normalizes_an_input_has_a_signature():
     missing = []
     for path in sorted((ROOT / "lm15").rglob("*.py")):
         module_name = ".".join(path.relative_to(ROOT).with_suffix("").parts)
-        tree = ast.parse(path.read_text())
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
             post = next((f for f in cls.body if isinstance(f, ast.FunctionDef) and f.name == "__post_init__"), None)
             if post is None:
@@ -51,7 +51,7 @@ def test_every_type_that_normalizes_an_input_has_a_signature():
             if not (isinstance(obj, type) and dataclasses.is_dataclass(obj)):
                 continue
             stored = {f.name: str(f.type) for f in dataclasses.fields(obj) if f.init}
-            source = ast.get_source_segment(path.read_text(), post) or ""
+            source = ast.get_source_segment(path.read_text(encoding="utf-8"), post) or ""
             normalizes = [
                 name for name, ann in stored.items()
                 if f'object.__setattr__(self, "{name}"' in source and ann.startswith(("tuple[", "dict[", "Mapping["))
