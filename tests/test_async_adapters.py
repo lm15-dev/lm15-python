@@ -231,9 +231,7 @@ def test_async_unsupported_endpoints_are_honest():
 
     lm = AsyncAnthropicLM(api_key="test", transport=FakeAsyncTransport(b"{}"))
     with pytest.raises(UnsupportedFeatureError, match="image generation not supported"):
-        asyncio.get_event_loop_policy().new_event_loop().run_until_complete(
-            lm.image_generate(ImageGenerationRequest(model="m", prompt="a cat"))
-        )
+        asyncio.run(lm.image_generate(ImageGenerationRequest(model="m", prompt="a cat")))
 
 
 # ─── live smoke vs local ollama ──────────────────────────────────────

@@ -66,8 +66,10 @@ documentation before the stable release. Remaining work includes:
    provisional notices on the relevant guides and release notes; do not
    advertise the entire exported package as a frozen API.
 4. **Release engineering** — tag-driven publishing via PyPI trusted
-   publishing (OIDC), CI across Python 3.10–3.14 and Linux/macOS/Windows,
-   a type-checking gate alongside the shipped `py.typed`.
+   publishing (OIDC) is in place. Since 2026-09-24, CI runs the tests on
+   Python 3.10–3.14 on Linux, macOS and Windows, and a type-checking gate
+   (`typecheck/README.md`): the documentation's programs type-check with
+   mypy `--strict`, and lm15's own remaining findings may only go down.
 5. **Stable release.**
 
 ## Provider coverage

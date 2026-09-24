@@ -1,0 +1,4 @@
+# Type-checking tools for CI (tools/typecheck.py). Regenerate with:
+#   uv pip compile --generate-hashes --python-version 3.12 -o requirements/typecheck.txt requirements/typecheck.in
+# The baseline in typecheck/baseline.txt is mypy-version specific: bump both together.
+mypy==2.3.1

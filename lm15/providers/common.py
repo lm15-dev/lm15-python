@@ -3,10 +3,13 @@ from __future__ import annotations
 import base64
 import json
 import urllib.parse
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from ..models import ModelInfo, ModelOrigin
 from ..transports import TransportRequest
+
+if TYPE_CHECKING:
+    from ..errors import ProviderError
 from ..types import (
     AudioPart,
     BinaryPart,
@@ -246,7 +249,7 @@ def model_infos_from_entries(
     *,
     provider: str,
     api_family: str,
-    id_of: "callable",
+    id_of: Callable[[dict[str, Any]], object],
 ) -> tuple[ModelInfo, ...]:
     """Map a provider's list-models entries to canonical ModelInfo.
 

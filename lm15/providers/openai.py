@@ -38,6 +38,7 @@ from ..profiles import ProviderProfile, ResolvedOpenAIResponsesCompat, resolve_o
 from ..sse import SSEEvent
 from ..transports import TransportRequest
 from ..types import (
+    JsonObject,
     continuation_data,
     VideoGenerationRequest,
     VideoJobInfo,

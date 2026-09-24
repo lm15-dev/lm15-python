@@ -324,7 +324,7 @@ class ProviderError(LM15Error):
             )
             if item
         )
-        base = self.message or self.code
+        base = self.message or self.code or ""
         head, sep, tail = base.partition("\n\n")
         suffix = f" ({context})" if context else ""
         details = diagnostics_text(self.rate_limit_headers, self.retry_after)

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **Type checkers accept the documented calls.** `Request(messages=[...])`,
+  `tools=[...]`, `Config(stop=[...])`, `Message(parts=[...])` and the other
+  value types that store a tuple but accept a list now say so to mypy and
+  pyright (generated `__init__` signatures; runtime unchanged). Before, every
+  documentation example failed `mypy --strict` on its first `Request`. JSON
+  inputs (`response_format`, tool `parameters`, `extensions`, `DataPart`
+  values) accept an ordinary `dict`, since their contents are checked at
+  runtime; `Message.tool` accepts any mapping. The transport `release`
+  callbacks and three annotations naming unimported types are corrected.
+- CI: tests on Python 3.10–3.14 × Linux, macOS, Windows; a type-checking gate.
+
 ## 1.0.0rc3 — 2026-09-24
 
 Third release candidate for 1.0, and the first published since 1.0.0rc1:

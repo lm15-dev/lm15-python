@@ -10,6 +10,41 @@ permissions:
 
 jobs:
   test:
+    # Every supported Python on every desktop/server OS: lm15 is stdlib-only,
+    # so the risks are the platform's own (file locks, paths, sockets, signals).
+    name: tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          allow-prereleases: true
+      - name: Check out pinned contract
+        # Tests import the shared cloud vectors during collection.
+        run: |
+          PIN=$(tr -d '[:space:]' < CONTRACT_PIN)
+          [[ "$PIN" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid CONTRACT_PIN'; exit 1; }
+          git clone --no-checkout https://github.com/lm15-dev/lm15-contract.git ../lm15-contract
+          git -C ../lm15-contract checkout --detach "$PIN"
+      - name: Install
+        run: python -m pip install -e . pytest pytest-asyncio pyyaml
+      - name: Tests
+        # Warnings are errors: a deprecation in a supported Python fails here
+        # before that Python's successor removes the API.
+        run: python -m pytest tests/ -q -W error::DeprecationWarning
+
+  contract:
+    # The cross-repo gates. The harness sandboxes each shim with Linux's
+    # `unshare -rn`, so these run on Linux only.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -17,7 +52,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Check out pinned contract
-        # Tests import the shared cloud vectors during collection.
         run: |
           PIN=$(tr -d '[:space:]' < CONTRACT_PIN)
           [[ "$PIN" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid CONTRACT_PIN'; exit 1; }
@@ -28,31 +62,40 @@ jobs:
           fi
       - name: Install
         run: python -m pip install -e . pytest pytest-asyncio pyyaml
-      - name: Tests
-        run: python -m pytest tests/ -q
       - name: Conformance (strict)
         run: python conformance/run_all.py --strict
       - name: Contract harness (pinned)
-        # Cross-repo gate: run the lm15-contract vet harness against this
-        # checkout at the SHA pinned in CONTRACT_PIN (bump discipline in
-        # CONTRIBUTING.md). The contract's shim registry expects the
-        # reference at the sibling path ../lm15-python with a .venv.
+        # Run the lm15-contract vet harness against this checkout at the SHA
+        # pinned in CONTRACT_PIN (bump discipline in CONTRIBUTING.md). The
+        # contract's shim registry expects the reference at the sibling path
+        # ../lm15-python with a .venv.
         run: |
           test -z "$(git -C ../lm15-contract status --porcelain --untracked-files=all)"
           python -m venv .venv && .venv/bin/pip install -q -e .
           python ../lm15-contract/harness/check.py --shim python --direction all
       - name: Vet shim smoke test
-        # Skips itself when the lm15-contract corpus is not checked out as a
-        # sibling (its pytestmark handles that); still proves the shim imports
-        # and speaks the JSONL framing.
-        run: |
-          if [ -f tests/test_vet_shim.py ]; then
-            python -m pytest tests/test_vet_shim.py -q
-          else
-            echo "tests/test_vet_shim.py not present; skipping"
-          fi
+        run: python -m pytest tests/test_vet_shim.py -q
       - name: Contract checkout stays clean
         if: always()
         run: |
           test -d ../lm15-contract/.git
           test -z "$(git -C ../lm15-contract status --porcelain --untracked-files=all)"
+
+  typecheck:
+    # tools/typecheck.py: the docs' programs type-check with --strict, and
+    # lm15's own findings only go down (typecheck/baseline.txt). mypy is
+    # pinned with hashes: the baseline's messages are version specific.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned mypy and lm15
+        run: |
+          python -m pip install --require-hashes -r requirements/typecheck.txt
+          python -m pip install --no-deps -e .
+      - name: Constructor signatures match the dataclasses
+        run: python tools/gen_init_signatures.py --check
+      - name: Type-check user programs and the package
+        run: python tools/typecheck.py
