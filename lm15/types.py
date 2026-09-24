@@ -94,6 +94,7 @@ ReasoningSummary = Literal["auto", "concise", "detailed"]
 
 ErrorCode = Literal[
     "auth",
+    "auth_operation",
     "billing",
     "rate_limit",
     "invalid_request",
