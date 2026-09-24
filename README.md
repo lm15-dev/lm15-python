@@ -32,10 +32,9 @@ Measured by [`benchmarks/suite/run.py`](benchmarks/suite/run.py) on Python 3.13.
 
 ## Install
 
-This checkout targets **1.0.0rc3**. Publishing is separate from source updates;
-check [PyPI](https://pypi.org/project/lm15/) for available versions. The commands
-below install the latest published prerelease, which may lag this checkout.
-Without `--pre`, pip selects the older stable release.
+The current 1.0 release candidate is **1.0.0rc3**. Opt into prereleases to
+use the API documented here; without `--pre`, pip selects the older stable
+release (0.9.9.post1). To pin this candidate exactly, use `lm15==1.0.0rc3`.
 
 ```bash
 python3 -m pip install --pre lm15

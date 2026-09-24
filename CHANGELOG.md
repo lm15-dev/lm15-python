@@ -1,8 +1,46 @@
 # Changelog
 
-## 1.0.0rc3 — Unreleased
+## 1.0.0rc3 — 2026-09-24
 
-Source version for the fixes below; updating the source does not publish a PyPI release.
+Third release candidate for 1.0, and the first published since 1.0.0rc1:
+1.0.0rc2 was prepared on 2026-09-15 but never uploaded, so everything in the
+rc2 section below also ships here for the first time. Install with
+`pip install --pre lm15` (or pin `lm15==1.0.0rc3`); plain `pip install lm15`
+still selects 0.9.9.post1. Contract: lm15-contract `fc0c460`.
+
+- **Managed authentication** (contract `spec/auth-managed.md`, AUTH-12–26,
+  ratified 2026-09-22). `lm15.login.Auth` / `AsyncAuth` over one private
+  store (`credentials.json` plus a non-secret `_lm15` block), sign-in flows
+  for xAI, Claude, Codex, OpenRouter, Meta, Kimi Code and GitHub Copilot,
+  renewal under the store lock, and `AuthOperationError` with fifteen closed
+  reasons (`ErrorCode` gains `auth_operation`). `lm15.interactive.connect()`
+  offers saved connections first and subscriptions before keys, saves a
+  sign-in before the model picker, and returns a client pinned to one
+  connection. `RouterConfig(auth=...)` never falls back to an environment key
+  or a foreign CLI file. Claude's browser method uses Claude's hosted code
+  page, so the browser may run on another machine; auth HTTP identifies
+  itself as `lm15/<version>`. An interrupted sign-in releases its
+  reservation. See `docs/managed-login.md`. Provider permission and billing
+  for these logins are unverified except for xAI.
+- **A failed xAI subscription blocks `$XAI_API_KEY`** (R3, behaviour
+  change). An expired login that cannot be renewed, or a signed-out one, now
+  raises `MissingCredentialError` saying so, instead of silently spending
+  the environment key. Pass the key explicitly to use it. Callers who never
+  signed in are unchanged.
+- **"No such model" is `UnsupportedModelError` on every provider** (contract
+  MAP-15, behaviour change). Anthropic, Claude Code, DeepSeek (both wires),
+  Z.AI, OpenRouter, xAI and Bedrock used to raise `InvalidRequestError` for a
+  model name they do not have; one `except UnsupportedModelError` now covers
+  every provider. Matching uses the providers' own recorded wording, never
+  looser, so "this model does not support images" stays an
+  `InvalidRequestError`.
+- **Judgments** (contract MAP-14). `DataPart` (structured data in, a judged
+  answer out), `Config.probabilities` (`off` / `if_available` / `required`),
+  `lm15.judgments` (`choice`, `score`, `yes_no`, `judgments`), the
+  `typesafe` provider (`jev-*` models), and a candidate-likelihood driver for
+  servers that honour `logprob_token_ids` (vLLM preset).
+- A cache key or long cache retention a provider's wire has no place for is
+  dropped with an adaptation record (MAP-13), no longer silently.
 
 - **Codex: an output cap or `store=True` is refused, not silently stripped.**
   The ChatGPT Codex backend accepts no max-token field; lm15 used to drop
@@ -137,7 +175,7 @@ Shared score, timeout and live-collection rules were ratified on 2026-09-15.
 Other language implementations must adopt their new contract pin separately;
 this release does not claim they already implement the additions.
 
-## 1.0.0rc2 — 2026-09-15
+## 1.0.0rc2 — 2026-09-15 (prepared; never published — ships in 1.0.0rc3)
 
 Second release candidate. Install explicitly with `pip install lm15==1.0.0rc2`;
 a prerelease, not the stable 1.0. Two things changed what lm15 *is* since rc1
