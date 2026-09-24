@@ -11,6 +11,14 @@
   values) accept an ordinary `dict`, since their contents are checked at
   runtime; `Message.tool` accepts any mapping. The transport `release`
   callbacks and three annotations naming unimported types are corrected.
+- **No silent content loss** (MAP-10, MAP-6; behaviour change). A media part
+  a provider's format has no place for now raises `UnsupportedFeatureError`
+  naming the part (`feature="messages[i].parts[j]"`) before anything is sent.
+  Before, 1.0.0rc3 sent audio, video or binary parts to Anthropic as an empty
+  text block, and dropped media in assistant turns on the OpenAI formats,
+  without a word. Likewise `config.cache.resource` on a provider with no
+  stored caches (Groq, DeepSeek, Z.AI, Ollama, xAI, Meta's Anthropic door)
+  raises instead of being ignored: the resource holds the start of the prompt.
 - **Windows.** A local path in canonical JSON (`FileUploadRequest.path`, media
   parts' `path`) is written with `/` on every OS, as INV-009 now says; on
   Windows it was `\data\clip.mp4`, so the same request serialized

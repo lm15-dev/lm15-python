@@ -66,6 +66,7 @@ from ..types import (
 )
 from .base import BaseProviderLM, Credential, HttpResponse, SyncTransport, default_transport, _attach_error_metadata
 from .common import (
+    check_message_media,
     MEDIA_KINDS,
     check_tool_result_media,
     media_data_uri,
@@ -1343,6 +1344,7 @@ class OpenAIChatLM(BaseProviderLM):
         return resolve_openai_chat_compat(partial.for_model(model))
 
     def _payload(self, request: Request, stream: bool) -> dict[str, Any]:
+        check_message_media(request, dialect="openai_chat", provider=self.provider)
         compat = self._compat_for(request.model)
         # Streaming uses generated JSON, never the non-streamable trie driver.
         # Check before building messages or invoking credentials, including on

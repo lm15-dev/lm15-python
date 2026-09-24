@@ -111,6 +111,7 @@ from .base import (
     resolve_credential_value,
 )
 from .common import (
+    check_message_media,
     tool_result_error_text,
     tool_result_output_openai,
     iso_utc,
@@ -260,6 +261,16 @@ def _cache_common_payload(request: Request, payload: dict, cache_control: str, p
     if cache_cfg is None:
         return
     if cache_control not in ("openai", "openai_implicit"):
+        # MAP-6 rule 7: a stored-cache resource on a provider without that
+        # tier RAISES. Dropping it would silently send the request without
+        # the prompt prefix the resource holds (MAP-13: refuse when a guess
+        # could hurt). Found 2026-09-24 by lm15-rs, which already refused.
+        if cache_cfg.resource is not None:
+            raise UnsupportedFeatureError(
+                f"{provider}: cache.resource is not supported — this provider has no stored-cache "
+                "tier; sending without it would drop the prompt prefix the resource holds",
+                provider=provider, feature="config.cache.resource",
+            )
         # MAP-13: the key and the lifetime have no home on a server without
         # OpenAI's cache fields; dropped and recorded (implicit caching, where
         # the server has it, still applies).
@@ -885,6 +896,7 @@ class OpenAILM(BaseProviderLM):
         return "auto"
 
     def _payload(self, request: Request, stream: bool) -> dict[str, Any]:
+        check_message_media(request, dialect="openai", provider=self.provider)
         compat = self._compat(request)
         breakpoint_index = _cache_breakpoint_index(request, compat.cache_control)  # once: it may record
         payload: dict[str, Any] = {

@@ -169,7 +169,7 @@
 1 lm15/providers/gemini.py|arg-type|Argument 1 to "gemini_schema" has incompatible type "bool | int | float | str | None | list[JsonValue] | dict[str, JsonValue]"; expected "dict[str, JsonValue]"
 1 lm15/providers/gemini.py|arg-type|Argument 1 to "resolve_credential" has incompatible type "str | ApiKey | BearerToken | AwsCredentials | Callable[[], str | ApiKey | BearerToken | AwsCredentials] | None"; expected "str | ApiKey | BearerToken | AwsCredentials | Callable[[], str | ApiKey | BearerToken | AwsCredentials]"
 1 lm15/providers/gemini.py|assignment|Incompatible types in assignment (expression has type "AccessPolicy | None", base class "BaseProviderLM" defined the type as "AccessPolicy")
-2 lm15/providers/gemini.py|no-redef|Name "out" already defined on line 614
+2 lm15/providers/gemini.py|no-redef|Name "out" already defined on line N
 2 lm15/providers/gemini.py|type-var|Value of type variable "SupportsRichComparisonT" of "max" cannot be "int | None"
 1 lm15/providers/gemini.py|union-attr|Item "None" of "AccessPolicy | None" has no attribute "env_keys"
 9 lm15/providers/gemini.py|union-attr|Item "None" of "Any | dict[Any, Any] | None" has no attribute "get"
@@ -235,7 +235,7 @@
 1 lm15/providers/openai_chat.py|misc|Generator has incompatible item type "DataPart | TextPart | ImagePart | AudioPart | VideoPart | <7 more items> | None"; expected "TextPart | ImagePart | AudioPart | VideoPart | DocumentPart | <7 more items>"
 1 lm15/providers/openai_chat.py|misc|Invalid self argument "OpenAIChatLM" to attribute function "_error_detail" with type "Callable[[OpenAILM, str, str], ErrorDetail]"
 2 lm15/providers/openai_chat.py|misc|Invalid self argument "OpenAIChatLM" to attribute function "_response_error" with type "Callable[[OpenAILM, str, str], ProviderError]"
-1 lm15/providers/openai_chat.py|no-redef|Name "parts" already defined on line 485
+1 lm15/providers/openai_chat.py|no-redef|Name "parts" already defined on line N
 1 lm15/providers/openai_chat.py|type-var|Value of type variable "_DataclassT" of "replace" cannot be "DataPart | None"
 1 lm15/providers/openai_chat.py|union-attr|Item "None" of "AccessPolicy | None" has no attribute "headers"
 13 lm15/providers/openai_chat.py|union-attr|Item "None" of "Any | dict[Any, Any] | None" has no attribute "get"
@@ -276,7 +276,7 @@
 4 lm15/router.py|attr-defined|"type" has no attribute "manifest"
 1 lm15/router.py|index|Value of type "Mapping[str, str | ApiKey | BearerToken | AwsCredentials | Callable[[], str | ApiKey | BearerToken | AwsCredentials]] | None" is not indexable
 2 lm15/router.py|misc|Invalid self argument "AsyncLMRouter" to attribute function "request_from_openai_chat" with type "def request_from_openai_chat(LMRouter, str, object, /, **kwargs: Any) -> tuple[Request, object]"
-1 lm15/router.py|no-redef|Name "origin" already defined on line 965
+1 lm15/router.py|no-redef|Name "origin" already defined on line N
 1 lm15/router.py|union-attr|Item "None" of "HostSpec | None" has no attribute "settings"
 11 lm15/router.py|union-attr|Item "None" of "ProviderDefinition | None" has no attribute "access"
 4 lm15/router.py|union-attr|Item "None" of "ProviderDefinition | None" has no attribute "compat"

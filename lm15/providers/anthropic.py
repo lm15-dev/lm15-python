@@ -73,7 +73,7 @@ from .base import (
     batch_entry_request,
     default_transport,
 )
-from .common import EFFORT_THINKING_BUDGETS, MEDIA_KINDS, anthropic_source, check_tool_result_media, data_part_text, iso_utc, model_infos_from_entries, multipart_form_body, parts_to_text, path_id, unnamed_tool_call_error
+from .common import check_message_media, EFFORT_THINKING_BUDGETS, MEDIA_KINDS, anthropic_source, check_tool_result_media, data_part_text, iso_utc, model_infos_from_entries, multipart_form_body, parts_to_text, path_id, unnamed_tool_call_error
 
 # Canonical builtin tool name → Anthropic tool format
 _ANTHROPIC_BUILTIN_MAP: dict[str, str] = {
@@ -568,6 +568,7 @@ class AnthropicLM(BaseProviderLM):
         return payload
 
     def _payload(self, request: Request, stream: bool) -> dict[str, Any]:
+        check_message_media(request, dialect="anthropic", provider=self.provider)
         compat = self._resolved_compat
         if compat.model_prefixes is not None and not request.model.startswith(compat.model_prefixes):
             # The server maps foreign model names onto its own models without
@@ -606,6 +607,13 @@ class AnthropicLM(BaseProviderLM):
             adapt("config.cache.retention", "dropped",
                   "this server caches implicitly and has no cache-control TTL",
                   asked="long", provider=self.provider)
+        if not use_cache and cache_cfg is not None and cache_cfg.resource is not None:
+            # MAP-6 rule 7 on a server without marks (e.g. meta-anthropic): the
+            # same refusal; dropping it would lose the prefix it holds.
+            raise UnsupportedFeatureError(
+                f"{self.provider}: cache.resource is not supported — this server has no stored-cache tier and no cache marks; sending without it would drop the prompt prefix the resource holds",
+                provider=self.provider, feature="config.cache.resource",
+            )
         if use_cache and cache_cfg is not None:
             if cache_cfg.resource is not None:
                 # MAP-13 rule 4(b): the program references a stored object

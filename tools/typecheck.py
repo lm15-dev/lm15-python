@@ -68,7 +68,10 @@ def package_findings() -> collections.Counter[str]:
         m = LINE.match(line)
         if m is None:
             raise SystemExit(f"unparsed mypy line: {line}")
-        found[f"{m['path']}|{m['code']}|{m['message']}"] += 1
+        # Some messages cite another line ("already defined on line 485"):
+        # an unrelated edit above would move it, so the key drops it too.
+        message = re.sub(r"\bline \d+\b", "line N", m["message"])
+        found[f"{m['path']}|{m['code']}|{message}"] += 1
     return found
 
 
