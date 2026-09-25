@@ -53,8 +53,8 @@ class _Reply:
     def __enter__(self) -> "_Reply":
         return self
 
-    def __exit__(self, *_exc: Any) -> bool:
-        return False
+    def __exit__(self, *_exc: Any) -> None:
+        return None
 
 
 def _request_body(request: Any) -> Any:
@@ -266,9 +266,9 @@ def _step(auth: Auth, step: JsonObject, clock: _Clock, ui: _UI, env: dict[str, s
     if do == "connections":
         return [_connection(c) for c in auth.connections()]
     if do == "logout":
-        result = auth.logout(step["target"])
-        return {"provider": result.provider, "forgot": result.forgot, "routes": list(result.routes),
-                "identity_generation": result.identity_generation}
+        forgotten = auth.logout(step["target"])
+        return {"provider": forgotten.provider, "forgot": forgotten.forgot, "routes": list(forgotten.routes),
+                "identity_generation": forgotten.identity_generation}
     if do == "cancel_login":
         return auth.cancel_login(step["provider"])
     if do == "request_auth":

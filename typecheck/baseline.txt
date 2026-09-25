@@ -111,7 +111,6 @@
 1 lm15/login/bound.py|arg-type|Argument "capabilities" to "ModelChoice" has incompatible type "dict[str, str]"; expected "dict[str, Literal['supported', 'unsupported', 'unknown']]"
 1 lm15/login/bound.py|arg-type|Argument "source" to "ModelChoice" has incompatible type "str"; expected "Literal['bundled', 'cached', 'provider', 'application', 'manual']"
 1 lm15/login/engine.py|attr-defined|"TransportError" has no attribute "exchange_uncertain"
-1 lm15/login/flows/claude.py|assignment|Incompatible types in assignment (expression has type "str | None", variable has type "str")
 1 lm15/login/manager.py|arg-type|Argument "kind" to "Connection" has incompatible type "str"; expected "Literal['account', 'api_key', 'cloud_identity', 'local_server']"
 2 lm15/login/manager.py|arg-type|Argument "ui" to "LoginContext" has incompatible type "_NoUI"; expected "AuthUI"
 1 lm15/login/manager.py|arg-type|Argument "usability" to "ConnectionStatus" has incompatible type "str"; expected "Literal['ready', 'renewal_due', 'needs_login', 'indeterminate', 'unknown']"
