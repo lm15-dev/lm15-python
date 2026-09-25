@@ -36,6 +36,7 @@ ALL_OPS = [
     "generation_build",
     "generation_parse",
     "ingest_openai_chat",
+    "managed_run",
     "normalize_error",
     "parse_models_response",
     "parse_response",

@@ -34,6 +34,7 @@ JsonObject = dict[str, Any]
 LANGUAGE = "python"
 
 from ._version import __version__ as IMPL_VERSION
+from ._vet_managed import op_managed_run
 
 # Parse-only ops (parse_response, replay_stream, normalize_error) construct an
 # adapter but never build auth headers; the key value is irrelevant and must
@@ -808,6 +809,7 @@ HANDLERS: dict[str, Callable[[JsonObject], JsonObject]] = {
     "batch_op_parse": op_batch_op_parse,
     "cache_op_build": op_cache_op_build,
     "cache_op_parse": op_cache_op_parse,
+    "managed_run": op_managed_run,
 }
 
 
