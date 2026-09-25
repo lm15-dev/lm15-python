@@ -1,8 +1,11 @@
 # Sign in once, use everywhere (managed login)
 
 `lm15.login` and `lm15.interactive` implement the ratified managed-authentication
-contract (lm15-contract `spec/auth.md` AUTH-12–26, 2026-09-22). Python is the
-first implementation; TypeScript follows.
+contract (lm15-contract `spec/auth.md` AUTH-12–26, 2026-09-22). TypeScript
+(`Auth`, `connect()`), Rust (`lm15::login`) and Go (`lm15.Auth`, `lm15.Connect`)
+implement the same component on the same store file: a login saved here is
+used, renewed and signed out there. The contract's `managed` harness direction
+grades all four on the same runs.
 
 **What it gives you.** One place that remembers how you connect to each
 provider — a subscription login, a pasted key, "use `$GROQ_API_KEY`", "use my

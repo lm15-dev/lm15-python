@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+Managed sign-in (provisional), two corrections found while TypeScript, Rust
+and Go implemented the same component against the shared contract runs:
+
+- A pasted sign-in return that fails validation (wrong state, a URL that is
+  not the registered return, a bare code the provider's profile refuses) is
+  rejected with a notice and asked for again; the loopback listener, when
+  there is one, keeps listening. Before, it ended the sign-in. AUTH-18 says a
+  wrong return "does not terminate the legitimate wait".
+- A request that finds another process renewing the same token now waits
+  for that renewal and uses its result. Before, it failed `indeterminate`
+  ("sign in again") while the other process was still renewing. A renewal
+  marker still present once the lock is held (the renewing process died)
+  remains `indeterminate`.
+
+The vet shim answers the contract's new `managed_run` op. Contract:
+lm15-contract `536d795`.
+
 ## 1.0.1 — 2026-09-25
 
 The first stable release. `pip install lm15` now installs it (no `--pre`).
