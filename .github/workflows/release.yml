@@ -66,3 +66,7 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        with:
+          # PyPI's reason for a refusal is only printed in verbose mode (2026-09-25:
+          # a bare "400 Bad Request").
+          verbose: true
