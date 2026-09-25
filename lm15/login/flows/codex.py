@@ -33,8 +33,8 @@ from ..engine import (
     ManualCodePrompt,
     http_form,
     http_json,
+    await_return,
     parse_manual_return,
-    race_callback_and_manual,
     run_device_flow,
 )
 from ..types import AuthUrlNotice, DeviceCodeNotice, InfoNotice, LoginMethod, ProgressNotice, ProviderDescriptor
@@ -137,10 +137,8 @@ class CodexFlow(ProviderFlow):
                 "Sign in to ChatGPT in your browser. If the browser is on another machine, paste the final "
                 "redirect URL back here.")))
             prompt = ManualCodePrompt(field_id="return", label="Paste the redirect URL here (or wait for the browser)")
-            returned, pasted = race_callback_and_manual(ctx, listener, prompt)
-            if returned is None:
-                returned = parse_manual_return(pasted or "", expected_state=state, allow_bare_code=False,
-                                               registered_path=CALLBACK_PATH)
+            returned = await_return(ctx, listener, prompt, lambda pasted: parse_manual_return(
+                pasted, expected_state=state, allow_bare_code=False, registered_path=CALLBACK_PATH))
             return self._exchange(ctx, returned.code, pkce.verifier, REDIRECT_URI)
         finally:
             if listener is not None:

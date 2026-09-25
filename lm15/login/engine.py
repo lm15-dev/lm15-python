@@ -44,7 +44,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 from .._version import __version__
 from ..errors import AuthError, AuthOperationError, ServerError, TransportError
-from .types import AuthUI, ManualCodePrompt, Notice, Prompt
+from .types import AuthUI, InfoNotice, ManualCodePrompt, Notice, Prompt
 
 __all__ = [
     "ATTEMPT_LIFETIME_S",
@@ -61,6 +61,7 @@ __all__ = [
     "http_form",
     "http_json",
     "parse_manual_return",
+    "await_return",
     "race_callback_and_manual",
     "run_device_flow",
 ]
@@ -656,6 +657,8 @@ def race_callback_and_manual(
     ctx: LoginContext,
     listener: CallbackListener | None,
     prompt: ManualCodePrompt,
+    *,
+    keep_listener: bool = False,
 ) -> tuple[CallbackReturn | None, str | None]:
     """Wait for whichever arrives first: the loopback return or a pasted
     value.  Returns ``(callback, None)`` or ``(None, pasted_text)``.  The
@@ -689,7 +692,8 @@ def race_callback_and_manual(
                     dismiss(prompt)
                 return result, None
             if manual_done.is_set():
-                listener.stop()
+                if not keep_listener or "value" not in manual_box:
+                    listener.stop()
                 if manual_box.get("cancelled"):
                     raise LoginCancelled("login cancelled at the prompt")
                 if "error" in manual_box:
@@ -700,4 +704,32 @@ def race_callback_and_manual(
                 return None, manual_box.get("value")
             manual_done.wait(0.25)
     finally:
-        listener.stop()
+        if not (keep_listener and "value" in manual_box and not listener._done.is_set()):
+            listener.stop()
+
+
+def await_return(
+    ctx: LoginContext,
+    listener: CallbackListener | None,
+    prompt: ManualCodePrompt,
+    parse: Callable[[str], CallbackReturn],
+) -> CallbackReturn:
+    """The authorization return, from the listener or a paste, validated.
+
+    A paste that fails validation (wrong state, wrong URL, a bare code the
+    profile does not accept) is rejected with a notice and the legitimate
+    wait goes on — the listener keeps listening and the person is asked
+    again (AUTH-18: a wrong return "does not terminate the legitimate
+    wait"; AUTH-24 ``invalid_login_state``). Cancellation and the deadline
+    still end it.
+    """
+    while True:
+        returned, pasted = race_callback_and_manual(ctx, listener, prompt, keep_listener=True)
+        if returned is not None:
+            return returned
+        try:
+            return parse(pasted or "")
+        except AuthOperationError as exc:
+            if exc.reason != "invalid_login_state":
+                raise
+            ctx.notify(InfoNotice(f"{exc}. Try again."))

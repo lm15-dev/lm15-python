@@ -29,8 +29,8 @@ from ..engine import (
     LoginDenied,
     ManualCodePrompt,
     http_json,
+    await_return,
     parse_manual_return,
-    race_callback_and_manual,
 )
 from ..types import AuthUrlNotice, InfoNotice, LoginMethod, ProgressNotice, ProviderDescriptor
 from .base import LoginResult, Material, ProviderFlow, RequestAuth, oauth_material
@@ -122,16 +122,10 @@ class ClaudeFlow(ProviderFlow):
                 field_id="return", label="Paste the full code#state or return URL here",
                 accepted="the full return URL, or code#state (a bare code without state is not accepted)",
             )
-            if hosted:
-                returned, pasted = None, ctx.prompt(prompt)
-            else:
-                returned, pasted = race_callback_and_manual(ctx, listener, prompt)
-            ctx.check()
-            if returned is None:
-                returned = parse_manual_return(
-                    pasted or "", expected_state=state, allow_bare_code=False,
-                    registered_path=urllib.parse.urlsplit(redirect_uri).path, registered_uri=redirect_uri,
-                )
+            returned = await_return(ctx, listener, prompt, lambda pasted: parse_manual_return(
+                pasted, expected_state=state, allow_bare_code=False,
+                registered_path=urllib.parse.urlsplit(redirect_uri).path, registered_uri=redirect_uri,
+            ))
             ctx.check()
             ctx.notify(ProgressNotice(stage="exchange", message="Exchanging the authorization code…"))
             reply = http_json(ctx, TOKEN_URL, {

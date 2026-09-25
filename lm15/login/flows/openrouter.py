@@ -29,8 +29,8 @@ from ..engine import (
     LoginDenied,
     ManualCodePrompt,
     http_json,
+    await_return,
     parse_manual_return,
-    race_callback_and_manual,
 )
 from ..types import AuthUrlNotice, LoginMethod, ProgressNotice, ProviderDescriptor
 from .base import LoginResult, Material, ProviderFlow, RequestAuth
@@ -86,10 +86,8 @@ class OpenRouterFlow(ProviderFlow):
                 "machine, paste the final redirect URL back here.")))
             prompt = ManualCodePrompt(field_id="return", label="Paste the redirect URL or code here (or wait for the browser)",
                                       accepted="the full redirect URL, or the code")
-            returned, pasted = race_callback_and_manual(ctx, listener, prompt)
-            if returned is None:
-                returned = parse_manual_return(pasted or "", expected_state=None, allow_bare_code=True,
-                                               registered_path=path)
+            returned = await_return(ctx, listener, prompt, lambda pasted: parse_manual_return(
+                pasted, expected_state=None, allow_bare_code=True, registered_path=path))
             ctx.notify(ProgressNotice(stage="exchange", message="Exchanging the code for an API key…"))
             return LoginResult(material=_exchange(ctx, returned.code, pkce.verifier), label="OpenRouter (minted key)",
                                renewal="none")

@@ -19,7 +19,7 @@ from lm15 import auth as legacy
 from lm15.errors import AuthOperationError
 from lm15.login.engine import CallbackReturn, LoginCancelled, LoginContext, LoginDenied, parse_manual_return
 from lm15.login.flows import claude
-from lm15.login.types import AuthUrlNotice, ManualCodePrompt
+from lm15.login.types import AuthUrlNotice, InfoNotice, ManualCodePrompt
 
 # Independent expected facts, not aliases of the implementation constants.
 EXPECTED_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
@@ -40,16 +40,23 @@ class Reply:
 
 
 class UI:
-    def __init__(self, form="code_state"):
+    def __init__(self, form="code_state", answers=None):
         self.authorization = None
         self.form = form
+        self.answers = answers  # None: answer every prompt; n: answer n prompts, then close the input
+        self.notices = []
 
     def notify(self, notice):
+        self.notices.append(notice)
         if isinstance(notice, AuthUrlNotice):
             self.authorization = notice.url
 
     def prompt(self, prompt):
         assert isinstance(prompt, ManualCodePrompt)
+        if self.answers is not None:
+            if self.answers == 0:
+                raise EOFError("the person closed the input")
+            self.answers -= 1
         state = parse_qs(urlsplit(self.authorization).query)["state"][0]
         if self.form == "code_state":
             return "test-code#" + state
@@ -124,12 +131,16 @@ def test_invalid_hosted_return_never_reaches_token_endpoint(monkeypatch, pasted)
     def opener(request, timeout):
         raise AssertionError("Invalid return must not be exchanged")
 
-    ctx = LoginContext(ui=UI(pasted), deadline=time.monotonic() + 30, provider="claude-code", opener=opener)
-    with pytest.raises(AuthOperationError) as caught:
+    # AUTH-18: a wrong return is rejected and the legitimate wait goes on —
+    # the person is told and asked again; here they then give up.
+    ui = UI(pasted, answers=1)
+    ctx = LoginContext(ui=ui, deadline=time.monotonic() + 30, provider="claude-code", opener=opener)
+    with pytest.raises(LoginCancelled):
         claude.ClaudeFlow().login(ctx, claude.METHOD_BROWSER, {}, {})
-    assert caught.value.reason == "invalid_login_state"
-    assert "test-code" not in str(caught.value)
-    assert "wrong.invalid" not in str(caught.value)
+    rejections = [n for n in ui.notices if isinstance(n, InfoNotice)]
+    assert len(rejections) == 1
+    assert "test-code" not in rejections[0].message
+    assert "wrong.invalid" not in rejections[0].message
 
 
 def test_validated_error_return_is_denied_not_echoed():
@@ -171,8 +182,8 @@ def test_loopback_is_still_explicitly_available(monkeypatch):
             pass
 
     monkeypatch.setattr(claude, "CallbackListener", Listener)
-    monkeypatch.setattr(claude, "race_callback_and_manual", lambda ctx, listener, prompt: (
-        CallbackReturn(code="test-code", state=listener.state), None,
+    monkeypatch.setattr(claude, "await_return", lambda ctx, listener, prompt, parse: CallbackReturn(
+        code="test-code", state=listener.state,
     ))
     requests = []
 
