@@ -17,7 +17,7 @@ and Go implemented the same component against the shared contract runs:
   remains `indeterminate`.
 
 The vet shim answers the contract's new `managed_run` op. Contract:
-lm15-contract `536d795`.
+lm15-contract `96bb1f4`.
 
 ## 1.0.1 — 2026-09-25
 
