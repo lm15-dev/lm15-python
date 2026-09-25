@@ -1,9 +1,14 @@
 # Changelog
 
-## 1.0.0 — 2026-09-25
+## 1.0.1 — 2026-09-25
 
 The first stable release. `pip install lm15` now installs it (no `--pre`).
-It is 1.0.0rc3 plus the changes below. Contract: lm15-contract `b0ff3c0`.
+It is 1.0.0rc3 plus the changes below.
+
+Why 1.0.1 and not 1.0.0: a 1.0.0 was uploaded to PyPI on 2026-06-11 by
+mistake and removed seven hours later (see "Re-stage 1.0.0 as 1.0.0a1"
+below). PyPI never accepts a removed version number again. There is no
+1.0.0 of lm15; 1.0.1 is the first stable release. Contract: lm15-contract `b0ff3c0`.
 
 **What 1.0 promises.** The chat core is frozen for 1.x: the canonical types,
 their JSON form, errors, request and response mapping, streaming, credential

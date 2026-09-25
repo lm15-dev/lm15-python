@@ -32,7 +32,7 @@ Measured by [`benchmarks/suite/run.py`](benchmarks/suite/run.py) on Python 3.13.
 
 ## Install
 
-The current release is **1.0.0**. Requires Python 3.10 or newer.
+The current release is **1.0.1**, the first stable one. Requires Python 3.10 or newer.
 
 ```bash
 python3 -m pip install lm15
