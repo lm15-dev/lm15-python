@@ -7,15 +7,14 @@ same discipline as the code — see
 
 ## Where we are (September 2026)
 
-- **1.0.0rc3** is the next release candidate in this checkout, not yet
-  published by this source update and not the stable 1.0 release. The chat core
-  — canonical types, serde, errors, request building, response parsing,
-  streaming — is checked against the pinned language-neutral contract.
-  Publishing this candidate does not ratify draft contract changes.
+- **1.0.0** is the current release (2026-09-25), the first stable one. The chat
+  core — canonical types, serde, errors, request building, response parsing,
+  streaming — is checked against the pinned language-neutral contract, and
+  frozen for 1.x.
 - Non-chat endpoints, stored-cache resources, live sessions and Chat
   Completions ingest ship as **provisional**. Contract tests cover recorded
   behavior; they do not promise that every provider/account works live.
-  The stability boundary below applies even after the package reaches 1.0.
+  The stability boundary below applies throughout 1.x.
 - The [model-string router](using-the-router.md) is available. Tool
   derivation from functions was removed before 1.0 (2026-09-23): a
   `FunctionTool` is written out, in every language.
@@ -51,26 +50,21 @@ The stability of a feature is separate from its test coverage. In particular,
 typed media *inside chat* belongs to the frozen chat model; the standalone
 media-generation endpoints are provisional.
 
-## Toward 1.0 stable
+## After 1.0
 
-The release candidate lets users test the package and read the full
-documentation before the stable release. Remaining work includes:
+1.0.0 was released on 2026-09-25, ahead of the documentation plan it was
+waiting for, by the maintainer's decision. Still to do, all additive:
 
-1. **Complete documentation site** (this site) — guides, cookbooks, API
-   reference, specification pages, benchmarks.
-2. **User-experience review pass** — read the docs as a new user would;
-   adjust library ergonomics where the docs reveal friction. Small,
-   additive-only changes to the frozen chat core; provisional surfaces may
-   still move.
-3. **Check scope labeling** — the scope is settled above. Keep the
-   provisional notices on the relevant guides and release notes; do not
-   advertise the entire exported package as a frozen API.
-4. **Release engineering** — tag-driven publishing via PyPI trusted
-   publishing (OIDC) is in place. Since 2026-09-24, CI runs the tests on
-   Python 3.10–3.14 on Linux, macOS and Windows, and a type-checking gate
-   (`typecheck/README.md`): the documentation's programs type-check with
-   mypy `--strict`, and lm15's own remaining findings may only go down.
-5. **Stable release.**
+1. **Complete documentation site** — guides, API reference, specification
+   pages; several guides and the reference are still marked unfinished.
+2. **User-experience review pass** — read the docs as a new user would.
+   Changes to the frozen chat core must be additive; provisional surfaces
+   may still move.
+3. **Scope labels** — keep the provisional notices on the relevant guides
+   and release notes.
+4. **Release engineering, in place** — tag-driven publishing via PyPI trusted
+   publishing (OIDC); CI on Python 3.10–3.14 × Linux, macOS and Windows; a
+   type-checking gate (`typecheck/README.md`).
 
 ## Provider coverage
 

@@ -9,7 +9,7 @@ You have code that calls `client.chat.completions.create(...)` or `litellm.compl
 
 The rule the whole page follows: **keep your messages and your model string; change the call.** `LMRouter.complete_from_openai_chat(model, messages, **kwargs)` reads their model, messages and supported request options, and answers with an lm15 `Response`. Add `stream=True` to receive text as it arrives instead. Anything lm15 cannot carry is refused by name; nothing is silently dropped. It is a migration, not a drop-in: the answer is `response.text`, not `choices[0].message.content`.
 
-You need Python 3.10+, `pip install --pre lm15`, and the API keys you already have — as you will see in a moment, they do not move. The model replies below were captured from earlier calls; your wording and token counts will vary. Examples containing placeholder keys or server addresses need your own values.
+You need Python 3.10+, `pip install lm15`, and the API keys you already have — as you will see in a moment, they do not move. The model replies below were captured from earlier calls; your wording and token counts will vary. Examples containing placeholder keys or server addresses need your own values.
 
 ## Setup
 

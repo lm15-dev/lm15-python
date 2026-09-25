@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 — 2026-09-25
+
+The first stable release. `pip install lm15` now installs it (no `--pre`).
+It is 1.0.0rc3 plus the changes below. Contract: lm15-contract `b0ff3c0`.
+
+**What 1.0 promises.** The chat core is frozen for 1.x: the canonical types,
+their JSON form, errors, request and response mapping, streaming, credential
+resolution and model listing. Removing or changing any of it needs a 2.0.
+Provisional, and allowed to change during 1.x with a contract change entry:
+files, batches, image/speech/video generation, stored-cache resources, live
+sessions, Chat Completions ingest, and managed sign-in (`lm15.login`,
+`connect()`), whose provider permission and billing are unverified except
+for xAI. Pin an exact version if you use those. See `docs/roadmap.md`.
+
 
 - **Type checkers accept the documented calls.** `Request(messages=[...])`,
   `tools=[...]`, `Config(stop=[...])`, `Message(parts=[...])` and the other

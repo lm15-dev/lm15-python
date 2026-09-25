@@ -32,14 +32,12 @@ Measured by [`benchmarks/suite/run.py`](benchmarks/suite/run.py) on Python 3.13.
 
 ## Install
 
-The current 1.0 release candidate is **1.0.0rc3**. Opt into prereleases to
-use the API documented here; without `--pre`, pip selects the older stable
-release (0.9.9.post1). To pin this candidate exactly, use `lm15==1.0.0rc3`.
+The current release is **1.0.0**. Requires Python 3.10 or newer.
 
 ```bash
-python3 -m pip install --pre lm15
+python3 -m pip install lm15
 # Optional extra for websocket live sessions:
-python3 -m pip install --pre 'lm15[live]'
+python3 -m pip install 'lm15[live]'
 ```
 
 Or from source, for development:

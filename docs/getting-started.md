@@ -12,11 +12,10 @@ captured output, and every block is copy-paste runnable.
 ## Install
 
 ```bash
-python3 -m pip install --pre lm15
+python3 -m pip install lm15
 ```
 
-Zero dependencies, stdlib only. (`--pre` is needed while the current
-release is a pre-release; it goes away at 1.0 stable.)
+Zero dependencies, stdlib only.
 
 ## Set an API key
 
