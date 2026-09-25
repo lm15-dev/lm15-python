@@ -102,6 +102,10 @@ class _Server:
         if not self.script:
             raise urllib.error.URLError(ConnectionRefusedError("no scripted reply"))
         reply = self.script.pop(0)
+        if reply.get("delay_ms"):
+            import time as _time
+
+            _time.sleep(float(reply["delay_ms"]) / 1000.0)  # real time: lets another process race this exchange
         network = reply.get("network")
         if network == "timeout":
             raise urllib.error.URLError(TimeoutError("timed out"))

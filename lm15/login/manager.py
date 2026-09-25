@@ -725,6 +725,12 @@ class Auth:
         provider = self.descriptor(provider).id
         document = self.store.read()
         slot, material = self._view(document, provider)
+        if slot.renewal_in_flight and slot.state != "indeterminate":
+            # A sibling may be renewing right now (it holds the lock), or may
+            # have died mid-exchange. Only the lock can tell: wait for it,
+            # re-read, and reuse the sibling's result; a marker still there
+            # once we hold the lock is an interrupted renewal (AUTH-20.4).
+            return self._renew(provider, pinned)
         self._check_selected(provider, slot, material, pinned)
         flow = flow_for_material(provider, material)  # type: ignore[arg-type]
         assert material is not None
