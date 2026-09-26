@@ -157,9 +157,10 @@ record_invoice
 
 ## How it works
 
-`Config.response_format` is a plain `JsonObject`; lm15 validates that
-it is JSON-serializable and otherwise leaves it to the provider
-adapter. On the wire:
+`Config.response_format` takes exactly two shapes, checked when the
+`Config` is built: `{"type": "json_object"}` or `{"type": "json_schema",
+"schema": {...}, "name"?: ..., "strict"?: ...}`. The schema itself is
+yours and is sent verbatim. On the wire:
 
 - **OpenAI (Responses)** gets `text.format` with
   `{"type": "json_schema", "name": …, "schema": …}`. The chat-completions
@@ -168,15 +169,20 @@ adapter. On the wire:
 - **Anthropic** gets `output_config.format` with the same schema.
 - **Gemini** gets `generationConfig` with
   `responseMimeType: "application/json"` plus the schema. Gemini has two
-  schema fields: `responseSchema` (OpenAPI-ish, rejects
-  `additionalProperties`) and `responseJsonSchema` (real JSON Schema).
-  lm15 picks `responseJsonSchema` when your schema contains
-  `additionalProperties`, `responseSchema` otherwise.
+  schema fields: `responseSchema`, its own OpenAPI-style subset, and
+  `responseJsonSchema`, full JSON Schema. lm15 uses `responseJsonSchema`
+  when your schema uses something only JSON Schema can say
+  (`additionalProperties`, `const`, `$defs`/`$ref`, a list `type` such as
+  `["string", "null"]`, a non-string `enum`), and `responseSchema`
+  otherwise, so schemas written in Gemini's own style keep working. The
+  same rule picks between `parameters` and `parametersJsonSchema` for
+  function tools (contract rule MAP-16).
 
-If you already hold a provider-native config, pass it through: a dict
-with a `text`, `output_config`, or `generationConfig` key is forwarded
-verbatim to that provider. That escapes portability — use it only when
-you need a dialect feature the canonical shape can't express.
+A provider-native shape (`{"format": ...}`, `{"generationConfig":
+...}`, a bare schema) is refused in `response_format` with a message
+naming both canonical shapes. If you need a dialect feature the
+canonical shape can't express, put it in `Config.extensions`, which
+reaches that provider as-is — and gives up portability.
 
 `Response.parse_json()` is `json.loads` on `response.text` plus honest
 errors: it refuses non-text responses (tool calls, images) by listing
@@ -209,10 +215,12 @@ text to *be* the JSON document (logging, piping onward).
 
 - **JSON mode without a schema.**
   `Config(response_format={"type": "json_object"})` asks for *some*
-  valid JSON object. All three providers honor it; you get no field
-  guarantees, so `check_invoice`-style validation is mandatory. Mention
-  JSON in the prompt — OpenAI rejects `json_object` requests whose
-  messages never say "JSON".
+  valid JSON object. OpenAI and Gemini honor it; Anthropic has no
+  any-JSON mode and raises `UnsupportedFeatureError` before sending, so
+  give it a schema. You get no field guarantees, so
+  `check_invoice`-style validation is mandatory. Mention JSON in the
+  prompt — OpenAI rejects `json_object` requests whose messages never
+  say "JSON".
 - **`strict: True`** is an OpenAI feature: the schema is compiled into
   a grammar and enforced during decoding, but every field must be
   `required` and `additionalProperties: False`. The Anthropic and

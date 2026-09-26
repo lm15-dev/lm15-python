@@ -164,7 +164,9 @@ which builds one `ToolResultPart` per entry.
   provider supports it.
 - **Strict modes.** Add `"additionalProperties": False` to the schema
   for providers' strict tool modes; those modes typically also require
-  every property to be required.
+  every property to be required. The same schema works on Gemini: lm15
+  sends a schema that uses JSON Schema Gemini's own format lacks as
+  `parametersJsonSchema` instead of `parameters`.
 - **Provider notes.** Call ids differ in shape (`call_…` on OpenAI,
   `toolu_…` on Anthropic, short opaque ids on Gemini) — treat them as
   opaque and always echo them back in `Message.tool`.

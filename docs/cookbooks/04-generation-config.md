@@ -155,8 +155,10 @@ becomes `stop_sequences` (Anthropic) or `stopSequences` (Gemini).
 `response_format` in the canonical
 `{"type": "json_schema", "name": …, "schema": …}` shape is translated to
 OpenAI's `text.format`, Anthropic's `output_config`, and Gemini's
-`responseSchema`/`responseJsonSchema` in `generationConfig`. You can also pass a provider-native shape; it is
-forwarded as-is.
+`responseSchema`/`responseJsonSchema` in `generationConfig`
+([recipe 08](08-structured-output.md) says which). Any other shape is
+refused when the `Config` is built; provider-native settings go in
+`Config.extensions`.
 
 Unset fields are not sent. `config_to_dict(Config())` is `{}`, and the
 wire payload contains no sampling keys at all — the provider's own
