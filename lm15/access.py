@@ -589,13 +589,20 @@ AZURE_ANTHROPIC = AccessPolicy(
 # else {loc}-aiplatform.googleapis.com (vertex-locations.md:40-63, :91).
 _VERTEX_BASE = "https://{location_host}/v1/projects/{project}/locations/{location}"
 
+# API keys (amended 2026-09-26): Google accepts a Vertex API key in
+# ``x-goog-api-key`` on the project-scoped global and regional hosts
+# (live: generateContent, streamGenerateContent, countTokens), so a key
+# user keeps residency control.  Key first, then bearer: a string is a key
+# unless it has an access token's shape (``auth_header``).  No env key:
+# ``GOOGLE_API_KEY`` is commonly set for the Gemini API, and reading it
+# here would silently replace the ADC identity (and its billing) with it.
 VERTEX = AccessPolicy(
     provider="vertex",
     supports=EndpointSupport(complete=True, stream=True),  # caches/batches/models: live cells
     credential_policy="gcp-chain",
-    auth_modes=("google-oauth",),
+    auth_modes=("x-goog-api-key", "google-oauth"),
     env_keys=(),
-    auth_scheme=("bearer",),
+    auth_scheme=("x-api-key", "bearer"),
     backend="vertex",
     host=HostSpec(base_url=_VERTEX_BASE + "/publishers/google", settings=(_GCP_PROJECT, _GCP_LOCATION)),
 )
@@ -783,6 +790,19 @@ def select_scheme(policy: AccessPolicy, credential: CredentialValue) -> AuthSche
     )
 
 
+def looks_like_access_token(text: str) -> str | None:
+    """The token shape a plain string has, if any (AUTH-2, amended
+    2026-09-19 and 2026-09-26): ``"JWT"`` (JWS compact: Entra, OIDC, a
+    Google self-signed JWT) or ``"Google access token"`` (``ya29.``, what
+    every Google OAuth endpoint issues: user, service account, metadata,
+    STS, impersonation).  No key any door here issues has either shape."""
+    if text.startswith("ya29."):
+        return "Google access token"
+    if _looks_like_jwt(text):
+        return "JWT"
+    return None
+
+
 def _looks_like_jwt(text: str) -> bool:
     """Three base64url segments whose first decodes to a JSON object with
     ``alg`` — the JWS compact form every Entra/OAuth access token uses."""
@@ -813,7 +833,7 @@ def auth_header(
     ``_emit`` handles those."""
     value = coerce_credential(credential)
     scheme = select_scheme(policy, value)
-    if scheme in ("api-key", "x-api-key") and "bearer" in policy.auth_scheme and _looks_like_jwt(value.value):
+    if scheme in ("api-key", "x-api-key") and "bearer" in policy.auth_scheme and looks_like_access_token(value.value):
         # A plain string reads as an API key, and on this door the key header
         # comes before bearer.  A JWT is never an API key on any door lm15
         # has: it is an Entra/OAuth access token that a token-provider
@@ -824,7 +844,9 @@ def auth_header(
         # which the request can succeed — and the doctor says so.  Before
         # that date this was a refusal naming the BearerToken wrap; the
         # wrap is still accepted and still the form to use when nothing
-        # should be read from a token's shape.
+        # should be read from a token's shape.  Amended 2026-09-26: a Google
+        # access token (``ya29.``) is read the same way, so an access token
+        # string on the vertex door (key header first) still goes as bearer.
         scheme = "bearer"
     if scheme == "bearer":
         return ("Authorization", f"Bearer {value.value}")

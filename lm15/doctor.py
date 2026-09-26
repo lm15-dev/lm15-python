@@ -95,6 +95,12 @@ class AuthReport:
     # (``"base_urls"``, an env variable name, or ``"template"``).
     base_url: str | None = None
     base_url_source: str | None = None
+    # Where each setting came from (AUTH-10 ``from`` vocabulary, amended
+    # 2026-09-26): ``explicit``, ``env:<VAR>``, ``adc-env``,
+    # ``gcloud-config``, ``adc-file``, ``metadata``, ``aws-profile``,
+    # ``default``; ``unprobed:metadata`` when only the metadata server could
+    # answer and the doctor does not use the network.
+    setting_sources: tuple[tuple[str, str], ...] = ()
 
     @property
     def selected(self) -> AuthStep | None:
@@ -117,8 +123,14 @@ class AuthReport:
             lines.append(f"  configured: probably — {', '.join(s.source for s in unprobed)} (unprobed offline)")
         else:
             lines.append("  configured: no")
+        origins = dict(self.setting_sources)
         for name, value in self.settings:
-            lines.append(f"  setting {name}: {value}")
+            origin = origins.get(name)
+            shown = f"env ${origin[4:]}" if origin and origin.startswith("env:") else _SETTING_FROM.get(origin or "", origin)
+            lines.append(f"  setting {name}: {value}" + (f" (from {shown})" if origin else ""))
+        for name, origin in self.setting_sources:
+            if origin.startswith("unprobed:"):  # "missing" is the error line below
+                lines.append(f"  setting {name}: not found offline; {_SETTING_FROM.get(origin, origin)} is asked at request time")
         if self.base_url:
             origin = f" (from {self.base_url_source})" if self.base_url_source else ""
             lines.append(f"  base url: {self.base_url}{origin}")
@@ -126,6 +138,18 @@ class AuthReport:
 
     def __str__(self) -> str:
         return self.describe()
+
+
+_SETTING_FROM = {
+    "explicit": "settings",
+    "adc-env": "the GOOGLE_APPLICATION_CREDENTIALS file",
+    "gcloud-config": "gcloud's active configuration",
+    "adc-file": "the gcloud application default credentials file",
+    "metadata": "the Google Cloud metadata server",
+    "unprobed:metadata": "the Google Cloud metadata server",
+    "aws-profile": "the active AWS profile",
+    "default": "default",
+}
 
 
 def _expiry_detail(credential: LocalOAuthCredential) -> str:
@@ -436,6 +460,7 @@ def _explain_cloud(
     entry = _api_keys_source(config, canonical)
     has_entry = entry is not None
     resolved: dict[str, str] = {}
+    setting_sources: dict[str, str] = {}
     setting_error: str | None = None
     ctx = ChainContext(
         env=environment,
@@ -451,13 +476,18 @@ def _explain_cloud(
             endpoint_source = next(var for var in policy.host.endpoint_env if (environment.get(var) or "").strip())
             endpoint_source = f"env ${endpoint_source}"
     try:
+        problems: list[NotConfiguredError] = []
         resolved = resolve_settings(policy.host, settings, environment, provider=canonical,
-                                    profile=profile_settings(policy, ctx), endpoint=base_url)
+                                    profile=profile_settings(policy, ctx), endpoint=base_url,
+                                    sources=setting_sources, unprobed_ok=True, problems=problems)
+        if problems:
+            setting_error = str(problems[0]).splitlines()[0]
     except NotConfiguredError as exc:
         setting_error = str(exc).splitlines()[0]
     ctx.settings = resolved
     rendered: str | None = None
-    if policy.host is not None and setting_error is None:
+    pending = any(origin.startswith("unprobed:") for origin in setting_sources.values())
+    if policy.host is not None and setting_error is None and not pending:  # nothing missing, nothing unprobed
         try:
             rendered = render_base_url(policy.host, resolved, base_url, provider=canonical)
         except NotConfiguredError as exc:
@@ -485,4 +515,5 @@ def _explain_cloud(
         provider=canonical, steps=tuple(out), configured=configured, settings=shown,
         named=credential, named_meaning=named_meaning(policy, credential) if credential else None,
         base_url=rendered, base_url_source=(endpoint_source or "template") if rendered else None,
+        setting_sources=tuple(sorted(setting_sources.items())),
     )

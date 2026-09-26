@@ -781,11 +781,11 @@ class BaseProviderLM:
         if hint and (self.access.credential_policy == "oauth" or self._credential_source == "stored"):
             error = with_credential_hint(error, hint)
         elif isinstance(error, AuthError) and self.access.cloud_chain:
-            # A cloud door refusing an identity is an IAM question, not a
-            # wrong API key: say which role and that grants take minutes.
-            from ..cloud.chains import WIRE_AUTH_HINTS
+            # A cloud door refusing an identity is an IAM or token question,
+            # not a mistyped key: say which role, or which kind of credential.
+            from ..cloud.chains import wire_auth_hint
 
-            wire_hint = WIRE_AUTH_HINTS.get(self.access.credential_policy, {}).get(error.status or 0)
+            wire_hint = wire_auth_hint(self.access, error.status, self._sent_credential_kind())
             if wire_hint:
                 error = with_credential_hint(error, wire_hint)
         if isinstance(error, AuthError):
@@ -798,6 +798,24 @@ class BaseProviderLM:
             if origin:
                 error = with_credential_origin(error, origin)
         return error
+
+    def _sent_credential_kind(self) -> str | None:
+        """"key", "token", or None when a callable decides per request."""
+        from ..access import looks_like_access_token
+        from ..credentials import ApiKey, BearerToken
+
+        cred = self.api_key
+        if hasattr(cred, "source") and hasattr(cred, "named"):  # a cloud chain provider: tokens
+            return "token"
+        if cred is None or callable(cred):
+            return None
+        try:
+            value = coerce_credential(cred)
+        except Exception:  # noqa: BLE001 - guidance must never mask the real error
+            return None
+        if isinstance(value, BearerToken) or (isinstance(value, ApiKey) and looks_like_access_token(value.value)):
+            return "token"
+        return "key" if isinstance(value, ApiKey) else None
 
     def close(self) -> None:
         close = getattr(self.transport, "close", None)

@@ -41,6 +41,7 @@ import hashlib
 import http.client
 import json
 import os
+import re
 import subprocess
 import threading
 import urllib.parse
@@ -49,7 +50,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Optional, Tuple
 from xml.etree import ElementTree
 
 from ..credentials import ApiKey, AwsCredentials, BearerToken, CredentialValue, parse_rfc3339
@@ -1204,26 +1205,100 @@ def _gcp_chain(policy: AccessPolicy) -> list[Rung]:
 # ─── Settings from the cloud profile (AUTH-10 fallbacks after env) ────
 
 
-def profile_settings(policy: AccessPolicy, ctx: ChainContext) -> Callable[[str], str | None]:
-    """The setting values the cloud's own config files carry: AWS
-    ``region`` from the active profile (`~/.aws/config`, then
-    `~/.aws/credentials`); GCP ``project`` from the ADC file's
-    ``quota_project_id`` / ``project_id``.  Nothing for Azure."""
+# Where a setting came from, beyond the caller and the setting's own env
+# variables (AUTH-10, amended 2026-09-26): the ``from`` vocabulary the
+# doctor prints and the harness pins.  ``(None, "metadata")`` means the
+# metadata server would be asked, and this context is offline (the doctor):
+# unprobed, not absent.
+SettingSource = Tuple[Optional[str], str]
 
-    def lookup(name: str) -> str | None:
+_GCLOUD_CONFIG_NAME = re.compile(r"[a-z][-a-z0-9]*")  # gcloud's own rule (named_configs.py:37); also keeps the name inside the directory
+
+
+def _gcloud_config_dir(ctx: ChainContext) -> str:
+    return (ctx.env.get("CLOUDSDK_CONFIG") or "~/.config/gcloud").rstrip("/")
+
+
+def gcloud_config_project(ctx: ChainContext) -> SettingSource | None:
+    """The project ``gcloud config get project`` prints, read from the files
+    gcloud reads (google-auth runs that command; lm15 reads the same files so
+    the doctor can say it offline): ``CLOUDSDK_CORE_PROJECT``, then
+    ``[core] project`` in ``$CLOUDSDK_CONFIG/configurations/config_<name>``,
+    ``<name>`` from ``CLOUDSDK_ACTIVE_CONFIG_NAME``, else the ``active_config``
+    file, else ``default`` (gcp-gcloud-named-configs-py.md, config.py:776-785,
+    named_configs.py:494-575; gcp-gcloud-configurations.md:397, :433-436).
+    Not read, stated: the installation-wide properties file and the
+    ``--configuration`` flag (neither exists outside a gcloud command)."""
+    value = (ctx.env.get("CLOUDSDK_CORE_PROJECT") or "").strip()
+    if value:
+        return value, "env:CLOUDSDK_CORE_PROJECT"
+    base = _gcloud_config_dir(ctx)
+    name = (ctx.env.get("CLOUDSDK_ACTIVE_CONFIG_NAME") or "").strip() or (ctx.read(f"{base}/active_config") or "").strip() or "default"
+    if not _GCLOUD_CONFIG_NAME.fullmatch(name):
+        return None
+    raw = ctx.read(f"{base}/configurations/config_{name}")
+    if not raw:
+        return None
+    parser = configparser.ConfigParser(interpolation=None)
+    try:
+        parser.read_string(raw)
+    except configparser.Error:
+        return None
+    value = (parser.get("core", "project", fallback="") or "").strip()
+    return (value, "gcloud-config") if value else None
+
+
+def _gcp_metadata_project(ctx: ChainContext) -> SettingSource | None:
+    """``project/project-id`` from the metadata server: the project a
+    Cloud Run service, GKE pod or VM runs in (gcp-google-auth-default-py.md
+    :391-420, compute-engine-py.md:395-409).  Offline, unprobed."""
+    if (ctx.env.get("NO_GCE_CHECK") or "").lower() in ("1", "true"):
+        return None
+    if ctx.http is None:
+        return None, "metadata"
+    host = ctx.env.get("GCE_METADATA_HOST") or ctx.env.get("GCE_METADATA_ROOT") or "metadata.google.internal"
+    try:
+        status, _, raw = ctx.http("GET", f"http://{host}/computeMetadata/v1/project/project-id", {"Metadata-Flavor": "Google"}, None, 1.0)
+    except Exception:  # noqa: BLE001 - not on Google Cloud: absent
+        return None
+    value = raw.decode("utf-8", "replace").strip() if status == 200 else ""
+    return (value, "metadata") if value and not any(c.isspace() or c in "/?#" for c in value) else None
+
+
+def profile_settings(policy: AccessPolicy, ctx: ChainContext) -> Callable[[str], SettingSource | None]:
+    """The setting values the cloud's own configuration carries, after the
+    caller and the setting's env variables (AUTH-10), as ``(value, from)``.
+
+    AWS ``region``: the active profile (`~/.aws/config`, then
+    `~/.aws/credentials`).  Google ``project`` (amended 2026-09-26, the
+    order google-auth and gcloud give it): the ``GOOGLE_APPLICATION_CREDENTIALS``
+    file's ``project_id`` (then its ``quota_project_id``); gcloud's active
+    configuration (``CLOUDSDK_CORE_PROJECT``, then the config file); the
+    ADC file's ``quota_project_id`` / ``project_id``; the metadata server.
+    Nothing for Azure."""
+
+    def lookup(name: str) -> SettingSource | None:
         if policy.credential_policy == "aws-chain" and name == "region":
             creds, conf, profile = _aws_config(ctx)
             value = _aws_profile_section(conf, profile).get("region")
             if not value and creds.has_section(profile):
                 value = creds[profile].get("region")
-            return value or None
+            return (value, "aws-profile") if value else None
         if policy.credential_policy == "gcp-chain" and name == "project":
-            for path in (ctx.env.get("GOOGLE_APPLICATION_CREDENTIALS"), _adc_file_path(ctx)):
-                if path:
-                    info = _gcp_credential_file(ctx, path) or {}
-                    value = info.get("quota_project_id") or info.get("project_id")
-                    if value:
-                        return str(value)
+            path = ctx.env.get("GOOGLE_APPLICATION_CREDENTIALS")
+            if path:
+                info = _gcp_credential_file(ctx, path) or {}
+                value = info.get("project_id") or info.get("quota_project_id")
+                if value:
+                    return str(value), "adc-env"
+            found = gcloud_config_project(ctx)
+            if found:
+                return found
+            info = _gcp_credential_file(ctx, _adc_file_path(ctx)) or {}
+            value = info.get("quota_project_id") or info.get("project_id")
+            if value:
+                return str(value), "adc-file"
+            return _gcp_metadata_project(ctx)
         return None
 
     return lookup
@@ -1245,19 +1320,26 @@ _NOTHING_FOUND_HINTS = {
 
 # How a cloud door's wire refusal (HTTP 401/403 from the model endpoint,
 # after a credential was obtained) is fixed: the identity lacks a role, a
-# new grant has not applied yet, or the wrong identity won.  Replaces the
-# API-key guidance, which is wrong for a door that takes cloud identities.
-WIRE_AUTH_HINTS: dict[str, dict[int, str]] = {
-    "gcp-chain": {
-        401: "Google did not accept this credential as a sign-in token: it expired, or it is not an OAuth token. "
-             "A Google API key (AIza...) belongs on the vertex-express door; otherwise sign in again with "
-             "`gcloud auth application-default login`",
-        403: "give the identity named above the Vertex AI User role (roles/aiplatform.user) on the project and "
-             "enable the Vertex AI API (aiplatform.googleapis.com); a new project or a new grant can take a few "
-             "minutes to apply. To use another identity: `gcloud auth application-default login`, or "
-             "GOOGLE_APPLICATION_CREDENTIALS=<file>",
-    },
-}
+# new grant has not applied yet, the token expired, or the key is not a
+# Vertex key.  Replaces the generic API-key guidance.  ``sent`` is what
+# the adapter knows it sent: "key", "token", or None (a callable).
+def wire_auth_hint(policy: AccessPolicy, status: int | None, sent: str | None) -> str | None:
+    if policy.credential_policy != "gcp-chain":
+        return None
+    if status == 403:
+        return ("give the identity named above the Vertex AI User role (roles/aiplatform.user) on the project and "
+                "enable the Vertex AI API (aiplatform.googleapis.com); a new project or a new grant can take a few "
+                "minutes to apply. To use another identity: `gcloud auth application-default login`, or "
+                "GOOGLE_APPLICATION_CREDENTIALS=<file>")
+    if status != 401:
+        return None
+    if sent == "key":
+        return ("Google refused this API key: use a Vertex AI key (Cloud console > APIs & Services > Credentials, "
+                "restricted to the Vertex AI API or bound to a service account); Claude on Vertex takes no keys. "
+                "If the value is an access token that does not start with `ya29.`, pass BearerToken(value)")
+    return ("Google refused this access token: it expired (they last an hour; pass a callable, or let lm15's "
+            "chain refresh it) or it is not an OAuth token. Sign in again with "
+            "`gcloud auth application-default login`")
 
 _CHAINS = {"aws-chain": _aws_chain, "azure-chain": _azure_chain, "gcp-chain": _gcp_chain}
 
