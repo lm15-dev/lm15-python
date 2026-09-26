@@ -9,8 +9,8 @@ keys `DEEPINFRA_API_KEY`, `TOGETHER_API_KEY`, `FIREWORKS_API_KEY`,
 `PARASAIL_API_KEY`, and litellm's `deepinfra/`, `together_ai/`,
 `fireworks_ai/`, `parasail/` prefixes. Reasoning is sent back as
 `reasoning_content`, never pasted into the visible text. Per-model rules
-with receipts: DeepInfra refuses a forced tool call except on DeepSeek V4
-(the others ignore it); Together refuses one on gpt-oss (the server answers
+with receipts: DeepInfra sends a forced tool call only
+to the 14 models a survey showed honour it, and refuses it elsewhere; Together refuses one on gpt-oss (the server answers
 500) and clamps gpt-oss efforts to low|medium|high; reasoning off becomes
 the lowest level, recorded, where the server accepts `none` and reasons
 anyway (Together gpt-oss and GLM-5.3, DeepInfra gpt-oss). Images in tool

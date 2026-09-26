@@ -98,14 +98,24 @@ def test_cache_key_is_dropped_with_a_record(provider: str) -> None:
 # ─── per-host, per-model rules with receipts ───────────────────────
 
 
-def test_deepinfra_refuses_a_forced_tool_choice_except_on_deepseek_v4() -> None:
-    forced = Config(tool_choice=ToolChoice(mode="required"))
-    with pytest.raises(UnsupportedFeatureError):
-        body("deepinfra", Request(model="meta-llama/Llama-3.3-70B-Instruct-Turbo", messages=(Message.user("hi"),),
-                                  tools=(WEATHER,), config=forced))
-    sent = body("deepinfra", Request(model="deepseek-ai/DeepSeek-V4.1-Flash", messages=(Message.user("hi"),),
-                                     tools=(WEATHER,), config=forced))
-    assert sent["tool_choice"] == "required"
+@pytest.mark.parametrize(("model", "sent"), [
+    ("meta-llama/Llama-3.3-70B-Instruct-Turbo", False),  # ignores it
+    ("openai/gpt-oss-120b", False),                      # ignores it
+    ("zai-org/GLM-4.7", False),                          # ignores `none`
+    ("deepseek-ai/DeepSeek-V4-Pro", False),              # untested: refused, never silently ignored
+    ("deepseek-ai/DeepSeek-V4.1-Flash", True),
+    ("zai-org/GLM-5.3-Flash", True),
+    ("anthropic/claude-haiku-4-5", True),
+    ("deepseek-ai/DeepSeek-V4-Flash-0731", True),        # a suffixed variant inherits its entry
+])
+def test_deepinfra_forced_tool_choice_is_sent_only_to_receipted_models(model: str, sent: bool) -> None:
+    request = Request(model=model, messages=(Message.user("hi"),), tools=(WEATHER,),
+                      config=Config(tool_choice=ToolChoice(mode="required")))
+    if sent:
+        assert body("deepinfra", request)["tool_choice"] == "required"
+    else:
+        with pytest.raises(UnsupportedFeatureError):
+            body("deepinfra", request)
 
 
 def test_together_refuses_a_forced_tool_choice_on_gpt_oss_only() -> None:

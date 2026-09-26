@@ -182,9 +182,15 @@ is on [Authentication](authentication.md).
     - **Effort levels.** gpt-oss on Together runs `xhigh`, `max` and any
       unknown word at its default, medium; lm15 sends `high` for those
       and records it.
-    - **Forcing a tool call.** DeepInfra ignores `tool_choice` beyond
-      `auto` on Llama, gpt-oss and Qwen, so lm15 refuses a required call
-      there (DeepSeek V4 honours it and is let through). Together answers
+    - **Forcing a tool call.** On DeepInfra it depends on the model:
+      Llama 3.x, gpt-oss, Gemma 4, Mistral Small and several Qwen3 models
+      ignore `tool_choice` beyond `auto`. lm15 sends it only to the 14
+      models measured to honour it (DeepSeek V3.2/V4, GLM-5.3-Flash,
+      Kimi K2.6, Llama 4 Scout, Qwen3.6-27B, Qwen3-Next, Nemotron 3.5,
+      Granite 4.2, MiMo V2.6, Hunyuan 3, Gemini 3.1 Flash Lite, Claude
+      Haiku 4.5) and refuses it elsewhere. If you know a model honours
+      it, build the client with the preset's other settings kept:
+      `OpenAIChatLM(compat=dataclasses.replace(OpenAIChatCompat.preset("deepinfra"), forced_tool_choice="send"), base_url="https://api.deepinfra.com/v1/openai")`. Together answers
       a forced call on gpt-oss with HTTP 500; lm15 refuses it before
       sending, since a 500 would be retried.
     - **gpt-oss tool loops on Together** are broken on the server: the

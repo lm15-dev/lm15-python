@@ -913,16 +913,37 @@ OPENAI_CHAT_PRESETS: dict[str, OpenAIChatCompat] = {
         strict_tools="omit",
         cache_control="none",
         tool_result_media="reject",
-        # Forced tool choice (required, a named function, none) is accepted
-        # and ignored by Llama 3.3, gpt-oss and Qwen3 here — plain text, no
-        # call (live 2026-09-26; `none` on Llama wrote the call INTO the
-        # text as <function=…>).  DeepSeek V4.1 honours all three.  MAP-8: a
-        # silent cell raises, so the host default is reject and the family
-        # with a receipt is let through.
+        # Forced tool choice depends on the model here.  Survey of 24 models
+        # (research/providers/deepinfra/tool_choice_survey.py, live
+        # 2026-09-26: required twice, a named function, none, and an
+        # unprompted-call control): the 14 below honour all three forms;
+        # Llama 3.x, Qwen3-235B-2507, Qwen3-Coder, Qwen3-30B/14B, Mistral
+        # Small, Gemma 4 and gpt-oss ignore them (text, no call); Qwen3.8-
+        # Flash answers 500; MiniMax M2.7, GLM-4.7 and Seed 2.0 ignore
+        # `none`.  MAP-8: a silent cell raises, so the host default is reject
+        # (an untested model is refused, never silently ignored) and only the
+        # receipted models are let through.  Ratified 2026-09-26.  The ids are
+        # prefixes, so a suffixed variant of a listed model (-Turbo, -0731)
+        # inherits its entry.
         forced_tool_choice="reject",
         model_overrides=(
-            ("deepseek-ai/DeepSeek-V4", {"forced_tool_choice": "send"}),
             ("openai/gpt-oss", {"reasoning_off": "lowest"}),
+            *((model, {"forced_tool_choice": "send"}) for model in (
+                "deepseek-ai/DeepSeek-V3.2",
+                "deepseek-ai/DeepSeek-V4-Flash",
+                "deepseek-ai/DeepSeek-V4.1-Flash",
+                "zai-org/GLM-5.3-Flash",
+                "moonshotai/Kimi-K2.6",
+                "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+                "Qwen/Qwen3.6-27B",
+                "Qwen/Qwen3-Next-80B-A3B-Instruct",
+                "nvidia/NVIDIA-Nemotron-3.5-Lightning",
+                "ibm-granite/granite-4.2-8b",
+                "XiaomiMiMo/MiMo-V2.6-Flash",
+                "tencent/Hy3",
+                "google/gemini-3.1-flash-lite",
+                "anthropic/claude-haiku-4-5",
+            )),
         ),
     ),
     # Together, gpt-oss only (live 2026-09-26; Llama and DeepSeek behave):
