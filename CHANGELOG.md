@@ -19,6 +19,17 @@ and Go implemented the same component against the shared contract runs:
 The vet shim answers the contract's new `managed_run` op. Contract:
 lm15-contract `96bb1f4`.
 
+Gemini: a schema now reaches Gemini in the field that can carry it
+(MAP-16). A tool whose parameters use JSON Schema that Gemini's OpenAPI
+`parameters` field refuses — `additionalProperties`, `const`,
+`$defs`/`$ref`, a list `type`, an integer `enum`, a boolean schema — is
+sent as `parametersJsonSchema` (generateContent, cached prefixes, Live);
+before, Gemini answered 400. The same rule now picks between
+`responseSchema` and `responseJsonSchema` for structured output, which
+before switched only on `additionalProperties`: a Pydantic-shaped schema
+(`$defs`/`$ref`) works. Schemas that worked keep working; the schema is
+sent verbatim either way.
+
 ## 1.0.1 — 2026-09-25
 
 The first stable release. `pip install lm15` now installs it (no `--pre`).
