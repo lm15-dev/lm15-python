@@ -1,6 +1,33 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-09-26
+
+New providers and a Google Cloud pass, both live-verified in Python,
+TypeScript, Rust and Go (contract `fe5cdf9`; 1,788 of 1,788 checks in each).
+
+Google Cloud (lm15-contract `changes/2026-09-26-vertex-live.md`, ratified
+2026-09-26):
+
+- The Vertex project is found where Google's own tools find it, first found
+  wins: `settings={"vertex": {"project": ...}}`, `GOOGLE_CLOUD_PROJECT` then
+  `GCLOUD_PROJECT`, the `GOOGLE_APPLICATION_CREDENTIALS` file's
+  `project_id`, gcloud's active configuration (`CLOUDSDK_CORE_PROJECT`, the
+  saved `gcloud config set project`, named configurations), the ADC file's
+  `quota_project_id`, then the metadata server on Google Cloud
+  (`NO_GCE_CHECK=1` skips it). Before, a project set only in gcloud or only
+  on the VM was not found.
+- A Vertex API key works on the `vertex` door: a plain string goes in
+  `x-goog-api-key`; token-shaped strings (`ya29.`, a JWT) and a
+  `BearerToken` still go as `Authorization: Bearer`.
+- `lm15 doctor` / `explain_auth` names where each setting came from
+  (`setting project: my-project (from gcloud's active configuration)`).
+- Each Google failure names its fix: a stale ADC login, impersonation or
+  federation that is not set up, an IAM 403, a 401 on a non-token string,
+  nothing configured. No secret appears in any of them (AUTH-5, AUTH-21).
+- Live, through lm15's own chain: 13 setups (gcloud login, service-account
+  key, impersonation, workload identity federation, a plain token, API keys
+  on `vertex` and `vertex-express`, a VM with only its attached account), all
+  200. docs/cloud-hosts.md § Google Cloud, start to finish.
 
 Four new providers, each live-tested (lm15-contract
 `changes/2026-09-26-inference-hosts-live.md`): `deepinfra`, `together`,

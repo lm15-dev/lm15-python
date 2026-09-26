@@ -7,8 +7,10 @@ same discipline as the code — see
 
 ## Where we are (September 2026)
 
-- **1.0.1** is the current release (2026-09-25), the first stable one (1.0.0
-  was used by a June upload that was removed; PyPI never reuses a number). The chat
+- **1.1.0** is the current release (2026-09-26): four open-model hosts and a
+  Google Cloud pass on top of **1.0.1** (2026-09-25), the first stable one
+  (1.0.0 was used by a June upload that was removed; PyPI never reuses a
+  number). The chat
   core — canonical types, serde, errors, request building, response parsing,
   streaming — is checked against the pinned language-neutral contract, and
   frozen for 1.x.

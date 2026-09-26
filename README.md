@@ -39,7 +39,7 @@ Measured by [`benchmarks/suite/run.py`](benchmarks/suite/run.py) on Python 3.13.
 
 ## Install
 
-**1.0.1** is the current release, the first stable one. Python 3.10 or newer,
+**1.1.0** is the current release (1.0.1 was the first stable one). Python 3.10 or newer,
 on Linux, macOS and Windows.
 
 ```bash
@@ -531,7 +531,7 @@ windows) from installed catalog packages; it never changes what is sent
 
 This package passes every check of
 [lm15-contract](https://github.com/lm15-dev/lm15-contract) at the commit in
-`CONTRACT_PIN` (1,786 of 1,786 on 2026-09-26); TypeScript, Rust and Go pass
+`CONTRACT_PIN` (1,788 of 1,788 on 2026-09-26); TypeScript, Rust and Go pass
 every check at theirs. The checks compare the exact
 requests lm15 builds and the responses it reads against recorded provider
 traffic. The contract is the specification; this package is the reference
@@ -547,10 +547,10 @@ were captured from live runs; model text and token counts vary.
 
 | | Version | Repository |
 |---|---|---|
-| Python | 1.0.1 | this repository |
-| TypeScript | 1.0.0-rc.1 | [lm15-ts](https://github.com/lm15-dev/lm15-ts) |
-| Rust | 1.0.0-rc.1 | [lm15-rs](https://github.com/lm15-dev/lm15-rs) |
-| Go | v1.1.0-rc.1 | [lm15-go](https://github.com/lm15-dev/lm15-go) |
+| Python | 1.1.0 | this repository |
+| TypeScript | 1.0.0-rc.2 | [lm15-ts](https://github.com/lm15-dev/lm15-ts) |
+| Rust | 1.0.0-rc.2 | [lm15-rs](https://github.com/lm15-dev/lm15-rs) |
+| Go | v1.1.0-rc.2 | [lm15-go](https://github.com/lm15-dev/lm15-go) |
 | The contract | — | [lm15-contract](https://github.com/lm15-dev/lm15-contract) |
 
 ## Contributing and reporting
