@@ -1,19 +1,26 @@
-# lm15
+# lm15 for Python
 
-**lm15** is a small, typed, provider-neutral interface for foundation-model requests, responses, streams, tools, media parts, endpoint APIs, errors, and canonical JSON serialization. This repository is its Python reference implementation.
+One request and response model for every major AI model provider. Write a
+`Request` once and send it to OpenAI, Anthropic, Gemini, xAI, Groq,
+DeepSeek, OpenRouter, Z.AI, Moonshot, Meta, a cloud (Azure, Bedrock,
+Vertex) or a model on your own machine: change the model string, keep the
+program.
 
-**What lm15 is — and deliberately is not.** lm15 is a low-level foundation library: one canonical representation, exact serde for it, and adapters that translate it to and from each provider's wire format — stdlib-only, with its own HTTP transport (`websockets` is the single optional extra, for live sessions). It is NOT an opinionated user-facing API: no magic `call()`, no automatic tool loops, no DSL. lm15 is meant to be **the dependency** for libraries that want to build their own take on the right way to talk to AI systems in Python — you bring the opinions, lm15 brings every provider.
+- **Standard library only.** No required dependencies, its own HTTP
+  transport, sync and async. (`websockets` is the one optional extra, for
+  realtime sessions.)
+- **Low-level on purpose.** Typed requests, responses, stream events, tools,
+  media, errors and exact JSON serialization. No magic `call()`, no
+  automatic tool loop, no DSL: lm15 is the dependency for libraries that
+  want their own take on how to talk to AI systems.
+- **The reference implementation.** lm15 exists for Python, TypeScript,
+  Rust and Go, graded by one shared
+  [contract](https://github.com/lm15-dev/lm15-contract). Python is where
+  changes land first; the contract, not this package, is the authority.
 
-The public API is the top-level package: `from lm15 import AnthropicLM, Request, Message, ...` (see `lm15/__init__.py` for the full curated surface). Transport plumbing stays under `lm15.transports`, live sessions under `lm15.live`, and the conformance shim under `lm15.vet`.
-
-Every Python block below is executed by an offline regression test with simulated
-provider replies. The displayed outputs are captured from live runs; model text,
-token counts, and image sizes vary. Related blocks share variables: run them in
-order within each section.
-
-Live examples require the named API keys, Ollama running with `qwen3.5:0.8b`
-installed, or a valid CLI subscription login as indicated. Hosted calls, including
-web search and image generation, may incur charges.
+Documentation: **[lm15.dev](https://lm15.dev/docs/)** (guides in every
+language) and the [Python site](https://lm15-dev.github.io/lm15-python/)
+(API reference, cookbooks, design notes).
 
 <!-- footprint:generated:start -->
 ## Footprint
@@ -32,49 +39,20 @@ Measured by [`benchmarks/suite/run.py`](benchmarks/suite/run.py) on Python 3.13.
 
 ## Install
 
-The current release is **1.0.1**, the first stable one. Requires Python 3.10 or newer.
+**1.0.1** is the current release, the first stable one. Python 3.10 or newer,
+on Linux, macOS and Windows.
 
 ```bash
 python3 -m pip install lm15
-# Optional extra for websocket live sessions:
-python3 -m pip install 'lm15[live]'
+python3 -m pip install 'lm15[live]'   # optional: realtime (websocket) sessions
 ```
 
-Or from source, for development:
+From source, for development:
 
 ```bash
 git clone https://github.com/lm15-dev/lm15-python && cd lm15-python
 python3 -m pip install -e '.[live]'
 ```
-
-lm15 has zero required dependencies — it is stdlib-only, including its HTTP transports.
-
-## Stability at 1.0
-
-The chat core, credential resolution and model listing have a frozen contract.
-Files, batches, standalone media generation, stored-cache resources, live
-sessions and Chat Completions ingest ship as **provisional**: they may change
-incompatibly in 1.x with a contract change entry. Pin your version when using
-them. See [release scope](docs/roadmap.md#what-ships-in-10-and-what-is-stable)
-for the existing policy and its limits.
-
-## Cached-prefix routing
-
-`router.cache(prefix)` records the resolved destination in the optional canonical
-`CachedPrefix.provider` field. `prefix.model` and `resource.model` remain wire
-model names (and must match); `cached.request(...)` emits `provider:wiremodel`.
-This metadata survives serialization, including router-local provider names.
-Reuse it with the same router configuration/account: it contains no credentials,
-endpoint, or provider declaration. The router's bound `router.lm(...)` also accepts
-the qualified request and strips only its own provider prefix, once.
-
-Direct `lm.cache` with a bare model and manually constructed values without
-`provider` keep the previous unqualified behavior. Explicit own-provider prefixes
-retain their route; underscore input aliases normalize to hyphens. A suffix Request
-may name the wire model or the same qualified destination, not another provider.
-Absent `provider` is omitted from canonical serialization. This routing correction
-and its regression sources have not been execution-verified; no new conformance
-claim is implied.
 
 ## Quickstart
 
@@ -105,7 +83,7 @@ stop
 27
 ```
 
-The mental model is one straight line:
+The whole model is one straight line:
 
 ```text
 Message parts → Message → Request → ProviderLM → Response
@@ -356,13 +334,24 @@ Unsupported provider/endpoint combinations raise `UnsupportedFeatureError`.
 Use `with` for sync clients and `async with` for async clients to close their
 connections when finished.
 
-## Local subscription adapters
+## Sign in with an account
+
+Besides API keys, lm15 can use an account you are signed in to. Two ways:
+
+- **Saved sign-ins** (`lm15.login`, provisional): sign in once to xAI,
+  Claude, ChatGPT, GitHub Copilot, Kimi Code or OpenRouter; the connection
+  is saved in one file every lm15 language shares, renewed when due, and
+  used by `LMRouter(RouterConfig(auth=...))`. Whether a provider permits
+  this use of an account, and how it is billed, is the provider's call. See
+  [managed login](docs/managed-login.md).
+- **An existing CLI login**, read in place: Claude Code and the Codex CLI.
+
 
 The ordinary provider adapters use API keys that callers pass explicitly: `OpenAILM(api_key=...)`, `AnthropicLM(api_key=...)`, and `GeminiLM(api_key=...)`.
 
 lm15 also has explicit local-developer subscription adapters for users who are already signed in to provider CLIs. These adapters do not read API-key environment variables. They read local OAuth credentials created by the CLI and send provider-specific OAuth headers.
 
-### Claude Code subscription auth
+### Claude Code
 
 Use `ClaudeCodeLM.from_claude_code()` when Claude Code is installed and logged in as the same OS user:
 
@@ -394,7 +383,7 @@ If `Request.system` is also provided, lm15 keeps both: the required Claude Code 
 
 Fable 5 note: Fable may spend part of `max_tokens` on hidden thinking, so a too-small budget can return no visible text with `finish_reason="length"`. Use `Config(max_tokens=128)` or higher for non-trivial prompts.
 
-### OpenAI Codex / ChatGPT subscription auth
+### OpenAI Codex (ChatGPT)
 
 Use `OpenAICodexLM.from_codex_cli()` when Codex CLI is installed and signed in with ChatGPT:
 
@@ -524,43 +513,54 @@ read-only provider evidence (limits, remaining balances, resets and wait hints).
 switch is added. See [Understanding “no capacity”](docs/error-diagnostics.md),
 including streaming errors and Azure request IDs.
 
-## Model metadata
+## Stability
 
-`ModelRegistry.discover()` hydrates optional, advisory model metadata (pricing, context windows, capability hints) from installed catalog packages via the `lm15.model_catalogs` entry-point group — the `aimo` catalog is one such package. Hydrated metadata never changes what an adapter sends: requests are byte-identical with or without it. See [docs/model-hydration.md](docs/model-hydration.md) for the contract.
+The chat core has a frozen contract in 1.x: requests, responses, streaming,
+tools, structured output, media inside messages, reasoning, errors,
+credential resolution and model listing. These ship as **provisional** and
+may change in 1.x, with an entry in the contract's change log: files,
+batches, standalone media generation, stored-cache resources, realtime
+sessions, Chat Completions ingest, and saved sign-ins. Pin your version if
+you use them. See the [release scope](docs/roadmap.md#what-ships-in-10-and-what-is-stable).
 
-## Design notes
+`ModelRegistry.discover()` can add advisory model metadata (pricing, context
+windows) from installed catalog packages; it never changes what is sent
+([model hydration](docs/model-hydration.md)).
 
-- [docs/design-rationale.md](docs/design-rationale.md) — why `config=Config(...)` instead of kwargs, why there is no automatic tool loop, why request `extensions` and response `provider_data` are different names on purpose.
-- `lm15-contract/docs/serde-rules.md` — the canonical JSON omission and round-trip rules (normative; [docs/serde-rules.md](docs/serde-rules.md) forwards there).
-- `lm15-contract/docs/mapping-rules.md` — the provider mapping invariants MAP-1..MAP-10 (normative; [docs/mapping-rules.md](docs/mapping-rules.md) forwards there).
-- Behavior is pinned by a cross-language conformance corpus: the sibling `lm15-contract` repository is the spec; this package is the reference implementation, not the authority — the full story is in [How lm15 is specified](https://lm15-dev.github.io/lm15-python/how-lm15-is-specified/).
+## Conformance
 
-## Documentation
+This package passes all **1,583** checks of
+[lm15-contract](https://github.com/lm15-dev/lm15-contract) at the commit in
+`CONTRACT_PIN`, as do TypeScript, Rust and Go. The checks compare the exact
+requests lm15 builds and the responses it reads against recorded provider
+traffic. The contract is the specification; this package is the reference
+implementation, not the authority
+([how lm15 is specified](https://lm15-dev.github.io/lm15-python/how-lm15-is-specified/)).
+Design choices are explained in [docs/design-rationale.md](docs/design-rationale.md).
 
-The full documentation site — getting started, guides, runnable cookbooks, API reference, the specification pages, benchmarks, and the [roadmap](https://lm15-dev.github.io/lm15-python/roadmap/) — lives at **[lm15-dev.github.io/lm15-python](https://lm15-dev.github.io/lm15-python/)**.
+Every Python block in this README is run by `tests/test_readme_examples.py`
+through the real adapters, with offline provider replies. The outputs shown
+were captured from live runs; model text and token counts vary.
 
-## Contributing
+## The lm15 family
 
-Fixture and conformance workflows, the doc-drift checker, the provider adapter development guide, and the useful-commands cheat sheet live in [CONTRIBUTING.md](CONTRIBUTING.md).
+| | Version | Repository |
+|---|---|---|
+| Python | 1.0.1 | this repository |
+| TypeScript | 1.0.0-rc.1 | [lm15-ts](https://github.com/lm15-dev/lm15-ts) |
+| Rust | 1.0.0-rc.1 | [lm15-rs](https://github.com/lm15-dev/lm15-rs) |
+| Go | v1.1.0-rc.1 | [lm15-go](https://github.com/lm15-dev/lm15-go) |
+| The contract | — | [lm15-contract](https://github.com/lm15-dev/lm15-contract) |
 
-## Reporting bugs and security issues
+## Contributing and reporting
 
-- **Bugs and unexpected behavior**: open an issue on the [issue tracker](https://github.com/lm15-dev/lm15-python/issues). Include the lm15 version, the provider and endpoint involved, and a minimal reproduction. Wire-level evidence (the exact request/response bytes) makes triage much faster.
-- **Security vulnerabilities**: never open a public issue. Follow [SECURITY.md](SECURITY.md) to report privately.
+- Development workflows, fixtures and the adapter guide: [CONTRIBUTING.md](CONTRIBUTING.md).
+- Bugs: the [issue tracker](https://github.com/lm15-dev/lm15-python/issues), with
+  the lm15 version, the provider, and a minimal reproduction (the exact request
+  and response bytes help most).
+- Security issues: privately, as [SECURITY.md](SECURITY.md) explains; never in a
+  public issue.
 
-## Project repositories
+## License
 
-lm15 is a multi-repository project under the [lm15-dev](https://github.com/lm15-dev) organization:
-
-| Repository | Status | Role |
-| --- | --- | --- |
-| [lm15-contract](https://github.com/lm15-dev/lm15-contract) | active | The authority: canonical spec, fixture corpus, goldens, and the language-neutral conformance harness. |
-| [lm15-python](https://github.com/lm15-dev/lm15-python) | active | This repository — the Python reference implementation. |
-| [lm15-ts](https://github.com/lm15-dev/lm15-ts) | rebuilding | TypeScript implementation, rebuilt from the contract module by module. |
-| [lm15-go](https://github.com/lm15-dev/lm15-go) | rebuilding | Go implementation, rebuilt from the contract module by module. |
-| [lm15-rs](https://github.com/lm15-dev/lm15-rs) | rebuilding | Rust implementation, rebuilt from the contract module by module. |
-| [lm15-jl](https://github.com/lm15-dev/lm15-jl) | rebuilding | Julia implementation, rebuilt from the contract module by module. |
-| [spec](https://github.com/lm15-dev/spec) | archived | Superseded by lm15-contract. |
-| [curl-fixtures](https://github.com/lm15-dev/curl-fixtures), [cross-sdk-curl-tests](https://github.com/lm15-dev/cross-sdk-curl-tests) | archived | Moved into the conformance corpus. |
-
-`lm15-contract` is the source of truth for behavior; each implementation repo must pass its conformance harness at the SHA pinned in its `CONTRACT_PIN` file.
+MIT. See [LICENSE](LICENSE).
