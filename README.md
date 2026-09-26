@@ -529,9 +529,10 @@ windows) from installed catalog packages; it never changes what is sent
 
 ## Conformance
 
-This package passes all **1,583** checks of
+This package passes every check of
 [lm15-contract](https://github.com/lm15-dev/lm15-contract) at the commit in
-`CONTRACT_PIN`, as do TypeScript, Rust and Go. The checks compare the exact
+`CONTRACT_PIN` (1,786 of 1,786 on 2026-09-26); TypeScript, Rust and Go pass
+every check at theirs. The checks compare the exact
 requests lm15 builds and the responses it reads against recorded provider
 traffic. The contract is the specification; this package is the reference
 implementation, not the authority
