@@ -1242,6 +1242,90 @@
           }
         ]
       }
+    },
+    {
+      "id": "deepinfra-env-selected",
+      "provider": "deepinfra",
+      "env": {
+        "DEEPINFRA_API_KEY": "SECRET-SENTINEL-DO-NOT-PRINT"
+      },
+      "api_keys_providers": [],
+      "expect": {
+        "configured": true,
+        "steps": [
+          {
+            "kind": "api_keys",
+            "state": "absent"
+          },
+          {
+            "kind": "env:DEEPINFRA_API_KEY",
+            "state": "selected"
+          }
+        ]
+      }
+    },
+    {
+      "id": "together-env-selected",
+      "provider": "together",
+      "env": {
+        "TOGETHER_API_KEY": "SECRET-SENTINEL-DO-NOT-PRINT"
+      },
+      "api_keys_providers": [],
+      "expect": {
+        "configured": true,
+        "steps": [
+          {
+            "kind": "api_keys",
+            "state": "absent"
+          },
+          {
+            "kind": "env:TOGETHER_API_KEY",
+            "state": "selected"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fireworks-env-selected",
+      "provider": "fireworks",
+      "env": {
+        "FIREWORKS_API_KEY": "SECRET-SENTINEL-DO-NOT-PRINT"
+      },
+      "api_keys_providers": [],
+      "expect": {
+        "configured": true,
+        "steps": [
+          {
+            "kind": "api_keys",
+            "state": "absent"
+          },
+          {
+            "kind": "env:FIREWORKS_API_KEY",
+            "state": "selected"
+          }
+        ]
+      }
+    },
+    {
+      "id": "parasail-env-selected",
+      "provider": "parasail",
+      "env": {
+        "PARASAIL_API_KEY": "SECRET-SENTINEL-DO-NOT-PRINT"
+      },
+      "api_keys_providers": [],
+      "expect": {
+        "configured": true,
+        "steps": [
+          {
+            "kind": "api_keys",
+            "state": "absent"
+          },
+          {
+            "kind": "env:PARASAIL_API_KEY",
+            "state": "selected"
+          }
+        ]
+      }
     }
   ]
 }

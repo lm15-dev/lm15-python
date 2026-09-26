@@ -132,6 +132,10 @@ All three read the same variable, chosen by the provider the model string resolv
 | `deepseek/…` | `deepseek` | `DEEPSEEK_API_KEY` |
 | `xai/…` | `xai` | a stored xAI login if you have one, then `XAI_API_KEY` |
 | `moonshot/…` | `moonshotai` | `MOONSHOTAI_API_KEY`, then `MOONSHOT_API_KEY` |
+| `deepinfra/…` | `deepinfra` | `DEEPINFRA_API_KEY` |
+| `together_ai/…` | `together` | `TOGETHER_API_KEY` |
+| `fireworks_ai/…` | `fireworks` | `FIREWORKS_API_KEY` |
+| `parasail/…` | `parasail` | `PARASAIL_API_KEY` |
 | `ollama/…` | `ollama` | nothing (a placeholder) |
 | `hosted_vllm/…` | `vllm` | nothing (a placeholder) |
 | `azure/…` | `azure-chat` | `AZURE_OPENAI_API_KEY`, then the Azure identity chain (or one named identity, `credentials={"azure-chat": "platform"}`) |

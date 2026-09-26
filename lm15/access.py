@@ -276,6 +276,47 @@ MOONSHOTAI = AccessPolicy(
     base_url=OPENAI_CHAT_PRESET_BASE_URLS["moonshotai"],
 )
 
+# ─── Open-model inference hosts (changes/2026-09-26-inference-hosts-live.md) ───
+#
+# DeepInfra, Together AI, Fireworks AI and Parasail: a bearer key each, the
+# provider's own documented variable (docs examples use exactly these names;
+# lm15-contract/scrapes/<id>/pages), prepaid or card-billed balances (HTTP
+# 402 when drained on DeepInfra and Together).  Each also sells batch jobs
+# and files on the same key, and some sell images, speech or video; none is
+# registered — `supports` names what has a receipt.
+
+DEEPINFRA = AccessPolicy(
+    provider="deepinfra",
+    supports=EndpointSupport(complete=True, stream=True, models=True),
+    auth_modes=("bearer",),
+    env_keys=("DEEPINFRA_API_KEY",),
+    base_url=OPENAI_CHAT_PRESET_BASE_URLS["deepinfra"],
+)
+
+TOGETHER = AccessPolicy(
+    provider="together",
+    supports=EndpointSupport(complete=True, stream=True, models=True),
+    auth_modes=("bearer",),
+    env_keys=("TOGETHER_API_KEY",),
+    base_url=OPENAI_CHAT_PRESET_BASE_URLS["together"],
+)
+
+FIREWORKS = AccessPolicy(
+    provider="fireworks",
+    supports=EndpointSupport(complete=True, stream=True, models=True),
+    auth_modes=("bearer",),
+    env_keys=("FIREWORKS_API_KEY",),
+    base_url=OPENAI_CHAT_PRESET_BASE_URLS["fireworks"],
+)
+
+PARASAIL = AccessPolicy(
+    provider="parasail",
+    supports=EndpointSupport(complete=True, stream=True, models=True),
+    auth_modes=("bearer",),
+    env_keys=("PARASAIL_API_KEY",),
+    base_url=OPENAI_CHAT_PRESET_BASE_URLS["parasail"],
+)
+
 # Moonshot's Responses wire (responses--create.md): the same key and root,
 # kimi-k3 only, stateless (no store, no previous_response_id); reasoning
 # returns as summary text and is replayed as-is.  `models` is the same

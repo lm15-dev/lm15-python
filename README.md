@@ -145,7 +145,7 @@ anthropic Hello! 👋 How can I help you today?
 gemini Hello! How can I help you today?
 ```
 
-And the same shape reaches every OpenAI-compatible server through `OpenAIChatLM`, the Chat Completions dialect adapter. A compat preset name — `"ollama"`, `"groq"`, `"openrouter"`, `"deepseek"`, `"zai"`, `"moonshotai"`, `"meta"`, `"vllm"`, `"sglang"`, ... — bundles that server's wire-format quirks *and* its default `base_url`, so a local Ollama is one constructor argument away:
+And the same shape reaches every OpenAI-compatible server through `OpenAIChatLM`, the Chat Completions dialect adapter. A compat preset name — `"ollama"`, `"groq"`, `"openrouter"`, `"deepseek"`, `"zai"`, `"moonshotai"`, `"meta"`, `"together"`, `"fireworks"`, `"vllm"`, `"sglang"`, ... — bundles that server's wire-format quirks *and* its default `base_url`, so a local Ollama is one constructor argument away:
 
 ```python
 from lm15 import Config, Message, OpenAIChatLM, Request

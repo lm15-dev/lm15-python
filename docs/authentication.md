@@ -48,6 +48,10 @@ only in the router, explicitly and inspectably.
 | `zai` | `ZAI_API_KEY` | z.ai/manage-apikey/apikey-list |
 | `moonshotai`, `moonshotai-responses`, `moonshotai-anthropic` | `MOONSHOTAI_API_KEY`, then `MOONSHOT_API_KEY` (the name Moonshot's docs use; both are read, the first wins) | platform.kimi.ai/console/api-keys |
 | `meta`, `meta-chat`, `meta-anthropic` | `META_API_KEY` (Meta's docs call it `MODEL_API_KEY`; lm15 reads only the vendor-named one) | dev.meta.ai |
+| `deepinfra` | `DEEPINFRA_API_KEY` | deepinfra.com/dash/api_keys |
+| `together` | `TOGETHER_API_KEY` | api.together.ai/settings/projects/~current/api-keys |
+| `fireworks` | `FIREWORKS_API_KEY` | app.fireworks.ai/settings/users/api-keys |
+| `parasail` | `PARASAIL_API_KEY` | saas.parasail.io/keys |
 | `ollama`, `vllm`, `sglang` | — (keyless, placeholder sent) | — |
 | `claude-code`, `openai-codex` | — (local CLI credential) | — |
 

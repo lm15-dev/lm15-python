@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+Four new providers, each live-tested (lm15-contract
+`changes/2026-09-26-inference-hosts-live.md`): `deepinfra`, `together`,
+`fireworks`, `parasail` — open-model hosts on the Chat Completions wire,
+keys `DEEPINFRA_API_KEY`, `TOGETHER_API_KEY`, `FIREWORKS_API_KEY`,
+`PARASAIL_API_KEY`, and litellm's `deepinfra/`, `together_ai/`,
+`fireworks_ai/`, `parasail/` prefixes. Reasoning is sent back as
+`reasoning_content`, never pasted into the visible text. Per-model rules
+with receipts: DeepInfra refuses a forced tool call except on DeepSeek V4
+(the others ignore it); Together refuses one on gpt-oss (the server answers
+500) and clamps gpt-oss efforts to low|medium|high; reasoning off becomes
+the lowest level, recorded, where the server accepts `none` and reasons
+anyway (Together gpt-oss and GLM-5.3, DeepInfra gpt-oss). Images in tool
+results reach the model on Fireworks and Parasail.
+
+New compat knob `OpenAIChatCompat.reasoning_off` (`"send"` | `"lowest"`,
+keyword-only, overridable per model).
+
+Two fixes on the Chat Completions dialect, found on these hosts:
+
+- `list_models()` reads a catalog that is a bare JSON array (Together).
+  Before, it returned no models without an error; a reply that is neither
+  that nor `{"data": [...]}` now raises `ProviderError` ("malformed
+  provider reply").
+- `usage.cache_read_tokens` falls back to a flat `usage.cached_tokens`
+  when `prompt_tokens_details` has none (Together's non-reasoning models).
+  Before, a reported 0 read as "not reported" (None).
+
+Behaviour change: a `RouterConfig(providers=...)` that declares one of the
+four ids now fails at construction ("already names lm15's … door"); delete
+the declaration. The router guide's example now declares Nebius.
+
 Managed sign-in (provisional), two corrections found while TypeScript, Rust
 and Go implemented the same component against the shared contract runs:
 

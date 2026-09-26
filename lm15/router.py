@@ -1204,6 +1204,10 @@ LITELLM_PROVIDER_PREFIXES: Mapping[str, str] = MappingProxyType({
     "hosted_vllm": "vllm",
     "moonshot": "moonshotai",
     "azure": "azure-chat",
+    "deepinfra": "deepinfra",
+    "together_ai": "together",
+    "fireworks_ai": "fireworks",
+    "parasail": "parasail",
 })
 
 # The same prefixes in canonical spelling, for the collision check a

@@ -40,7 +40,8 @@ string — colons and all — is a bare model id.
 Known providers: `openai` (Responses API), `openai-chat` (Chat
 Completions), `anthropic`, `gemini`, `xai`, `claude-code`,
 `openai-codex` — plus the Chat Completions preset providers `groq`,
-`openrouter`, `deepseek`, `zai`, `moonshotai`, `meta-chat`, `ollama`, `vllm`, and `sglang`, which route to
+`openrouter`, `deepseek`, `zai`, `moonshotai`, `meta-chat`, `deepinfra`, `together`, `fireworks`, `parasail`,
+`ollama`, `vllm`, and `sglang`, which route to
 `OpenAIChatLM(compat=<preset>, access=<policy>)`; `deepseek-anthropic`,
 `meta-anthropic`, and `moonshotai-anthropic`, which route to `AnthropicLM(compat=<preset>, access=<policy>)`;
 and `meta` and `moonshotai-responses`, which route to `OpenAILM(compat=<preset>, access=<policy>)` — each with
@@ -266,22 +267,23 @@ from lm15.compat import OpenAIChatCompat
 from lm15.features import AccessPolicy, EndpointSupport
 from lm15.registry import ProviderDefinition
 
-FIREWORKS = ProviderDefinition.chat(
+NEBIUS = ProviderDefinition.chat(
     AccessPolicy(
-        provider="fireworks",
+        provider="nebius",
         supports=EndpointSupport(complete=True, stream=True, models=True),
         auth_modes=("bearer",),
-        env_keys=("FIREWORKS_API_KEY",),
-        base_url="https://api.fireworks.ai/inference/v1",
+        env_keys=("NEBIUS_API_KEY",),
+        base_url="https://api.tokenfactory.nebius.com/v1",
     ),
-    compat=OpenAIChatCompat(max_tokens_field="max_tokens", thinking_format="reasoning_effort"),
-    aliases=("fireworks-ai",),          # litellm spells it fireworks_ai/
-    note="Fireworks (Chat Completions dialect)",
+    compat=OpenAIChatCompat(),          # the dialect default; set knobs from the server's docs
+    aliases=("tokenfactory",),          # an extra spelling of your choice
+    note="Nebius Token Factory (Chat Completions dialect)",
 )
 
-router = LMRouter(config=RouterConfig(providers=(FIREWORKS,)))
-router.resolve("fireworks:accounts/fireworks/models/deepseek-v4p1-flash").provider   # "fireworks"
-router.resolve_openai_chat("fireworks_ai/accounts/fireworks/models/deepseek-v4p1-flash")  # same door
+router = LMRouter(config=RouterConfig(providers=(NEBIUS,)))
+router.resolve("nebius:deepseek-ai/DeepSeek-R1-0528").provider         # "nebius"
+router.resolve("tokenfactory:deepseek-ai/DeepSeek-R1-0528").provider   # "nebius"
+router.resolve_openai_chat("nebius/deepseek-ai/DeepSeek-R1-0528")      # litellm's spelling, same door
 ```
 
 What a declaration is:
@@ -305,6 +307,10 @@ so — `Resolution.declared` is true and `describe()` ends with
 "declared by RouterConfig(providers=...) — no lm15 receipts" — and
 `lm15 doctor` and `vet` do not list it. When a declared provider earns its
 receipts it becomes a registry entry and the declaration is deleted.
+Fireworks, this page's earlier example, took that path on 2026-09-26: a
+config that still declares `fireworks` now fails when it is built, with
+"'fireworks' already names lm15's 'fireworks' door" — delete the
+declaration and the built-in entry takes over.
 
 Everything else applies unchanged: `api_keys`/env-key lookup and
 `MissingCredentialError` naming the declared variable, `base_urls`

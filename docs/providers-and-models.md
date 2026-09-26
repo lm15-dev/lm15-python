@@ -46,6 +46,10 @@ detail: the list of providers, the shortcuts, and the metadata.
 | Meta (Muse Spark, Muse Image) | `meta` | `META_API_KEY` | files, images (see note) |
 | Meta, Chat Completions wire | `meta-chat` | `META_API_KEY` | — (see note) |
 | Meta, Anthropic wire | `meta-anthropic` | `META_API_KEY` | — (see note) |
+| DeepInfra | `deepinfra` | `DEEPINFRA_API_KEY` | — (see note) |
+| Together AI | `together` | `TOGETHER_API_KEY` | — (see note) |
+| Fireworks AI | `fireworks` | `FIREWORKS_API_KEY` | — (see note) |
+| Parasail | `parasail` | `PARASAIL_API_KEY` | — (see note) |
 | ollama (local) | `ollama` | none | — |
 | vLLM (local) | `vllm` | none | — |
 | SGLang (local) | `sglang` | none | — |
@@ -159,6 +163,41 @@ is on [Authentication](authentication.md).
     `-contributor` models are cheaper because they are. Speech-to-text
     (`muse-voice-transcribe-1.0`) is on Meta's own WebSocket wire, which
     lm15 does not have a surface for yet.
+
+!!! note "DeepInfra, Together AI, Fireworks AI, Parasail: many open models behind one key"
+    Each host serves other vendors' open models (gpt-oss, DeepSeek, Qwen,
+    GLM, Llama, Kimi…) over Chat Completions. The model string is the
+    host's own id: `together:deepseek-ai/DeepSeek-V4.1-Flash`,
+    `fireworks:accounts/fireworks/models/gpt-oss-120b`. Their model lists
+    include models that need a dedicated endpoint; calling one answers
+    with the host's error saying so.
+
+    What differs by host and model, each measured live on 2026-09-26:
+
+    - **Reasoning off.** `effort="off"` sends `reasoning_effort: "none"`.
+      Where a model cannot stop reasoning, Fireworks and Parasail refuse
+      it with a 400; DeepInfra (gpt-oss) and Together (gpt-oss, GLM-5.3)
+      would accept it and reason anyway, so lm15 sends the lowest level
+      instead and records that on `response.adaptations`.
+    - **Effort levels.** gpt-oss on Together runs `xhigh`, `max` and any
+      unknown word at its default, medium; lm15 sends `high` for those
+      and records it.
+    - **Forcing a tool call.** DeepInfra ignores `tool_choice` beyond
+      `auto` on Llama, gpt-oss and Qwen, so lm15 refuses a required call
+      there (DeepSeek V4 honours it and is let through). Together answers
+      a forced call on gpt-oss with HTTP 500; lm15 refuses it before
+      sending, since a 500 would be retried.
+    - **gpt-oss tool loops on Together** are broken on the server: the
+      turn after a tool result leaks the model's internal `analysis` or
+      `final` text into the answer. Use Llama or DeepSeek there, or
+      gpt-oss on another host.
+    - **Images in tool results** reach the model on Fireworks and
+      Parasail; DeepInfra refuses them (422), so lm15 refuses first;
+      Together is untested and refused until it is.
+    - **Caching** is automatic everywhere. `cache.key` and
+      `retention="long"` have no field in the form lm15 sends here; they
+      are dropped and recorded. Together reports cached tokens on
+      `usage.cached_tokens` for some models; lm15 reads both places.
 
 !!! note "You may also see `openai-chat`"
     OpenAI has two wire dialects: its current **Responses API** (what
