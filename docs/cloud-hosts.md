@@ -37,7 +37,9 @@ router.complete(Request(model="azure:gpt-5-mini", messages=[Message.user("hi")])
 ```
 
 Replace `azure` with `bedrock-anthropic` (needs `AWS_REGION`) or `vertex`
-(needs `GOOGLE_CLOUD_PROJECT`) and the three lines do not change. The
+(needs a Google Cloud project, which lm15 finds the way Google's own
+libraries do — see [Google Cloud, start to finish](#google-cloud-start-to-finish))
+and the three lines do not change. The
 request code never changes between the laptop and production; only the
 connection setup does.
 
@@ -52,8 +54,8 @@ connection setup does.
 | `bedrock-anthropic:anthropic.<model>` | Anthropic Messages (Bedrock, Opus 4.7+) | `AWS_REGION` | `AWS_BEARER_TOKEN_BEDROCK` or the AWS chain (SigV4) |
 | `bedrock-chat:<model id>` | OpenAI Chat Completions (Bedrock runtime; versioned ids) | `AWS_REGION` | same |
 | `bedrock-mantle-chat:<model id>` | OpenAI Chat Completions (Bedrock mantle; un-versioned ids; `list_models()` works) | `AWS_REGION` | same |
-| `vertex:<model>` | Gemini | `GOOGLE_CLOUD_PROJECT` (`GOOGLE_CLOUD_LOCATION`, default `global`) | the Google chain |
-| `vertex-anthropic:<model>` | Anthropic Messages (rawPredict) | same | same |
+| `vertex:<model>` | Gemini | a project: `GOOGLE_CLOUD_PROJECT`, else gcloud's, the credential file's or the metadata server's (`GOOGLE_CLOUD_LOCATION`, default `global`) | the Google chain, or an explicit Vertex API key |
+| `vertex-anthropic:<model>` | Anthropic Messages (rawPredict) | same | the Google chain (Claude on Vertex takes no API keys) |
 | `vertex-express:<model>` | Gemini | nothing | `GOOGLE_API_KEY` |
 
 On Azure the model string is the **deployment name**; an unknown one is
@@ -125,7 +127,7 @@ Paste the Foundry root whenever the console gives you one.
 AWS: `AWS_ENDPOINT_URL_BEDROCK_RUNTIME` (PrivateLink, FIPS), then the
 generic `AWS_ENDPOINT_URL`, exactly as the AWS SDK reads them; the region
 is still required because the signature names it. Google: no vendor
-variable lm15 can cite; `base_urls={"vertex": "https://europe-west4-aiplatform.googleapis.com"}`
+endpoint variable lm15 can cite; `base_urls={"vertex": "https://europe-west4-aiplatform.googleapis.com"}`
 (or a Private Service Connect host) replaces the host, and project and
 location stay in the path.
 
@@ -329,52 +331,105 @@ route returned 404). lm15 has no canonical embedding or transcription
 surface; both are outside the current library API rather than incomplete
 Azure implementations.
 
-## Google Cloud live status (2026-09-26)
+## Google Cloud, start to finish
 
-Run against a fresh project (`lm15-vertex-live`) with the credential code
-lm15 1.0.1 ships (the VM ran the published wheel);
-evidence in `lm15-contract/changes/2026-09-26-vertex-live.md`. Each row
-answered a real `gemini-2.5-flash` request; `vertex` also streamed, ran
-async and ran two calls at once on one token.
+Three doors reach Google's models: `vertex` (Gemini in your project),
+`vertex-anthropic` (Claude in your project) and `vertex-express` (Gemini
+with only an API key, no project). This section is the whole path, from
+an empty account to production.
 
-| Identity | How it was set up | Result |
-|---|---|---|
-| gcloud login (ADC file, `authorized_user`) | `gcloud auth login --update-adc` | works; one token exchange per router, reused |
-| `gcloud auth print-access-token` rung | no ADC file, `gcloud` on PATH | works |
-| service-account key (`GOOGLE_APPLICATION_CREDENTIALS`, `"environment"`) | `gcloud iam service-accounts keys create` | works; project read from the key file |
-| impersonated service account | the file `gcloud auth application-default login --impersonate-service-account` writes | works |
-| workload identity federation (`"workload"`), direct and via a service account | a pool trusting a test OIDC issuer; `create-cred-config` file source | both work |
-| machine identity (`"platform"`) | e2-micro VM with an attached service account, published wheel | default chain and named `"platform"` both work |
-| explicit access token | `api_keys={"vertex": <gcloud auth print-access-token>}` | works |
-| API key on `vertex-express` | a Vertex-restricted key bound to a service account | complete and stream work |
-| locations | `global`, `us-central1`, `europe-west4` | work |
+**Once per project.** In the Cloud console (or with `gcloud`): create a
+project with billing, enable the Vertex AI API, and give whoever will
+call it the *Vertex AI User* role. A new project, role or service
+account answers `403 PERMISSION_DENIED` for a few minutes while Google
+applies it; that 403 says so.
 
-What you will meet, and what it means:
+```bash
+gcloud projects create my-project && gcloud billing projects link my-project --billing-account=<id>
+gcloud services enable aiplatform.googleapis.com --project my-project
+```
 
-- **A brand-new project, role or service account answers 403 for a few
-  minutes.** Google applies IAM grants eventually; the first call on a
-  project created a minute earlier was refused with the owner's own
-  login. Wait, then retry. The 403 guidance says so.
-- **Claude on Vertex (`vertex-anthropic`) needs quota first.** A new
-  project has 0 requests per minute for every Claude model; the request
-  authenticates and routes, then Google answers 429 "Quota exceeded". Ask
-  for quota (Cloud console → Model Garden → the Claude model → Enable, then
-  IAM & Admin → Quotas), and use a location the model lists: in this
-  project `global` routed and `us-east5` said the model was not found.
-- **The project comes from `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` or
-  the credential file**, not from `gcloud config set project`, and not
-  from the metadata server on Cloud Run or a VM. Google's own libraries
-  read both; lm15 does not yet. Set `GOOGLE_CLOUD_PROJECT` (or
-  `settings={"vertex": {"project": ...}}`) everywhere, including deployed.
-- **An API key on the `vertex` door is refused (401).** lm15 sends a plain
-  string there as a bearer token. Use `vertex-express` for keys. Google
-  also accepts a key in the `x-goog-api-key` header on the project and
-  regional URLs (checked with curl); lm15 does not send it that way yet.
-- **`us` and `eu` multi-region locations** routed, and Google answered
-  "model not found" for `gemini-2.5-flash` there. The host lm15 builds is
-  the documented one; which models those locations serve is Google's list.
+**On your laptop.** Sign in once; lm15 finds both the identity and the
+project on its own:
 
-When sign-in fails, the error names the fix instead of API-key advice:
+```bash
+gcloud auth application-default login
+gcloud config set project my-project
+```
+
+```python
+router = LMRouter()
+router.complete(Request(model="vertex:gemini-2.5-flash", messages=[Message.user("hi")]))
+```
+
+**Deployed on Google Cloud** (Cloud Run, GKE, a VM, Cloud Functions):
+attach a service account with the Vertex AI User role and set nothing.
+The identity and the project both come from the metadata server. Name it
+to fail at startup if it is missing:
+
+```python
+router = LMRouter(RouterConfig(credentials={"vertex": "platform"}))
+```
+
+**Deployed elsewhere** (another cloud, GitHub Actions, on-premises): use
+workload identity federation, so no long-lived key exists. `gcloud iam
+workload-identity-pools create-cred-config ...` writes a file; point
+`GOOGLE_APPLICATION_CREDENTIALS` at it and name it
+(`credentials={"vertex": "workload"}`). A service-account key file works
+the same way (`"environment"`), but it is a secret that never expires:
+prefer federation.
+
+**With an API key.** Create a key restricted to the Vertex AI API (Cloud
+console > APIs & Services > Credentials; Google now issues keys bound to
+a service account, beginning `AQ.`). Two doors take it:
+
+```python
+# no project, Google chooses where it runs
+router = LMRouter()                        # GOOGLE_API_KEY=... in the environment
+router.complete(Request(model="vertex-express:gemini-2.5-flash", ...))
+
+# your project and a region you choose (data residency)
+router = LMRouter(RouterConfig(
+    api_keys={"vertex": os.environ["MY_VERTEX_KEY"]},
+    settings={"vertex": {"location": "europe-west4"}},
+))
+```
+
+On `vertex` a string is sent as a key (`x-goog-api-key`) unless it looks
+like a sign-in token (`ya29.…` or a JWT), which is sent as a token, so the
+access token google-auth hands you still works as a plain string. An
+access token of any other shape: pass `BearerToken(value)`. `vertex`
+never reads `GOOGLE_API_KEY` from the environment: that variable usually
+belongs to the Gemini API, and picking it up would silently change who
+pays. Claude on Vertex refuses keys.
+
+**Where the project comes from**, first found wins — Google's own order
+(google-auth and gcloud):
+
+1. `settings={"vertex": {"project": ...}}`
+2. `GOOGLE_CLOUD_PROJECT`, then `GCLOUD_PROJECT`
+3. the `GOOGLE_APPLICATION_CREDENTIALS` file's `project_id`
+4. gcloud's active configuration: `CLOUDSDK_CORE_PROJECT`, else the
+   project `gcloud config set project` saved (named configurations and
+   `CLOUDSDK_ACTIVE_CONFIG_NAME` included)
+5. the ADC file's `quota_project_id`
+6. the metadata server, when running on Google Cloud (asked only if
+   nothing above answered; `NO_GCE_CHECK=1` skips it)
+
+The doctor prints which one answered:
+
+```output
+  setting project: my-project (from gcloud's active configuration)
+  setting location: global (from default)
+```
+
+**Claude on Vertex needs quota first.** A new project has 0 requests per
+minute for every Claude model: the request signs in and routes, then
+Google answers 429 "Quota exceeded". Enable the model in Model Garden and
+request quota (IAM & Admin > Quotas). Use a location the model lists; in
+our test project `global` routed and `us-east5` said "not found".
+
+**When sign-in fails, the error names the fix**, never API-key advice:
 
 ```output
 AuthError: Google OAuth refresh (~/.config/gcloud/application_default_credentials.json): HTTP 400 (invalid_grant)
@@ -388,6 +443,29 @@ Only the status and a standard OAuth error word come from Google's reply
 (AUTH-5, AUTH-21): a reply's free text can echo the request, which holds
 the refresh token or a signed key. To see gcloud's own reason, run the
 command the error names.
+
+### Google Cloud live status (2026-09-26)
+
+Verified against a fresh project (`lm15-vertex-live`) in Python,
+TypeScript, Go and Rust; evidence and recorded cases in
+`lm15-contract/changes/2026-09-26-vertex-live.md`. Each row answered a
+real `gemini-2.5-flash` request.
+
+| Identity | Result |
+|---|---|
+| gcloud login (ADC file), project from `gcloud config` | works, complete and stream |
+| `gcloud auth print-access-token` alone | works |
+| service-account key file (`"environment"`), project from the key | works |
+| impersonated service account | works |
+| workload identity federation (`"workload"`), direct and via a service account | works |
+| attached service account on a VM (`"platform"` and the default chain), no project set anywhere | works in all four languages |
+| a plain access-token string | works |
+| Vertex API key on `vertex` (global and `europe-west4`, complete and stream) and on `vertex-express` | works |
+| `vertex-anthropic` | signs in and routes; answers need Claude quota |
+
+`us` and `eu` multi-region locations route to the documented hosts;
+Google answered "model not found" for `gemini-2.5-flash` there, which is
+Google's model list, not a host fact.
 
 ## Credentials are values, not strings
 
