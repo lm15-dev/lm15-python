@@ -7,8 +7,10 @@ endpoint overrides added 2026-09-19
 (`changes/2026-09-19-cloud-identity-and-endpoints.md`). Live status is per
 door: Azure OpenAI and Bedrock Chat have receipts; Claude on Foundry was
 verified independently by Pamela Fox on 2026-09-18 with an explicit
-`azure.identity` credential; other rows remain documentation-evidenced
-until their own change entry says otherwise.
+`azure.identity` credential; `vertex` and `vertex-express` were verified on
+2026-09-26 through every Google identity lm15 reads (see [Google Cloud live
+status](#google-cloud-live-status-2026-09-26)); other rows remain
+documentation-evidenced until their own change entry says otherwise.
 
 A cloud host is a door to a model you already know. The wire is the same
 (Anthropic Messages, OpenAI Responses or Chat Completions, Gemini); the
@@ -326,6 +328,66 @@ Azure's deployment-scoped `?api-version=2025-04-01-preview` route (the v1
 route returned 404). lm15 has no canonical embedding or transcription
 surface; both are outside the current library API rather than incomplete
 Azure implementations.
+
+## Google Cloud live status (2026-09-26)
+
+Run against a fresh project (`lm15-vertex-live`) with the credential code
+lm15 1.0.1 ships (the VM ran the published wheel);
+evidence in `lm15-contract/changes/2026-09-26-vertex-live.md`. Each row
+answered a real `gemini-2.5-flash` request; `vertex` also streamed, ran
+async and ran two calls at once on one token.
+
+| Identity | How it was set up | Result |
+|---|---|---|
+| gcloud login (ADC file, `authorized_user`) | `gcloud auth login --update-adc` | works; one token exchange per router, reused |
+| `gcloud auth print-access-token` rung | no ADC file, `gcloud` on PATH | works |
+| service-account key (`GOOGLE_APPLICATION_CREDENTIALS`, `"environment"`) | `gcloud iam service-accounts keys create` | works; project read from the key file |
+| impersonated service account | the file `gcloud auth application-default login --impersonate-service-account` writes | works |
+| workload identity federation (`"workload"`), direct and via a service account | a pool trusting a test OIDC issuer; `create-cred-config` file source | both work |
+| machine identity (`"platform"`) | e2-micro VM with an attached service account, published wheel | default chain and named `"platform"` both work |
+| explicit access token | `api_keys={"vertex": <gcloud auth print-access-token>}` | works |
+| API key on `vertex-express` | a Vertex-restricted key bound to a service account | complete and stream work |
+| locations | `global`, `us-central1`, `europe-west4` | work |
+
+What you will meet, and what it means:
+
+- **A brand-new project, role or service account answers 403 for a few
+  minutes.** Google applies IAM grants eventually; the first call on a
+  project created a minute earlier was refused with the owner's own
+  login. Wait, then retry. The 403 guidance says so.
+- **Claude on Vertex (`vertex-anthropic`) needs quota first.** A new
+  project has 0 requests per minute for every Claude model; the request
+  authenticates and routes, then Google answers 429 "Quota exceeded". Ask
+  for quota (Cloud console → Model Garden → the Claude model → Enable, then
+  IAM & Admin → Quotas), and use a location the model lists: in this
+  project `global` routed and `us-east5` said the model was not found.
+- **The project comes from `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` or
+  the credential file**, not from `gcloud config set project`, and not
+  from the metadata server on Cloud Run or a VM. Google's own libraries
+  read both; lm15 does not yet. Set `GOOGLE_CLOUD_PROJECT` (or
+  `settings={"vertex": {"project": ...}}`) everywhere, including deployed.
+- **An API key on the `vertex` door is refused (401).** lm15 sends a plain
+  string there as a bearer token. Use `vertex-express` for keys. Google
+  also accepts a key in the `x-goog-api-key` header on the project and
+  regional URLs (checked with curl); lm15 does not send it that way yet.
+- **`us` and `eu` multi-region locations** routed, and Google answered
+  "model not found" for `gemini-2.5-flash` there. The host lm15 builds is
+  the documented one; which models those locations serve is Google's list.
+
+When sign-in fails, the error names the fix instead of API-key advice:
+
+```output
+AuthError: Google OAuth refresh (~/.config/gcloud/application_default_credentials.json): HTTP 400 (invalid_grant)
+
+  To fix:
+    - the saved Google login in ~/.config/gcloud/application_default_credentials.json has expired
+      or was revoked; run `gcloud auth application-default login` (Google ends these sessions on its own schedule)
+```
+
+Only the status and a standard OAuth error word come from Google's reply
+(AUTH-5, AUTH-21): a reply's free text can echo the request, which holds
+the refresh token or a signed key. To see gcloud's own reason, run the
+command the error names.
 
 ## Credentials are values, not strings
 

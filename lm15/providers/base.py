@@ -780,6 +780,14 @@ class BaseProviderLM:
         hint = self.access.login_hint
         if hint and (self.access.credential_policy == "oauth" or self._credential_source == "stored"):
             error = with_credential_hint(error, hint)
+        elif isinstance(error, AuthError) and self.access.cloud_chain:
+            # A cloud door refusing an identity is an IAM question, not a
+            # wrong API key: say which role and that grants take minutes.
+            from ..cloud.chains import WIRE_AUTH_HINTS
+
+            wire_hint = WIRE_AUTH_HINTS.get(self.access.credential_policy, {}).get(error.status or 0)
+            if wire_hint:
+                error = with_credential_hint(error, wire_hint)
         if isinstance(error, AuthError):
             from ..errors import with_credential_origin
 

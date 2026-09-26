@@ -53,7 +53,7 @@ from typing import Any, Callable, Mapping
 from xml.etree import ElementTree
 
 from ..credentials import ApiKey, AwsCredentials, BearerToken, CredentialValue, parse_rfc3339
-from ..errors import AuthError, NotConfiguredError
+from ..errors import _GUIDANCE_MARKER, AuthError, NotConfiguredError
 from ..features import NAMED_CREDENTIALS, RUNG_KINDS, AccessPolicy
 from . import rs256, sigv4
 
@@ -239,12 +239,39 @@ def _form(pairs: list[tuple[str, str]]) -> bytes:
     return urllib.parse.urlencode(pairs).encode("ascii")
 
 
-def _exchange(ctx: ChainContext, method: str, url: str, headers: Mapping[str, str], body: bytes | None, what: str) -> dict:
+# AUTH-21 (clarified 2026-09-24): a failed auth-endpoint exchange carries
+# the HTTP status and, only when the reply's ``error`` (or ``error.code`` /
+# ``error.type``) is one of these fixed words, that word — nothing else from
+# the reply.  An error description can reflect the request (a refresh token,
+# a signed assertion); a fixed word cannot.
+_OAUTH_ERROR_WORDS = frozenset({
+    "invalid_request", "invalid_client", "invalid_grant", "unauthorized_client", "unsupported_grant_type",
+    "invalid_scope", "access_denied", "server_error", "temporarily_unavailable", "authorization_pending",
+    "slow_down", "expired_token",
+})
+
+
+def _oauth_error_word(data: Mapping[str, Any]) -> str | None:
+    err = data.get("error")
+    candidates = [err.get("code"), err.get("type")] if isinstance(err, dict) else [err]
+    for value in candidates:
+        if isinstance(value, str) and value in _OAUTH_ERROR_WORDS:
+            return value
+    return None
+
+
+def _exchange(ctx: ChainContext, method: str, url: str, headers: Mapping[str, str], body: bytes | None, what: str,
+              hint: str | None = None) -> dict:
+    """One token-endpoint round trip.  A refusal carries the status and a
+    fixed-vocabulary OAuth error word (AUTH-21), and, when the caller knows
+    it, the one action that fixes it (``hint``) instead of the API-key
+    guidance: the action is what the user needs, and it holds no secret."""
     assert ctx.http is not None
     status, _, raw = ctx.http(method, url, headers, body, 30.0)
     data = _json_body(raw)
     if not 200 <= status < 300:
-        raise AuthError(f"{what}: HTTP {status}")
+        word = _oauth_error_word(data)
+        raise AuthError(f"{what}: HTTP {status}" + (f" ({word})" if word else ""), credential_hint=hint, provider_code=word)
     return data
 
 
@@ -999,12 +1026,15 @@ def _gcp_from_info(ctx: ChainContext, info: Mapping[str, Any], where: str) -> Be
                 raise NotConfiguredError(f"{where}: authorized_user file lacks {k}")
         pairs = [("grant_type", "refresh_token"), ("client_id", str(info["client_id"])), ("client_secret", str(info["client_secret"])),
                  ("refresh_token", str(info["refresh_token"]))]
-        data = _exchange(ctx, "POST", str(info.get("token_uri") or _GCP_TOKEN_URL), {"content-type": "application/x-www-form-urlencoded"}, _form(pairs), "Google OAuth refresh")
+        data = _exchange(ctx, "POST", str(info.get("token_uri") or _GCP_TOKEN_URL), {"content-type": "application/x-www-form-urlencoded"}, _form(pairs),
+                         f"Google OAuth refresh ({where})", _gcp_user_login_hint(where))
         return _bearer_from_oauth(data, now, "Google OAuth")
     if kind == "service_account":
         token_uri, assertion = gcp_service_account_assertion(ctx, info)
         data = _exchange(ctx, "POST", token_uri, {"content-type": "application/x-www-form-urlencoded"},
-                         _form([("grant_type", _JWT_BEARER), ("assertion", assertion)]), "Google service account")
+                         _form([("grant_type", _JWT_BEARER), ("assertion", assertion)]), f"Google service account key ({where})",
+                         f"the key in {where} may have been deleted or disabled, or this machine's clock is off; "
+                         "create a new key (Cloud console: IAM & Admin > Service accounts > Keys) or use another identity")
         return _bearer_from_oauth(data, now, "Google service account")
     if kind == "external_account":
         return _gcp_external_account(ctx, info, where)
@@ -1013,14 +1043,19 @@ def _gcp_from_info(ctx: ChainContext, info: Mapping[str, Any], where: str) -> Be
         if not isinstance(source, dict):
             raise NotConfiguredError(f"{where}: impersonated_service_account lacks source_credentials")
         base = _gcp_from_info(ctx, source, f"{where}.source_credentials")
-        return _gcp_impersonate(ctx, base, str(info["service_account_impersonation_url"]), info.get("delegates") or [])
+        return _gcp_impersonate(ctx, base, str(info["service_account_impersonation_url"]), info.get("delegates") or [], where)
     raise NotConfiguredError(f"{where}: credential type {kind!r} is not supported by lm15 "
                              "(external_account_authorized_user and gdch_service_account are stated gaps)")
 
 
-def _gcp_impersonate(ctx: ChainContext, source: BearerToken, url: str, delegates: list) -> BearerToken:
+def _gcp_impersonate(ctx: ChainContext, source: BearerToken, url: str, delegates: list, where: str) -> BearerToken:
     body = json.dumps({"delegates": list(delegates), "scope": [_GCP_SCOPE], "lifetime": "3600s"}).encode()
-    data = _exchange(ctx, "POST", url, {"content-type": "application/json", "authorization": f"Bearer {source.value}"}, body, "generateAccessToken")
+    data = _exchange(ctx, "POST", url, {"content-type": "application/json", "authorization": f"Bearer {source.value}"}, body,
+                     f"service account impersonation ({where}; generateAccessToken)",
+                     f"the service account named in {where} must exist, and the source identity needs "
+                     "roles/iam.serviceAccountTokenCreator on it "
+                     "(roles/iam.workloadIdentityUser for a workload identity pool), and the IAM Credentials API "
+                     "(iamcredentials.googleapis.com) enabled; a new grant can take several minutes to apply")
     token = data.get("accessToken")
     if not token:
         raise AuthError("generateAccessToken: no accessToken")
@@ -1071,10 +1106,13 @@ def _gcp_external_account(ctx: ChainContext, info: Mapping[str, Any], where: str
         "subjectToken": subject,
         "subjectTokenType": str(info["subject_token_type"]),
     }).encode()
-    data = _exchange(ctx, "POST", str(info.get("token_url") or _GCP_STS_URL), {"content-type": "application/json"}, body, "Google STS exchange")
+    data = _exchange(ctx, "POST", str(info.get("token_url") or _GCP_STS_URL), {"content-type": "application/json"}, body,
+                     f"Google STS exchange ({where})",
+                     "the workload identity pool refused the external token: check the provider's issuer, allowed "
+                     "audience and attribute condition, and that the subject token is fresh")
     token = _bearer_from_oauth(data, ctx.now(), "Google STS")
     if info.get("service_account_impersonation_url"):
-        return _gcp_impersonate(ctx, token, str(info["service_account_impersonation_url"]), [])
+        return _gcp_impersonate(ctx, token, str(info["service_account_impersonation_url"]), [], where)
     return token
 
 
@@ -1091,10 +1129,23 @@ def _gcp_metadata_acquire(ctx: ChainContext) -> BearerToken | None:
     return _bearer_from_oauth(_json_body(raw), ctx.now(), "GCE metadata")
 
 
+def _gcp_user_login_hint(where: str) -> str:
+    return (f"the saved Google login in {where} has expired or was revoked; run "
+            "`gcloud auth application-default login` (Google ends these sessions on its own schedule)")
+
+
 def _gcloud_acquire(ctx: ChainContext) -> BearerToken | None:
     if ctx.run is None or ctx.on_path("gcloud") is None:
         return None
-    token = ctx.run(["gcloud", "auth", "print-access-token"], 30.0).strip()
+    try:
+        token = ctx.run(["gcloud", "auth", "print-access-token"], 30.0).strip()
+    except AuthError as exc:
+        # gcloud's own words stay unread (AUTH-5: a command's stderr is not
+        # shown); the user runs the same command to see them.
+        raise AuthError("`gcloud auth print-access-token` failed: " + str(exc).split(_GUIDANCE_MARKER, 1)[0],
+                        credential_hint="run `gcloud auth print-access-token` yourself to see gcloud's reason; usually "
+                                        "`gcloud auth login` fixes it (or `gcloud auth application-default login`, "
+                                        "which lm15 reads first)") from None
     return BearerToken(token) if token else None
 
 
@@ -1179,6 +1230,34 @@ def profile_settings(policy: AccessPolicy, ctx: ChainContext) -> Callable[[str],
 
 
 # ─── Chains ──────────────────────────────────────────────────────────
+
+# What to do when a whole chain answers nothing: the one command that
+# creates a credential the chain reads, then the deployed alternatives.
+_NOTHING_FOUND_HINTS = {
+    "gcp-chain": "on a laptop: `gcloud auth application-default login`; elsewhere: set "
+                 "GOOGLE_APPLICATION_CREDENTIALS to a service-account or workload-identity file, run on Google Cloud "
+                 "with an attached service account, or pass api_keys={\"<provider>\": <token or callable>}",
+    "azure-chain": "on a laptop: `az login`; elsewhere: a managed identity, AZURE_TENANT_ID + AZURE_CLIENT_ID with a "
+                   "secret or certificate, or api_keys={\"<provider>\": <token provider>}",
+    "aws-chain": "on a laptop: `aws sso login` or `aws configure`; elsewhere: the instance or container role, "
+                 "AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY, or api_keys={\"<provider>\": <credentials callable>}",
+}
+
+# How a cloud door's wire refusal (HTTP 401/403 from the model endpoint,
+# after a credential was obtained) is fixed: the identity lacks a role, a
+# new grant has not applied yet, or the wrong identity won.  Replaces the
+# API-key guidance, which is wrong for a door that takes cloud identities.
+WIRE_AUTH_HINTS: dict[str, dict[int, str]] = {
+    "gcp-chain": {
+        401: "Google did not accept this credential as a sign-in token: it expired, or it is not an OAuth token. "
+             "A Google API key (AIza...) belongs on the vertex-express door; otherwise sign in again with "
+             "`gcloud auth application-default login`",
+        403: "give the identity named above the Vertex AI User role (roles/aiplatform.user) on the project and "
+             "enable the Vertex AI API (aiplatform.googleapis.com); a new project or a new grant can take a few "
+             "minutes to apply. To use another identity: `gcloud auth application-default login`, or "
+             "GOOGLE_APPLICATION_CREDENTIALS=<file>",
+    },
+}
 
 _CHAINS = {"aws-chain": _aws_chain, "azure-chain": _azure_chain, "gcp-chain": _gcp_chain}
 
@@ -1375,10 +1454,18 @@ def resolve(policy: AccessPolicy, ctx: ChainContext, *, named: str | None = None
         )
     raise NotConfiguredError(
         f"{policy.provider}: no credential found in the {policy.credential_policy} chain"
-        + (f"; set {policy.env_keys[0]} or configure the cloud SDK" if policy.env_keys else "; configure the cloud SDK"),
+        f" ({_probed_summary(policy, ctx, rungs)})",
         provider=policy.provider,
         env_keys=policy.env_keys,
+        credential_hint=_nothing_found_hint(policy),
     )
+
+
+def _nothing_found_hint(policy: AccessPolicy) -> str | None:
+    hint = _NOTHING_FOUND_HINTS.get(policy.credential_policy)
+    if hint and policy.env_keys:
+        hint = f"set {policy.env_keys[0]}, or {hint}"
+    return hint.replace("<provider>", policy.provider) if hint else None
 
 
 class _CachingProvider:
