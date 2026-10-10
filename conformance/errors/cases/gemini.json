@@ -8,6 +8,20 @@
       "expected": {"class": "AuthError", "code": "auth", "provider": "gemini", "provider_code": "PERMISSION_DENIED", "status": 403}
     },
     {
+      "id": "gemini.auth_api_key_invalid",
+      "provider": "gemini",
+      "status": 400,
+      "body": {"error": {"code": 400, "message": "API key not valid. Please pass a valid API key.", "status": "INVALID_ARGUMENT", "details": [{"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "API_KEY_INVALID", "domain": "googleapis.com", "metadata": {"service": "generativelanguage.googleapis.com"}}, {"@type": "type.googleapis.com/google.rpc.LocalizedMessage", "locale": "en-US", "message": "API key not valid. Please pass a valid API key."}]}},
+      "expected": {"class": "AuthError", "code": "auth", "provider": "gemini", "provider_code": "INVALID_ARGUMENT", "status": 400}
+    },
+    {
+      "id": "gemini.invalid_argument_other_reason",
+      "provider": "gemini",
+      "status": 400,
+      "body": {"error": {"code": 400, "message": "Unable to submit request because it has an empty text parameter.", "status": "INVALID_ARGUMENT", "details": [{"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "FIELD_INVALID", "domain": "googleapis.com"}]}},
+      "expected": {"class": "InvalidRequestError", "code": "invalid_request", "provider": "gemini", "provider_code": "INVALID_ARGUMENT", "status": 400}
+    },
+    {
       "id": "gemini.rate_limit",
       "provider": "gemini",
       "status": 429,

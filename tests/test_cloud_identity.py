@@ -425,8 +425,11 @@ def test_named_credentials_contract_case(case: dict, tmp_path: Path) -> None:
         kwargs["base_url"] = case["base_url"]
     expect = case["expect"]
     if "error" in expect:
-        with pytest.raises(NotConfiguredError, match=expect["error"]):
+        with pytest.raises(NotConfiguredError, match=expect["error"]) as raised:
             explain_auth(case["provider"], **kwargs)
+        # AUTH-5: a refusal is a rendered surface too (2026-10-10).
+        assert _FIXTURE["sentinel"] not in str(raised.value)
+        assert _FIXTURE["sentinel"] not in repr(raised.value)
         return
     report = explain_auth(case["provider"], **kwargs)
     assert [(s.kind, s.state) for s in report.steps] == [(s["kind"], s["state"]) for s in expect["steps"]]
