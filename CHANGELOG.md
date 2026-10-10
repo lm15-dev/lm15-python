@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.3 — 2026-10-10
+
+Two conveniences that make a first program work, and clearer messages
+(lm15-contract `8eedbae`, 1,904 of 1,904 checks).
+
+- **A structured answer reads through `response.text` and `response.json`.**
+  A JSON-schema request whose schema has a boolean or enum property is
+  answered as a `DataPart` (judgments, MAP-14), and `response.text` and
+  `response.json` were empty for it while `response.data` held the answer.
+  A plain extraction with `vegetarian: boolean`, or an image question with
+  `side: {"enum": ["left", "right"]}`, met this without asking for a
+  judgment. `.text` now gives that answer's compact JSON, so `.json`,
+  `.parse_json()` and `json.loads(response.text)` work too. A reply with
+  both text and data keeps `.text` as `None`.
+
+- **`Reasoning(thinking_budget=1024)` works without `effort=`.** The effort
+  is filled from the same table budget-only providers use (minimal 1024,
+  low 2048, medium 8192, high 16384, xhigh 24576, max 32768): the highest
+  level at or below the budget, `"minimal"` below 1024. `Reasoning()` with
+  neither is still refused.
+
+- **Messages that name the fix.** `effort="none"` (OpenAI's word) says lm15
+  spells it `"off"`. An adapter built by hand with no key no longer says
+  "set ANTHROPIC_API_KEY", which could not help (adapters read no
+  environment; only `LMRouter` does): it says to pass
+  `api_key=os.environ["ANTHROPIC_API_KEY"]` or to use `LMRouter()`.
+
 ## 1.2.2 — 2026-10-10
 
 Two fixes, no new API (lm15-contract `880f72c`, 1,904 of 1,904 checks; MAP-18
