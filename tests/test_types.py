@@ -527,3 +527,26 @@ def test_event_variants_do_not_have_other_variants_fields() -> None:
 
     assert not hasattr(start, "delta")
     assert not hasattr(interrupted, "text")
+
+
+def test_a_budget_alone_fills_effort_from_the_grading_table() -> None:
+    # MAP-7 rule 3 read the other way (amended 2026-10-10).
+    assert [Reasoning(thinking_budget=b).effort for b in (512, 1024, 2047, 2048, 8192, 16384, 24576, 32768, 10**6)] == [
+        "minimal", "minimal", "minimal", "low", "medium", "high", "xhigh", "max", "max"]
+    assert Reasoning(effort="high", thinking_budget=1024).effort == "high"  # a given effort is kept
+    with pytest.raises(ValueError, match="effort='off'"):
+        Reasoning(effort="none")
+
+
+def test_response_text_and_json_read_a_data_part_answer() -> None:
+    from lm15.types import DataPart, Message, Response, TextPart, Usage
+
+    # types.md §Response convenience (amended 2026-10-10): MAP-14 answers a
+    # schema with a judgment property as a DataPart.
+    response = Response(id=None, model="m", message=Message.assistant((DataPart(value={"ok": True, "n": 1.50}),)),
+                        finish_reason="stop", usage=Usage())
+    assert response.text == '{"ok":true,"n":1.5}'
+    assert response.json == {"ok": True, "n": 1.5} == response.data
+    text_too = Response(id=None, model="m", message=Message.assistant((TextPart("hi"), DataPart(value={"ok": True}))),
+                        finish_reason="stop", usage=Usage())
+    assert text_too.text is None  # mixed text and data: no guess
