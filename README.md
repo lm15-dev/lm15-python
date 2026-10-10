@@ -39,7 +39,7 @@ Measured by [`benchmarks/suite/run.py`](benchmarks/suite/run.py) on Python 3.13.
 
 ## Install
 
-**1.2.1** is the current release (1.0.1 was the first stable one). Python 3.10 or newer,
+**1.2.2** is the current release (1.0.1 was the first stable one). Python 3.10 or newer,
 on Linux, macOS and Windows.
 
 ```bash
@@ -547,12 +547,12 @@ were captured from live runs; model text and token counts vary.
 
 | | Version | Repository |
 |---|---|---|
-| Python | 1.2.1 | this repository |
-| TypeScript | 1.0.0-rc.5 | [lm15-ts](https://github.com/lm15-dev/lm15-ts) |
-| Rust | 1.0.0-rc.5 | [lm15-rs](https://github.com/lm15-dev/lm15-rs) |
-| Go | v1.1.0-rc.4 | [lm15-go](https://github.com/lm15-dev/lm15-go) |
+| Python | 1.2.2 | this repository |
+| TypeScript | 1.0.0-rc.6 | [lm15-ts](https://github.com/lm15-dev/lm15-ts) |
+| Rust | 1.0.0-rc.6 | [lm15-rs](https://github.com/lm15-dev/lm15-rs) |
+| Go | v1.1.0-rc.5 | [lm15-go](https://github.com/lm15-dev/lm15-go) |
 | Julia | 1.0.0 (registration pending) | [LM15.jl](https://github.com/lm15-dev/LM15.jl) |
-| R | 1.1.0 (not yet on CRAN) | [lm15-r](https://github.com/lm15-dev/lm15-r) |
+| R | 1.1.1 (not yet on CRAN) | [lm15-r](https://github.com/lm15-dev/lm15-r) |
 | The contract | — | [lm15-contract](https://github.com/lm15-dev/lm15-contract) |
 
 ## Contributing and reporting

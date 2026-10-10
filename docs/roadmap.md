@@ -7,8 +7,10 @@ same discipline as the code — see
 
 ## Where we are (October 2026)
 
-- **1.2.1** is the current release (2026-10-06): long streamed replies and
-  tools without a description fixed, on top of **1.2.0** (2026-09-30: the
+- **1.2.2** is the current release (2026-10-10): a refused key is
+  `AuthError` on Gemini and xAI too, and a key passed as `credential=` is
+  never printed, on top of **1.2.1** (2026-10-06: long streamed replies and
+  tools without a description fixed), **1.2.0** (2026-09-30: the
   Claude Code release as a setting, and Claude's own output ceiling as the
   default `max_tokens`), **1.1.0** (2026-09-26: four open-model hosts and a Google Cloud
   pass) and **1.0.1** (2026-09-25), the first stable one

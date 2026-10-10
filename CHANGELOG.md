@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.2.2 — 2026-10-10
+
+Two fixes, no new API (lm15-contract `880f72c`, 1,904 of 1,904 checks; MAP-18
+and an AUTH-1/AUTH-5 amendment, with live receipts from 18 providers).
+
+- **A wrong or expired key is `AuthError` on every provider.** Gemini and
+  xAI answer a key they refuse with HTTP 400, not 401, and lm15 raised
+  `InvalidRequestError`, so code catching `AuthError` missed them; the
+  Gemini SDK and LiteLLM call it an authentication error. Gemini is
+  recognized by the reason its error carries (`API_KEY_INVALID`, which also
+  covers an expired key), not by the wording; xAI by its exact sentence. The
+  other sixteen providers probed already answered 401. A Gemini 400 about
+  anything else is still `InvalidRequestError`. lm15-contract MAP-18
+  (`changes/2026-10-10-bad-key-and-misplaced-key.md`), table in
+  `lm15.errors.AUTH_FAILED_FORMS`.
+
+- **A key passed as `credential=` is no longer printed.**
+  `AnthropicLM(credential=os.environ["ANTHROPIC_API_KEY"])`, an easy slip
+  since `credential=` takes the name of a cloud identity (`"platform"`,
+  `"workload"`, `"environment"`, `"cli"`), raised a `NotConfiguredError`
+  that repeated the key in its message, and so in tracebacks and logs. The
+  same was true of an unknown name on a cloud door and of
+  `RouterConfig(credentials={...})`. The refusal now says the value is not
+  shown because it may be a key, and that a key goes in `api_key=`. A value
+  that is one of the four names is still repeated.
+
 ## 1.2.1 — 2026-10-06
 
 Two fixes, no new API (lm15-contract `0f3ea82`, 1,901 of 1,901 checks; INV-056
