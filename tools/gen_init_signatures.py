@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TYPES: dict[str, tuple[str, ...]] = {
     "lm15.types": (
         "ToolCallPart", "ToolResultPart", "DataPart", "Message", "FunctionTool", "BuiltinTool",
-        "ToolChoice", "Config", "Request", "TokenLogprob", "FileUploadRequest",
+        "ToolChoice", "Reasoning", "Config", "Request", "TokenLogprob", "FileUploadRequest",
         "SpeechGenerationRequest",
         "FilePage", "CachePage", "BatchRequest", "ImageGenerationRequest",
         "ImageGenerationResponse", "VideoGenerationRequest", "LiveConfig",
@@ -52,6 +52,7 @@ TYPES: dict[str, tuple[str, ...]] = {
 # __post_init__; the test cross-checks them by constructing the value).
 WIDER: dict[tuple[str, str], str] = {
     ("Message", "parts"): "Part | Sequence[Part]",
+    ("Reasoning", "effort"): "ReasoningEffort | None",
     ("ToolChoice", "allowed"): "str | Sequence[str]",
     ("Config", "stop"): "str | Sequence[str]",
     ("Request", "messages"): "Message | Sequence[Message]",

@@ -174,7 +174,7 @@
 11 lm15/providers/openai.py|union-attr|Item "list[JsonValue]" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
 5 lm15/providers/openai.py|union-attr|Item "str" of "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None]" has no attribute "get"
 11 lm15/providers/openai.py|union-attr|Item "str" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
-1 lm15/providers/openai_chat.py|arg-type|Argument "effort" to "Reasoning" has incompatible type "str"; expected "Literal['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']"
+1 lm15/providers/openai_chat.py|arg-type|Argument "effort" to "Reasoning" has incompatible type "str"; expected "Literal['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] | None"
 1 lm15/providers/openai_chat.py|arg-type|Argument "finish_reason" to "Response" has incompatible type "str"; expected "Literal['stop', 'length', 'tool_call', 'content_filter', 'error']"
 1 lm15/providers/openai_chat.py|arg-type|Argument "finish_reason" to "StreamEndEvent" has incompatible type "str"; expected "Literal['stop', 'length', 'tool_call', 'content_filter', 'error'] | None"
 1 lm15/providers/openai_chat.py|arg-type|Argument "key" to "max" has incompatible type overloaded function; expected "Callable[[str], SupportsDunderLT[Any] | SupportsDunderGT[Any]]"
