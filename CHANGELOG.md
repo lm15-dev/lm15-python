@@ -26,6 +26,11 @@ and an AUTH-1/AUTH-5 amendment, with live receipts from 18 providers).
   shown because it may be a key, and that a key goes in `api_key=`. A value
   that is one of the four names is still repeated.
 
+- `Reasoning(thinking_budget=0)`, Gemini's own spelling of "thinking off",
+  still raises `ValueError`, and the message now says how lm15 spells it:
+  `Reasoning(effort="off")`. `help(lm15)` points to the tested recipes at
+  https://lm15.dev/skill.md.
+
 ## 1.2.1 — 2026-10-06
 
 Two fixes, no new API (lm15-contract `0f3ea82`, 1,901 of 1,901 checks; INV-056

@@ -89,3 +89,9 @@ def test_key_given_as_credential_is_never_shown(make) -> None:
 def test_a_name_on_a_key_door_is_still_named() -> None:
     with pytest.raises(NotConfiguredError, match="credential='platform'"):
         AnthropicLM(credential="platform")
+
+
+def test_thinking_budget_zero_says_how_to_turn_thinking_off() -> None:
+    # Gemini's own spelling of "off" is thinkingBudget: 0; lm15's is effort="off".
+    with pytest.raises(ValueError, match="effort='off'"):
+        lm15.Reasoning(effort="off", thinking_budget=0)

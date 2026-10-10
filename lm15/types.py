@@ -1806,6 +1806,11 @@ class Reasoning:
         if self.summary is not None and self.summary not in REASONING_SUMMARIES:
             raise ValueError(f"unsupported reasoning summary: {self.summary}")
         _coerce_int_field(self, "thinking_budget")
+        if self.thinking_budget == 0 and not isinstance(self.thinking_budget, bool):
+            # Gemini spells "thinking off" as thinkingBudget: 0; lm15 spells it effort="off".
+            raise ValueError(
+                "thinking_budget must be > 0; to turn thinking off, use Reasoning(effort='off') with no budget"
+            )
         _validate_positive(self.thinking_budget, field_name="thinking_budget")
         if self.effort == "off" and (self.thinking_budget is not None or self.summary is not None):
             raise ValueError(
