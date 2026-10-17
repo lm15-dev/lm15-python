@@ -98,7 +98,6 @@ __all__ = [
     "CHAT_PRESET_ROUTES",
     "Resolution",
     "RouterConfig",
-    "RouterError",
     "UnknownModelError",
     "AmbiguousModelError",
     "MissingCredentialError",
