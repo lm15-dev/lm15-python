@@ -34,11 +34,18 @@ def _body(lm, request: Request) -> dict:
 # ─── model class table ───────────────────────────────────────────────
 
 def test_openai_model_class_for_cache_options() -> None:
+    assert openai_model_has_cache_options("gpt-6")
     assert openai_model_has_cache_options("gpt-5.6-sol")
     assert openai_model_has_cache_options("gpt-6.0")
+    assert openai_model_has_cache_options("gpt-6-luna")
     assert openai_model_has_cache_options("GPT-5.10")
+    assert not openai_model_has_cache_options("gpt-5")
+    assert not openai_model_has_cache_options("gpt-5-mini")
     assert not openai_model_has_cache_options("gpt-5.5")
     assert not openai_model_has_cache_options("gpt-4.1-mini")
+    assert not openai_model_has_cache_options("gpt-3.5-turbo")
+    assert not openai_model_has_cache_options("gpt-35-turbo")
+    assert not openai_model_has_cache_options("gpt-35-turbo-16k")
     assert not openai_model_has_cache_options("o3")            # unknown pattern -> no switch (stated trade-off)
     assert not openai_model_has_cache_options("chat-latest")
 
