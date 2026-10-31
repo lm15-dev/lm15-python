@@ -548,7 +548,7 @@ were captured from live runs; model text and token counts vary.
 | | Version | Repository |
 |---|---|---|
 | Python | 1.5.0 | this repository |
-| TypeScript | 1.0.0-rc.11 | [lm15-ts](https://github.com/lm15-dev/lm15-ts) |
+| TypeScript | 1.0.0 | [lm15-ts](https://github.com/lm15-dev/lm15-ts) |
 | Rust | 1.0.0-rc.11 | [lm15-rs](https://github.com/lm15-dev/lm15-rs) |
 | Go | v1.1.0-rc.10 | [lm15-go](https://github.com/lm15-dev/lm15-go) |
 | Julia | 1.0.0 (registration pending) | [LM15.jl](https://github.com/lm15-dev/LM15.jl) |
