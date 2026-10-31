@@ -67,9 +67,9 @@ COMPAT_CASES = [
      {"commentary_phase": "tag", "edit_image_field": "indexed", "builtin_tools": "verbatim", "tool_result_media": "images"}),
     (OpenAIChatCompat, CHAT_NAMES, CHAT_VALUES,
      {"reasoning_efforts": ("low", "high"), "model_overrides": (("review-", {"json_schema": "send"}),), "tool_result_media": "native", "token_scoring": "none",
-      "reasoning_off": "lowest"}),
+      "reasoning_off": "lowest", "reasoning_usage": "separate"}),
     (ResolvedOpenAIChatCompat, CHAT_NAMES, CHAT_VALUES, {"reasoning_efforts": ("low", "high"), "tool_result_media": "native", "token_scoring": "none",
-                                                         "reasoning_off": "lowest"}),
+                                                         "reasoning_off": "lowest", "reasoning_usage": "separate"}),
 ]
 
 
@@ -242,7 +242,7 @@ def test_compat_resolution_merge_and_model_copy_keep_new_fields():
     assert merged == dataclasses.replace(responses, extensions={"e": 2, "new": 3})
     assert resolve_openai_responses_compat(responses) == ResolvedOpenAIResponsesCompat(**dataclasses.asdict(responses))
     chat = OpenAIChatCompat(*CHAT_VALUES, reasoning_efforts=("low", "high"), tool_result_media="native", token_scoring="none",
-                            reasoning_off="lowest")
+                            reasoning_off="lowest", reasoning_usage="separate")
     merged_chat = merge_openai_chat_compat(chat, OpenAIChatCompat(extensions={"new": 3}))
     assert merged_chat == dataclasses.replace(chat, extensions={"e": 2, "new": 3})
     resolved_kwargs = dataclasses.asdict(chat)

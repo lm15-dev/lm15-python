@@ -9,7 +9,7 @@ from lm15.model_registry import ModelRegistry
 from lm15.models import InferenceModelInfo, InferencePricing, ModelInfo
 from lm15.profiles import ProviderProfile, resolve_openai_responses_compat
 from lm15.providers import OpenAILM
-from lm15.types import Config, FunctionTool, Message, Reasoning, Request, ToolResultPart, TextPart
+from lm15.types import Usage, Config, FunctionTool, Message, Reasoning, Request, ToolResultPart, TextPart
 
 from .test_providers import _FakeTransport
 
@@ -97,7 +97,8 @@ def test_model_registry_resolves_aliases_and_estimates_cost() -> None:
 
     assert registry.resolve("qwen", provider="local") is model
     assert registry.resolve("qwen3-coder") is model
-    assert pricing.estimate(input_tokens=1_000_000, output_tokens=500_000) == 2.0
+    usage = Usage(input_tokens=1_000_000, output_tokens=500_000, cache_read_tokens=0, cache_write_tokens=0)
+    assert pricing.estimate(usage) == 2.0
 
 
 def test_openai_profile_controls_responses_payload() -> None:

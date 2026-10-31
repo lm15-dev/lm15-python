@@ -247,7 +247,7 @@ def test_interrupted_turn_keeps_its_usage() -> None:
 def test_usage_sum_keeps_unknown_unknown() -> None:
     # INV-029 arithmetic: a counter absent on either side is unknown in the sum.
     frames = [
-        LiveServerUsageEvent(usage=Usage(input_tokens=1, output_tokens=1, reasoning_tokens=5)),
+        LiveServerUsageEvent(usage=Usage(input_tokens=1, output_tokens=6, reasoning_tokens=5)),
         LiveServerTurnEndEvent(usage=Usage(input_tokens=2, output_tokens=2)),
     ]
     turn = sync_session(frames).turn().result()

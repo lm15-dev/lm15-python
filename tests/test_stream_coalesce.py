@@ -100,7 +100,7 @@ def _anthropic_sse() -> bytes:
         ("message_delta", {
             "type": "message_delta",
             "delta": {"stop_reason": "end_turn", "stop_sequence": None},
-            "usage": {"input_tokens": 9, "output_tokens": 12},
+            "usage": {"input_tokens": 9, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "output_tokens": 12},
         }),
         ("message_stop", {"type": "message_stop"}),
     ]

@@ -263,9 +263,9 @@ def test_mixed_preserves_ordinary_fields_one_generation_and_usage(asynchronous, 
     request = replace(request, config=replace(request.config, probabilities="if_available", temperature=0.25))
     transport = AsyncScoringTransport() if asynchronous else ScoringTransport()
     transport.missing_ids = missing_ids
-    transport.scoring_usage = {"prompt_tokens": 7, "completion_tokens": 3, "total_tokens": 99,
+    transport.scoring_usage = {"prompt_tokens": 7, "completion_tokens": 3, "total_tokens": 10,
                                "completion_tokens_details": {"reasoning_tokens": 2}}
-    transport.generated_usage = {"prompt_tokens": 11, "completion_tokens": 5, "total_tokens": 30}
+    transport.generated_usage = {"prompt_tokens": 11, "completion_tokens": 5, "total_tokens": 16}
     cls = AsyncOpenAIChatLM if asynchronous else OpenAIChatLM
     lm = cls(api_key="k", compat="vllm", base_url="http://scoring/v1", transport=transport, adaptations=policy)
     plan = lm.plan(request)
@@ -280,9 +280,9 @@ def test_mixed_preserves_ordinary_fields_one_generation_and_usage(asynchronous, 
     records = [(a.field, a.action) for a in response.adaptations]
     expected = [(a.field, a.action) for a in plan] + ([("config.probabilities", "dropped")] if missing_ids else [])
     assert records == ([] if policy == "silent" else expected)
-    assert (response.usage.input_tokens, response.usage.output_tokens, response.usage.total_tokens) == (18, 8, 129)
+    assert (response.usage.input_tokens, response.usage.output_tokens, response.usage.total_tokens) == (18, 8, 26)
     assert response.usage.reasoning_tokens is None and response.usage.cache_read_tokens is None
-    assert response.provider_data["scoring_usage"]["total_tokens"] == 99
+    assert response.provider_data["scoring_usage"]["total_tokens"] == 10
     assert len(transport.requests) == 7
     assert transport.requests[-2].url.endswith("/completions")
     assert transport.requests[-1].url.endswith("/chat/completions")

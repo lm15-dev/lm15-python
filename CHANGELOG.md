@@ -1,5 +1,62 @@
 # Changelog
 
+## 2.0.0 — 2026-10-31
+
+A usage counter means one thing on every provider (lm15-contract
+`cfc3edc`, 1,968 of 1,968 checks). **Breaking**: read this before upgrading
+if you use `Usage` or `InferencePricing.estimate`.
+
+- **`Usage` means the same on every provider.** `input_tokens` is every
+  token the model read, cached tokens included; `output_tokens` every token
+  it generated, reasoning included; `cache_read_tokens`, `cache_write_tokens`
+  and `input_audio_tokens` are parts of input, `reasoning_tokens` and
+  `output_audio_tokens` parts of output; `total_tokens` is input + output.
+  In 1.x each counter was the provider's own, so the same field meant
+  different things. What changes for you:
+  - **Anthropic** (and DeepSeek, Meta, Moonshot on the Anthropic wire):
+    `input_tokens` now includes the cache reads and writes. A call that
+    read 4,873 cached tokens and 20 new ones reports 4,893, not 20.
+  - **Gemini and Vertex**: `output_tokens` now includes the thinking, and
+    `input_tokens` includes the tokens Gemini's own tools added (search,
+    code execution). Zero cache and reasoning counts are reported as `0`.
+  - **xAI**: `output_tokens` now includes reasoning.
+  - OpenAI and every other Chat Completions server: unchanged.
+  The provider's own numbers are still in `response.provider_data`, for
+  checking a bill.
+- **A counter is exact or `None`.** When a provider does not report every
+  piece a counter needs, it is `None`, never a partial sum. When a
+  provider's numbers do not add up the way its wire is documented to count
+  (a part bigger than its whole, a total that is not input + output),
+  `input_tokens` and/or `output_tokens` are `None` and the provider's
+  `total_tokens` stays, rather than a wrong number.
+- **`Usage(...)` checks its parts.** It raises `ValueError` when a part is
+  bigger than its whole, or when `total_tokens` is not input + output. A
+  saved 1.x Anthropic, Gemini or xAI record can fail to load for this
+  reason; the message says so. Add the cache counters to its input (or the
+  reasoning to its output) to read it with the 2.0 meaning.
+- **`InferencePricing.estimate(usage)` takes a `Usage`** (the keyword form
+  is gone) **and is exact or `None`.** In 1.x it charged cached tokens twice
+  on OpenAI, Gemini and xAI (a gpt-6.1-sol call with 90,000 of its 100,000
+  input tokens cached cost $0.039 and was estimated at $0.219), missed
+  Gemini's and xAI's reasoning, and skipped unknown counts. Now it answers
+  `None` whenever an unknown count could change the price, and for calls
+  with audio tokens. A cache count may be unknown only when the price list
+  says those tokens cost the same as plain input.
+- **Long prompts.** `InferencePricing.tiers` (`PricingTier(above_input_tokens=272_000,
+  input_per_million=4.0, ...)`) reprices the whole call above a prompt
+  length, as OpenAI does above 272,000 input tokens and Claude Haiku 5.5
+  above 100,000. An absent price is unknown, never zero.
+- **`OpenAIChatCompat(reasoning_usage="separate")`** for a server that
+  counts reasoning beside `completion_tokens` (the `xai` preset); also a
+  per-model override.
+- The vet shim answers `estimate_cost`; `surface_dump` now reflects the
+  model metadata types (`ModelInfo`, `InferencePricing`, `PricingTier`, …),
+  which the contract specifies from this release.
+- Fixed: streaming a Gemini Live model through `complete`/`stream`
+  (`extensions={"transport": "live"}`) raised `TypeError` while summing
+  usage; it now reports the turn's last usage.
+- lm15-contract `changes/2026-10-31-usage-one-meaning.md` (MAP-19).
+
 ## 1.5.0 — 2026-10-15
 
 Bounding boxes (lm15-contract `6dc1c5c`, 1,921 of 1,921 checks).

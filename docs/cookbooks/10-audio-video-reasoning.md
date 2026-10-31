@@ -41,15 +41,17 @@ print(response.usage)
 ```output
 A series of high-pitched electronic beeps rings out in rhythmic bursts,
 sounding like a digital alarm or notification.
-Usage(input_tokens=47, output_tokens=23, total_tokens=438, …, reasoning_tokens=368, …)
+Usage(input_tokens=47, output_tokens=391, total_tokens=438, …, reasoning_tokens=368, …)
 ```
 
 Note `reasoning_tokens=368`: Gemini 3 thinks by default, even about
-beeps. And note the arithmetic: 47 + 23 + 368 = 438. On Gemini the
-thinking is *outside* `output_tokens`; on OpenAI and Anthropic it is
-*inside*. lm15 reports every counter exactly as the provider does, so the
-numbers reconcile with the bill; the per-provider rules are in the
-contract's `spec/types.md` under Usage.
+beeps. It is part of `output_tokens` (23 tokens of answer + 368 of
+thinking = 391), as it is on every provider: in lm15 `output_tokens`
+is everything the model generated and `input_tokens` everything it read,
+whatever the provider calls them. Gemini itself counts the thinking
+beside its answer count (`candidatesTokenCount` 23); that number, and
+every other one as Gemini sent it, is in `response.provider_data`. The
+rules are MAP-19 in the contract's mapping rules.
 
 Video is the same shape. `video(path=...)` inlines the bytes; keep clips
 small (inline base64, no chunked upload):
@@ -70,7 +72,7 @@ print(response.usage)
 A large, white rabbit enjoys playing with butterflies in a scenic grassy
 field. As he stands up and begins to sing, a red apple falls from the
 sky and hits him on the head.
-Usage(input_tokens=920, output_tokens=38, …, reasoning_tokens=195, …)
+Usage(input_tokens=920, output_tokens=233, …, reasoning_tokens=195, …)
 ```
 
 Now reasoning. `Config(reasoning=Reasoning(...))` turns thinking on;
@@ -262,7 +264,8 @@ summary (OpenAI). `message.first(ThinkingPart)` returns the first or
 `None`; `message.parts_of(ThinkingPart)` returns all.
 `usage.reasoning_tokens` is populated when the provider reports a count
 (OpenAI, Gemini) and stays `None` when it does not (Anthropic). lm15
-does not estimate.
+does not estimate. Either way the reasoning is inside
+`usage.output_tokens`.
 
 ## Variations
 

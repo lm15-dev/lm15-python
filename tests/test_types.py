@@ -388,10 +388,33 @@ def test_stream_events_are_variant_dataclasses() -> None:
     assert StreamEndEvent().type == "end"
 
 
-def test_usage_preserves_provider_reported_total() -> None:
-    usage = Usage(input_tokens=1, output_tokens=2, total_tokens=10)
+def test_usage_total_is_input_plus_output() -> None:
+    # INV-029 (2026-10-31): an explicit total equals input + output when both
+    # are present; a total alone (a withheld split, MAP-19 rule 3) stays.
+    with pytest.raises(ValueError, match="total_tokens"):
+        Usage(input_tokens=1, output_tokens=2, total_tokens=10)
+    assert Usage(input_tokens=1, output_tokens=2, total_tokens=3).total_tokens == 3
+    assert Usage(total_tokens=10).total_tokens == 10
 
-    assert usage.total_tokens == 10
+
+@pytest.mark.parametrize(
+    ("counters", "message"),
+    [
+        ({"input_tokens": 3, "cache_write_tokens": 3275}, "cache_read_tokens \\+ cache_write_tokens"),
+        ({"input_tokens": 10, "cache_read_tokens": 6, "cache_write_tokens": 6}, "exceed input_tokens"),
+        ({"input_tokens": 5, "input_audio_tokens": 6}, "input_audio_tokens"),
+        ({"output_tokens": 48, "reasoning_tokens": 155}, "reasoning_tokens"),
+        ({"output_tokens": 1, "output_audio_tokens": 2}, "output_audio_tokens"),
+    ],
+)
+def test_usage_parts_never_exceed_their_wholes(counters, message) -> None:
+    with pytest.raises(ValueError, match=message) as info:
+        Usage(**counters)
+    assert "MAP-19" in str(info.value)  # the message names the change of meaning
+
+
+def test_usage_parts_without_wholes_are_unchecked() -> None:
+    assert Usage(cache_read_tokens=4, reasoning_tokens=7).input_tokens is None
 
 
 def test_numeric_budgets_and_usage_cannot_be_negative() -> None:

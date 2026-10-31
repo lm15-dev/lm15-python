@@ -132,7 +132,7 @@ StreamDeltaEvent(delta=TextDelta(text=' with', part_index=0, logprobs=(), logpro
 StreamDeltaEvent(delta=TextDelta(text='?', part_index=0, logprobs=(), logprobs_complete=True, type='text'), type='delta')
 StreamEndEvent(
     finish_reason='stop',
-    usage=Usage(input_tokens=1247, output_tokens=15, total_tokens=1331, cache_read_tokens=1152, cache_write_tokens=None, reasoning_tokens=69, input_audio_tokens=0, output_audio_tokens=0),
+    usage=Usage(input_tokens=1247, output_tokens=84, total_tokens=1331, cache_read_tokens=1152, cache_write_tokens=None, reasoning_tokens=69, input_audio_tokens=0, output_audio_tokens=0),
     provider_data=<dict: 8 keys>,
     type='end',
 )

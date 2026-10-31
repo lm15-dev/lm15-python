@@ -99,8 +99,11 @@ def test_total_stays_none_when_either_side_unknown() -> None:
     assert Usage().total_tokens is None
 
 
-def test_explicit_total_wins() -> None:
-    assert Usage(input_tokens=1, output_tokens=2, total_tokens=10).total_tokens == 10
+def test_explicit_total_must_be_the_sum() -> None:
+    # INV-029 since 2026-10-31: no longer kept verbatim when it disagrees.
+    with pytest.raises(ValueError):
+        Usage(input_tokens=1, output_tokens=2, total_tokens=10)
+    assert Usage(input_tokens=1, output_tokens=2, total_tokens=3).total_tokens == 3
     assert Usage(total_tokens=42).total_tokens == 42
 
 

@@ -319,7 +319,7 @@ Instead, *catalog packages* supply the numbers through a
 home. Install one — `pip install aimo-registry` — and ask:
 
 ```python
-from lm15 import ModelRegistry
+from lm15 import ModelRegistry, Usage
 
 registry = ModelRegistry.discover()   # finds installed catalog packages
 info = registry.resolve("claude-3-5-sonnet-20240620", provider="anthropic")
@@ -328,7 +328,8 @@ print(info.inference.context_window)
 print(info.inference.pricing.input_per_million,
       info.inference.pricing.output_per_million,
       info.inference.pricing.currency)
-print(info.inference.pricing.estimate(input_tokens=1200, output_tokens=350))
+usage = Usage(input_tokens=1200, output_tokens=350, cache_read_tokens=0, cache_write_tokens=0)
+print(info.inference.pricing.estimate(usage))   # or response.usage
 ```
 
 ```output
@@ -336,6 +337,10 @@ print(info.inference.pricing.estimate(input_tokens=1200, output_tokens=350))
 3.0 15.0 USD
 0.00885
 ```
+
+`estimate` is exact or `None`: it answers `None` rather than a smaller
+number when an unknown count could change the price (here, had the
+cache counts been unknown, since cached tokens cost less).
 
 That run knew 6,993 models across 209 providers. Hand the registry to
 the router (`RouterConfig(registry=...)`) and bare model ids and

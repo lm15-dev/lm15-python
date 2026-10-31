@@ -56,8 +56,9 @@ write: 4873 read: 0
 ```
 
 The second call within the TTL (5 minutes by default) reads the prefix
-back at one tenth of input price. Only the 20 uncached tokens bill at
-the full rate:
+back at one tenth of input price. `input_tokens` counts the whole prompt,
+cached part included, on every provider; only the 20 uncached tokens
+bill at the full rate:
 
 ```python
 second = router.complete(req)
@@ -66,15 +67,20 @@ print("input:", second.usage.input_tokens)
 ```
 ```output
 write: 0 read: 4873
-input: 20
+input: 4893
 ```
+
+(Anthropic's own `usage.input_tokens` is 20 here: it counts only the
+tokens after the cache breakpoint. That number is still in
+`second.provider_data["usage"]`; lm15's `input_tokens` means the same
+thing on every provider. Before lm15 2.0 it was the provider's own
+number, so this printed 20.)
 
 OpenAI caches automatically and for free — no markers, no write charge.
 `CacheConfig(key=...)` sends `prompt_cache_key`, which improves hit
 rates by routing same-key requests to the same machine. Note the
-differences: `cache_write_tokens` is `None` (OpenAI never reports
-writes), cached tokens stay inside `input_tokens` rather than replacing
-them, and the cached span rounds down to a 128-token boundary:
+differences: `cache_write_tokens` is `None` (this model reports no
+writes), and the cached span rounds down to a 128-token boundary:
 
 ```python
 oreq = Request(
@@ -92,19 +98,20 @@ first: write=None read=0 input=4095
 second: write=None read=3968 input=4095
 ```
 
-Does it pay? `InferencePricing.estimate()` runs the arithmetic on the
-counts captured above. With Anthropic's rates (reads 0.1×, writes 1.25×
-input price), the write premium on call one is recovered before call
-two finishes:
+Does it pay? `InferencePricing.estimate()` prices a `Usage` at list
+prices. With Anthropic's rates (reads 0.1×, writes 1.25× input price),
+the write premium on call one is recovered before call two finishes:
 
 ```python
+from lm15 import Usage
+
 sonnet = InferencePricing(
     input_per_million=3.0, output_per_million=15.0,
     cache_read_per_million=0.30, cache_write_per_million=3.75,
 )
-cold = sonnet.estimate(input_tokens=4893, output_tokens=50)
-write = sonnet.estimate(input_tokens=20, output_tokens=50, cache_write_tokens=4873)
-warm = sonnet.estimate(input_tokens=20, output_tokens=50, cache_read_tokens=4873)
+cold = sonnet.estimate(Usage(input_tokens=4893, output_tokens=50, cache_read_tokens=0, cache_write_tokens=0))
+write = sonnet.estimate(Usage(input_tokens=4893, output_tokens=50, cache_read_tokens=0, cache_write_tokens=4873))
+warm = sonnet.estimate(Usage(input_tokens=4893, output_tokens=50, cache_read_tokens=4873, cache_write_tokens=0))
 print(f"no cache:    ${cold:.5f} per call")
 print(f"cache write: ${write:.5f} first call")
 print(f"cache read:  ${warm:.5f} every call after")
@@ -129,12 +136,15 @@ cache read:  $0.00227 every call after
   stable conversation history caches along with the system prompt.
   Usage reports both `cache_read_input_tokens` and
   `cache_creation_input_tokens`, mapped to `Usage.cache_read_tokens` /
-  `cache_write_tokens`.
+  `cache_write_tokens`; both are added into `Usage.input_tokens`, since
+  Anthropic counts them beside its own `input_tokens`.
 - **OpenAI** — implicit. Caching happens server-side on any prompt over
   1024 tokens whether you send `CacheConfig` or not. lm15 forwards
   `key` as `prompt_cache_key` and `retention="long"` as
   `prompt_cache_retention: "24h"`. Reads surface as
-  `input_tokens_details.cached_tokens`; writes are never reported.
+  `input_tokens_details.cached_tokens`; writes as
+  `input_tokens_details.cache_write_tokens` on the models that report
+  them (gpt-5.6 and later).
 - **Gemini** — a separate resource. The adapter hashes the prefix
   (everything but the last message, or up to `prefix_until_index`),
   POSTs it once to `cachedContents`, remembers the returned id in the
@@ -143,8 +153,12 @@ cache read:  $0.00227 every call after
 
 Numbers carry the [zeros-vs-absent](01-first-request.md) distinction:
 `cache_write_tokens=None` means "not reported", `0` means "reported
-zero". `InferencePricing.estimate()` skips `None` dimensions — its
-result is a lower bound when counts are unknown.
+zero". `InferencePricing.estimate()` never treats `None` as zero: when
+an unknown count could change the price it returns `None` rather than a
+smaller number (a cache count may be unknown only when the catalog says
+those tokens cost the same as plain input). It also returns `None` for
+calls with audio tokens, and knows nothing of batch, flex or priority
+pricing.
 
 The cache itself is provider-side state. lm15 holds no cache, sets no
 TTLs of its own, and does not retry on cache misses — a miss is not an

@@ -30,6 +30,7 @@ ALL_OPS = [
     "cache_op_build",
     "cache_op_parse",
     "capabilities",
+    "estimate_cost",
     "explain_auth",
     "file_op_build",
     "file_op_parse",

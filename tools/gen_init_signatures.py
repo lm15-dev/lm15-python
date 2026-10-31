@@ -44,7 +44,7 @@ TYPES: dict[str, tuple[str, ...]] = {
     ),
     "lm15.compat": ("OpenAIChatCompat", "AnthropicCompat"),
     "lm15.features": ("HostSpec",),  # AccessPolicy writes its own __init__
-    "lm15.models": ("InferenceModelInfo", "ModelInfo"),
+    "lm15.models": ("InferencePricing", "InferenceModelInfo", "ModelInfo"),
     "lm15.profiles": ("ProviderProfile",),
 }
 

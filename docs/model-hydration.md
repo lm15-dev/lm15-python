@@ -50,7 +50,26 @@ canonical JSON; it never serializes and always deserializes to `None`.
 
 `input_per_million`, `output_per_million`, `cache_read_per_million`,
 `cache_write_per_million` (non-negative number|null), `currency` (string,
-default `"USD"`), `dimensions` (opaque object).
+default `"USD"`), `dimensions` (opaque object), `tiers` (array of
+PricingTier, strictly ascending, omitted when empty).
+
+Since 2.0 these tables are normative in the contract
+(`lm15-contract/spec/types.md` § Model metadata), with the rule of
+`estimate(usage)`. A catalog writes what its source knows and nothing
+more: **an absent rate is unknown**, never zero and never the input rate.
+A provider that bills cache writes (or reads) at the plain input rate is
+written with that rate equal to `input_per_million`; otherwise `estimate`
+answers `None` when the call's cache split is not reported.
+
+### PricingTier
+
+`above_input_tokens` (positive int, required) and the four optional rates.
+A call whose `Usage.input_tokens` (the whole prompt, cache included) is
+greater than `above_input_tokens` pays every rate of the highest such
+tier; a rate the tier leaves out is unknown at that tier, not inherited.
+Example, gpt-6.1-sol: `{"above_input_tokens": 272000, "input_per_million":
+4.0, "output_per_million": 15.0, "cache_read_per_million": 0.2,
+"cache_write_per_million": 5.0}`.
 
 Validation lives in the constructors: negative prices, empty modality
 strings, non-positive context windows, and empty required strings raise

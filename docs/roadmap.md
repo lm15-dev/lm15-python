@@ -7,7 +7,12 @@ same discipline as the code — see
 
 ## Where we are (October 2026)
 
-- **1.5.0** is the current release (2026-10-15): bounding boxes, a judgment
+- **2.0.0** is the current release (2026-10-31): every usage counter means
+  one thing on every provider (input includes cached tokens, output
+  includes reasoning) and `InferencePricing.estimate(usage)` is exact or
+  `None`, with prices for long prompts. Breaking for code that read
+  Anthropic input or Gemini/xAI output counts; see the changelog. On top of
+  **1.5.0** (2026-10-15): bounding boxes, a judgment
   that answers where something is in a picture, on every provider, on top of
   **1.4.1** (2026-10-15: a saved cloud login's
   project and location are used, found and fixed by Rolf Fredheim), on top of
@@ -26,7 +31,7 @@ same discipline as the code — see
   number). The chat
   core — canonical types, serde, errors, request building, response parsing,
   streaming — is checked against the pinned language-neutral contract, and
-  frozen for 1.x.
+  frozen for 2.x.
 - Non-chat endpoints, stored-cache resources, live sessions and Chat
   Completions ingest ship as **provisional**. Contract tests cover recorded
   behavior; they do not promise that every provider/account works live.

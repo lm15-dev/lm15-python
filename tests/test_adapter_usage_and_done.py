@@ -96,9 +96,27 @@ def test_anthropic_missing_usage_is_none_not_zero() -> None:
         "usage": {"input_tokens": 12},
     }
     resp = lm.parse_response(_REQ, _http(body))
-    assert resp.usage.input_tokens == 12
+    # MAP-19 rule 5: the wire's input_tokens excludes the cache; without
+    # both cache counters canonical input is unknown, never 12.
+    assert resp.usage.input_tokens is None
     assert resp.usage.output_tokens is None
     assert resp.usage.total_tokens is None
+
+
+def test_anthropic_input_includes_both_cache_counters() -> None:
+    lm = AnthropicLM(api_key="sk-test")
+    body = {
+        "id": "msg_1",
+        "model": "m-test",
+        "role": "assistant",
+        "content": [{"type": "text", "text": "ok"}],
+        "stop_reason": "end_turn",
+        "usage": {"input_tokens": 3, "cache_creation_input_tokens": 24, "cache_read_input_tokens": 3275,
+                  "output_tokens": 6},
+    }
+    usage = lm.parse_response(_REQ, _http(body)).usage
+    assert (usage.input_tokens, usage.cache_read_tokens, usage.cache_write_tokens) == (3302, 3275, 24)
+    assert usage.total_tokens == 3308
 
 
 def test_anthropic_stream_message_delta_partial_usage_is_none() -> None:
@@ -130,10 +148,11 @@ def test_gemini_absent_primary_inside_usage_metadata_is_zero() -> None:
     body = _gemini_body({"promptTokenCount": 14, "totalTokenCount": 18, "thoughtsTokenCount": 4})
     resp = lm.parse_response(_REQ, _http(body))
     assert resp.usage.input_tokens == 14
-    assert resp.usage.output_tokens == 0
+    assert resp.usage.output_tokens == 4  # MAP-19 rule 6: answer (absent: 0) + thoughts
     assert resp.usage.total_tokens == 18
     assert resp.usage.reasoning_tokens == 4
-    assert resp.usage.cache_read_tokens is None  # secondary: not reported
+    assert resp.usage.cache_read_tokens == 0  # proto3: absent inside usageMetadata is 0
+    assert resp.usage.cache_write_tokens is None  # Gemini reports no cache-write count
 
 
 def test_gemini_no_usage_metadata_is_all_none() -> None:

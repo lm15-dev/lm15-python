@@ -288,19 +288,23 @@ registry.add(
 ## Cost estimation
 
 Pricing is deliberately separate from `Usage`, because price tables change and
-some providers price non-token dimensions differently.
+some providers price non-token dimensions differently. `Usage` means the same
+thing on every provider (input includes cached tokens, output includes
+reasoning), so one function prices any provider's response:
 
 ```python
 pricing = info.inference.pricing
 if pricing is not None:
-    cost = pricing.estimate(
-        input_tokens=response.usage.input_tokens,
-        output_tokens=response.usage.output_tokens,
-        cache_read_tokens=response.usage.cache_read_tokens,
-        cache_write_tokens=response.usage.cache_write_tokens,
-    )
-    print(cost, pricing.currency)
+    cost = pricing.estimate(response.usage)
+    print("unknown" if cost is None else f"{cost} {pricing.currency}")
 ```
+
+The result is exact or `None`. `None` means an unknown count could change the
+price (a provider that did not report its cache split while cached tokens
+cost less, or audio tokens, which have their own prices). Long prompts are
+priced by `pricing.tiers` (`PricingTier(above_input_tokens=272_000, ...)`),
+which reprice the whole call. Batch, flex and priority pricing, regional
+multipliers and tool fees are outside it.
 
 ## Design rules
 

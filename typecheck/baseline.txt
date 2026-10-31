@@ -1,6 +1,6 @@
 # Known mypy findings inside lm15/ (tools/typecheck.py). Count, then path|code|message.
 # The gate fails on anything new, and on any entry that no longer occurs.
-# Total: 451
+# Total: 396
 2 lm15/_authlock.py|assignment|Incompatible types in assignment (expression has type "None", variable has type Module)
 4 lm15/access.py|union-attr|Item "AwsCredentials" of "ApiKey | BearerToken | AwsCredentials" has no attribute "value"
 1 lm15/auth.py|arg-type|Argument "ui" to "login" of "Auth" has incompatible type "_EchoUI"; expected "AuthUI"
@@ -130,23 +130,14 @@
 1 lm15/providers/gemini.py|arg-type|Argument 1 to "resolve_credential" has incompatible type "str | ApiKey | BearerToken | AwsCredentials | Callable[[], str | ApiKey | BearerToken | AwsCredentials] | None"; expected "str | ApiKey | BearerToken | AwsCredentials | Callable[[], str | ApiKey | BearerToken | AwsCredentials]"
 1 lm15/providers/gemini.py|assignment|Incompatible types in assignment (expression has type "AccessPolicy | None", base class "BaseProviderLM" defined the type as "AccessPolicy")
 2 lm15/providers/gemini.py|no-redef|Name "out" already defined on line N
-2 lm15/providers/gemini.py|type-var|Value of type variable "SupportsRichComparisonT" of "max" cannot be "int | None"
 1 lm15/providers/gemini.py|union-attr|Item "None" of "AccessPolicy | None" has no attribute "env_keys"
 9 lm15/providers/gemini.py|union-attr|Item "None" of "Any | dict[Any, Any] | None" has no attribute "get"
 1 lm15/providers/gemini.py|union-attr|Item "None" of "Path | None" has no attribute "read_bytes"
-1 lm15/providers/openai.py|arg-type|Argument "cache_read_tokens" to "Usage" has incompatible type "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | None"; expected "int | None"
-1 lm15/providers/openai.py|arg-type|Argument "cache_write_tokens" to "Usage" has incompatible type "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | None"; expected "int | None"
 2 lm15/providers/openai.py|arg-type|Argument "code" to "ErrorDetail" has incompatible type "str"; expected "Literal['auth', 'auth_operation', 'billing', 'rate_limit', 'invalid_request', 'context_length', 'timeout', 'server', 'unsupported_model', 'unsupported_feature', 'not_configured', 'unknown_model', 'ambiguous_model', 'transport', 'lock_timeout', 'stream_assembly', 'collection_limit', 'provider']"
 1 lm15/providers/openai.py|arg-type|Argument "finish_reason" to "Response" has incompatible type "str"; expected "Literal['stop', 'length', 'tool_call', 'content_filter', 'error']"
-1 lm15/providers/openai.py|arg-type|Argument "input_audio_tokens" to "Usage" has incompatible type "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | None"; expected "int | None"
-1 lm15/providers/openai.py|arg-type|Argument "input_tokens" to "Usage" has incompatible type "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | None"; expected "int | None"
 1 lm15/providers/openai.py|arg-type|Argument "outcome" to "BatchEntry" has incompatible type "str"; expected "Literal['succeeded', 'errored', 'cancelled', 'expired']"
-1 lm15/providers/openai.py|arg-type|Argument "output_audio_tokens" to "Usage" has incompatible type "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | None"; expected "int | None"
-1 lm15/providers/openai.py|arg-type|Argument "output_tokens" to "Usage" has incompatible type "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | None"; expected "int | None"
-1 lm15/providers/openai.py|arg-type|Argument "reasoning_tokens" to "Usage" has incompatible type "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | None"; expected "int | None"
 1 lm15/providers/openai.py|arg-type|Argument "status" to "BatchJobInfo" has incompatible type "str"; expected "Literal['queued', 'running', 'cancelling', 'completed', 'failed', 'cancelled', 'expired']"
 1 lm15/providers/openai.py|arg-type|Argument "status" to "VideoJobInfo" has incompatible type "str"; expected "Literal['queued', 'running', 'completed', 'failed', 'cancelled']"
-1 lm15/providers/openai.py|arg-type|Argument "total_tokens" to "Usage" has incompatible type "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | None"; expected "int | None"
 1 lm15/providers/openai.py|arg-type|Argument 1 to "auth_header" has incompatible type "AccessPolicy | None"; expected "AccessPolicy"
 7 lm15/providers/openai.py|arg-type|Argument 1 to "int" has incompatible type "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any"; expected "str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc"
 1 lm15/providers/openai.py|arg-type|Argument 1 to "resolve_credential_value" has incompatible type "str | ApiKey | BearerToken | AwsCredentials | Callable[[], str | ApiKey | BearerToken | AwsCredentials] | None"; expected "str | ApiKey | BearerToken | AwsCredentials | Callable[[], str | ApiKey | BearerToken | AwsCredentials]"
@@ -162,18 +153,14 @@
 3 lm15/providers/openai.py|union-attr|Item "None" of "Any | dict[Any, Any] | None" has no attribute "get"
 1 lm15/providers/openai.py|union-attr|Item "None" of "Any | list[Any] | None" has no attribute "__iter__" (not iterable)
 1 lm15/providers/openai.py|union-attr|Item "None" of "Match[str] | None" has no attribute "group"
-11 lm15/providers/openai.py|union-attr|Item "None" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
+6 lm15/providers/openai.py|union-attr|Item "None" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
 1 lm15/providers/openai.py|union-attr|Item "None" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | list[int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "__iter__" (not iterable)
-5 lm15/providers/openai.py|union-attr|Item "float" of "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None]" has no attribute "get"
-11 lm15/providers/openai.py|union-attr|Item "float" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
+6 lm15/providers/openai.py|union-attr|Item "float" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
 1 lm15/providers/openai.py|union-attr|Item "float" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | list[int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "__iter__" (not iterable)
-5 lm15/providers/openai.py|union-attr|Item "int" of "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None]" has no attribute "get"
-11 lm15/providers/openai.py|union-attr|Item "int" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
+6 lm15/providers/openai.py|union-attr|Item "int" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
 1 lm15/providers/openai.py|union-attr|Item "int" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | list[int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "__iter__" (not iterable)
-5 lm15/providers/openai.py|union-attr|Item "list[JsonValue]" of "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None]" has no attribute "get"
-11 lm15/providers/openai.py|union-attr|Item "list[JsonValue]" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
-5 lm15/providers/openai.py|union-attr|Item "str" of "Any | int | float | str | list[JsonValue] | dict[str, JsonValue] | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None]" has no attribute "get"
-11 lm15/providers/openai.py|union-attr|Item "str" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
+6 lm15/providers/openai.py|union-attr|Item "list[JsonValue]" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
+6 lm15/providers/openai.py|union-attr|Item "str" of "int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | dict[str | Any, int | float | str | list[JsonValue] | dict[str, JsonValue] | Any | None] | None" has no attribute "get"
 1 lm15/providers/openai_chat.py|arg-type|Argument "effort" to "Reasoning" has incompatible type "str"; expected "Literal['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] | None"
 1 lm15/providers/openai_chat.py|arg-type|Argument "finish_reason" to "Response" has incompatible type "str"; expected "Literal['stop', 'length', 'tool_call', 'content_filter', 'error']"
 1 lm15/providers/openai_chat.py|arg-type|Argument "finish_reason" to "StreamEndEvent" has incompatible type "str"; expected "Literal['stop', 'length', 'tool_call', 'content_filter', 'error'] | None"

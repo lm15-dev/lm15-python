@@ -400,7 +400,7 @@ def test_claude_code_stream_emits_exactly_one_end_with_usage(tmp_path) -> None:
         [
             b'event: message_start\ndata: {"type":"message_start","message":{"id":"msg_1","model":"claude-fable-5"}}\n\n',
             b'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello"}}\n\n',
-            b'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":4,"output_tokens":5}}\n\n',
+            b'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":4,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":5}}\n\n',
             b'event: message_stop\ndata: {"type":"message_stop"}\n\n',
         ]
     )
