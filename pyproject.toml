@@ -39,6 +39,8 @@ include = ["lm15*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Each async test gets its own event loop (the plugin's future default; unset, it warns).
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [tool.setuptools.package-data]
