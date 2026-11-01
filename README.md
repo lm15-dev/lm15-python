@@ -551,8 +551,8 @@ were captured from live runs; model text and token counts vary.
 |---|---|---|
 | Python | 2.0.0 | this repository |
 | TypeScript | 2.0.0 | [lm15-ts](https://github.com/lm15-dev/lm15-ts) |
-| Rust | 2.0.0-rc.1 | [lm15-rs](https://github.com/lm15-dev/lm15-rs) |
-| Go | v2.0.0-rc.1 | [lm15-go](https://github.com/lm15-dev/lm15-go) |
+| Rust | 2.0.0 | [lm15-rs](https://github.com/lm15-dev/lm15-rs) |
+| Go | v2.0.0 | [lm15-go](https://github.com/lm15-dev/lm15-go) |
 | Julia | 2.0.0 (registration pending, as `LanguageModel15`) | [LanguageModel15.jl](https://github.com/lm15-dev/LanguageModel15.jl) |
 | R | 2.0.0 (not yet on CRAN) | [lm15-r](https://github.com/lm15-dev/lm15-r) |
 | The contract | — | [lm15-contract](https://github.com/lm15-dev/lm15-contract) |
