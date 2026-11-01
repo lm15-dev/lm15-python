@@ -442,8 +442,8 @@ print(lm.complete(request).text)
 This image shows a blue atom symbol with a central nucleus and three elliptical electron orbits.
 ```
 
-**Provisional in 1.0:** the standalone generation and resource APIs below
-may change in 1.x. This does not change the frozen status of media parts
+**Provisional:** the standalone generation and resource APIs below
+may change within a major version. This does not change the frozen status of media parts
 used inside chat messages.
 
 Non-chat endpoints have separate request/response types — `ImageGenerationRequest`, `SpeechGenerationRequest`, `FileUploadRequest`, `BatchRequest`, `LiveConfig` — and generated media comes back as the same typed parts you send in:
@@ -517,10 +517,10 @@ including streaming errors and Azure request IDs.
 
 ## Stability
 
-The chat core has a frozen contract in 1.x: requests, responses, streaming,
+The chat core has a frozen contract within 2.x: requests, responses, streaming,
 tools, structured output, media inside messages, reasoning, errors,
 credential resolution and model listing. These ship as **provisional** and
-may change in 1.x, with an entry in the contract's change log: files,
+may change in 2.x, with an entry in the contract's change log: files,
 batches, standalone media generation, stored-cache resources, realtime
 sessions, Chat Completions ingest, and saved sign-ins. Pin your version if
 you use them. See the [release scope](docs/roadmap.md#what-ships-in-10-and-what-is-stable).
