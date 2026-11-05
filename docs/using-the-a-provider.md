@@ -337,3 +337,11 @@ Guidelines:
 - Put raw provider telemetry in `provider_data`.
 - Keep provider-only request options in `Config.extensions`.
 - Let the transport handle sockets, TLS, pooling, and streaming bytes.
+- `parse_stream_events` maps one event on its own. If your provider sends
+  a value in pieces and then again whole (a "final copy", like OpenAI's
+  `response.output_item.done`), override `stream_reader(request)` and
+  return an object whose `feed(raw_event)` remembers what the pieces
+  delivered and emits only what they missed (MAP-20). Every stream, sync
+  and async, reads through it. To parse a whole SSE body yourself, use
+  `lm.stream_reader(request).feed(...)` per event, not
+  `parse_stream_events`.

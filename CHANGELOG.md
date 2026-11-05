@@ -1,5 +1,41 @@
 # Changelog
 
+## 2.1.0 — 2026-11-05
+
+Streams yield what the provider said, all of it, once (lm15-contract
+`77f22f4`, MAP-20; 2,132 of 2,132 checks). Nothing is removed and no field
+changes meaning; if you parsed raw SSE yourself with `parse_stream_events`,
+read the last point.
+
+- **Parallel tool calls on the Codex subscription arrive with their
+  inputs.** The Codex backend sends the arguments of parallel calls only in
+  each call's final `response.output_item.done`, never in pieces; lm15 read
+  only the pieces, so every call came back with input `{}`, from `stream()`
+  and from `complete()` alike. A stream's final copy of an item now
+  completes whatever its pieces did not deliver (arguments, message text,
+  a reasoning summary); a piece that contradicts the final copy raises
+  `StreamAssemblyError` (`stream_assembly`, `part_index` set) instead of
+  either value being chosen.
+- **A streamed reasoning summary reads like the complete one.** Its parts
+  are joined with a newline, as `complete()` joins them; they used to run
+  together (`**First idea****Second idea**`).
+- **A Responses stream cut short by `max_tokens` ends with `length`.** It
+  ends with `response.incomplete`, which was ignored: on OpenAI, Azure,
+  Codex and Moonshot the stream then raised `StreamAssemblyError`; on Meta
+  it ended `stop` without its usage.
+- **Gemini parallel calls sent one per chunk stay separate calls.**
+  gemini-2.5-pro and gemini-3-flash-preview send each call in a chunk of
+  its own; every call landed in the same slot and their arguments ran into
+  one unreadable input. A part's slot is now its place in the stream.
+- **A realtime model called with `complete()` or `stream()` counts a
+  call's arguments once,** not three times, and never names a call `"tool"`.
+- **New: `BaseProviderLM.stream_reader(request)`** returns the reader one
+  stream needs (`StreamReader.feed(raw_event)`); the sync and async streams
+  and the vet shim read through it. `parse_stream_events` still maps one
+  event on its own, and a subclass that overrides it is still used, but
+  only the reader completes fragments from final copies: to parse a whole
+  SSE body yourself, feed every event to one reader.
+
 ## 2.0.0 — 2026-10-31
 
 A usage counter means one thing on every provider (lm15-contract

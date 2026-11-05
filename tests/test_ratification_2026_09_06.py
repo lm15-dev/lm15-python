@@ -196,8 +196,10 @@ def _complete_body_from_stream(dialect: str, frames: list[dict]) -> dict:
     the last chunk with the text parts concatenated.
     """
     if dialect == "openai-responses":
-        completed = [f for f in frames if f.get("type") == "response.completed"]
-        assert completed, "no response.completed frame"
+        # A turn cut short ends with response.incomplete (MAP-20 change,
+        # 2026-11-05): the same final copy of the whole response.
+        completed = [f for f in frames if f.get("type") in ("response.completed", "response.incomplete")]
+        assert completed, "no response.completed / response.incomplete frame"
         return completed[-1]["response"]
 
     if dialect == "anthropic":
@@ -440,7 +442,7 @@ def test_every_contract_stream_end_carries_a_frame_as_provider_data(case: dict) 
     dialect = _dialect(case["provider"])
     frames = _frames(body)
     if dialect == "openai-responses":
-        candidates = [f["response"] for f in frames if f.get("type") == "response.completed"]
+        candidates = [f["response"] for f in frames if f.get("type") in ("response.completed", "response.incomplete")]
     else:
         candidates = frames
     assert end["provider_data"] in candidates, "end provider_data is not a verbatim wire frame"
