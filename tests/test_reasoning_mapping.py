@@ -110,8 +110,12 @@ def test_anthropic_adaptive_class() -> None:
     assert out["config.reasoning.effort"].applied == "low" and out["__body__"]["output_config"] == {"effort": "low"}
     out = _adapted(lm, _req("claude-sonnet-5", Reasoning(effort="high", summary="detailed")))
     assert out["config.reasoning.summary"].applied == "auto"
-    # summary=auto is satisfied: thinking blocks are always returned
-    assert "summary" not in json.dumps(_body(lm, _req("claude-sonnet-5", Reasoning(effort="high", summary="auto"))))
+    # MAP-7 rule 7 (2026-11-07): a summary asked for is display "summarized" (the
+    # default is "omitted" on Opus 4.7+ and Claude 5); never asked, nothing is sent
+    b = _body(lm, _req("claude-sonnet-5", Reasoning(effort="high", summary="auto")))
+    assert b["thinking"] == {"type": "adaptive", "display": "summarized"} and "summary" not in json.dumps(b)
+    assert out["__body__"]["thinking"] == {"type": "adaptive", "display": "summarized"}       # detailed → auto
+    assert "display" not in _body(lm, _req("claude-sonnet-5", Reasoning(effort="high")))["thinking"]
     # response_format and effort share output_config
     b = _body(lm, _req("claude-sonnet-5", Reasoning(effort="low"), response_format={"type": "json_schema", "schema": {"type": "object", "additionalProperties": False}}))
     assert b["output_config"]["effort"] == "low" and "format" in b["output_config"]
@@ -124,6 +128,15 @@ def test_anthropic_manual_class() -> None:
     b = _body(lm, _req("claude-haiku-4-5-20251001", Reasoning(effort="high", thinking_budget=1500), max_tokens=500))
     assert b["thinking"] == {"type": "enabled", "budget_tokens": 1500} and b["max_tokens"] == 2000
     assert "output_config" not in b
+    b = _body(lm, _req("claude-haiku-4-5-20251001", Reasoning(effort="low", summary="auto"), max_tokens=500))
+    assert b["thinking"] == {"type": "enabled", "budget_tokens": 2048, "display": "summarized"}
+
+
+def test_anthropic_summary_on_servers_of_another_thinking_format() -> None:
+    """Display is Anthropic's own knob: servers with another thinking format get none."""
+    for preset, model in (("deepseek", "deepseek-v4-flash"), ("meta", "muse-spark-1.3"), ("moonshotai", "kimi-k3")):
+        lm = AnthropicLM(api_key="k", transport=FakeTransport([]), compat=preset)
+        assert "display" not in json.dumps(_body(lm, _req(model, Reasoning(effort="high", summary="auto"))))
 
 
 # ─── Gemini ──────────────────────────────────────────────────────────
