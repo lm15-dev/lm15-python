@@ -1348,6 +1348,48 @@
       }
     },
     {
+      "id": "tinker-env-selected",
+      "provider": "tinker",
+      "env": {
+        "TINKER_API_KEY": "SECRET-SENTINEL-DO-NOT-PRINT"
+      },
+      "api_keys_providers": [],
+      "expect": {
+        "configured": true,
+        "steps": [
+          {
+            "kind": "api_keys",
+            "state": "absent"
+          },
+          {
+            "kind": "env:TINKER_API_KEY",
+            "state": "selected"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tinker-anthropic-env-selected",
+      "provider": "tinker-anthropic",
+      "env": {
+        "TINKER_API_KEY": "SECRET-SENTINEL-DO-NOT-PRINT"
+      },
+      "api_keys_providers": [],
+      "expect": {
+        "configured": true,
+        "steps": [
+          {
+            "kind": "api_keys",
+            "state": "absent"
+          },
+          {
+            "kind": "env:TINKER_API_KEY",
+            "state": "selected"
+          }
+        ]
+      }
+    },
+    {
       "id": "vertex-project-env-wins",
       "description": "GOOGLE_CLOUD_PROJECT beats gcloud's configuration and the ADC file (google-auth explicit_project_id, default-py.md:93-114)",
       "provider": "vertex",

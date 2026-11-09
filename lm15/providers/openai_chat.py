@@ -711,6 +711,7 @@ def _ingest_reasoning(provider: str, body: Mapping[str, Any], compat: ResolvedOp
         "kimi": {"thinking", "reasoning_effort"},
         "qwen": {"enable_thinking"},
         "qwen_chat_template": {"chat_template_kwargs"},
+        "reasoning_effort_switch": {"reasoning_effort"},
         "none": set(),
     }[fmt]
     if compat.builtin_tools == "groq":
@@ -725,8 +726,21 @@ def _ingest_reasoning(provider: str, body: Mapping[str, Any], compat: ResolvedOp
     effort: str | None = None
     off = False
 
-    if "reasoning_effort" in present:
+    if "reasoning_effort" in present and isinstance(body["reasoning_effort"], bool):
+        # The switch's spelling (reasoning_effort_switch; reasoning_off
+        # "switch"): false is off; true has no level to read back.
+        if fmt != "reasoning_effort_switch" and not (fmt == "reasoning_effort" and compat.reasoning_off == "switch"):
+            raise _ingest_unsupported(provider, f"reasoning_effort = {str(body['reasoning_effort']).lower()}",
+                                      "this server's reasoning_effort is a word, not a switch")
+        if body["reasoning_effort"] is False:
+            off = True
+        else:
+            raise _ingest_unsupported(provider, "reasoning_effort = true",
+                                      "this switch has no effort level; lm15's dial is a level (MAP-7) — set config.reasoning yourself")
+    elif "reasoning_effort" in present:
         word = _ingest_str(body["reasoning_effort"], "reasoning_effort")
+        if fmt == "reasoning_effort_switch":
+            raise _ingest_unsupported(provider, f"reasoning_effort = {word!r}", "this server's reasoning_effort is an on/off switch (true or false)")
         if word == "none":
             off = True
         else:
@@ -1170,6 +1184,11 @@ class OpenAIChatLM(BaseProviderLM):
 
     # MAP-13 policy: "note" (adapt and record), "silent", or "refuse".
     adaptations: AdaptationPolicy = field(default="note", kw_only=True)
+    # What a fine-tune was trained from, by model id: a model whose name
+    # matches no compat.model_overrides entry follows its base model's
+    # entry (RouterConfig(base_models=...); a Tinker checkpoint's reasoning
+    # switch is its base model's).  Never sent; never discovered.
+    base_models: "Mapping[str, str] | None" = field(default=None, kw_only=True)
     provider: str = field(default="openai-chat", init=False)
     account_id: str | None = field(default=None, init=False, repr=False)
     manifest: ClassVar[ProviderManifest] = OPENAI_CHAT_API
@@ -1391,13 +1410,17 @@ class OpenAIChatLM(BaseProviderLM):
             return "required"
         return "auto"
 
+    def _stop_in_text(self, request: Request) -> str:
+        return self._compat_for(request.model).stop_in_text
+
     def _compat_for(self, model: str) -> ResolvedOpenAIChatCompat:
         """The resolved compat for this model: the preset's per-family
         overrides applied (OpenAIChatCompat.model_overrides)."""
         partial = self._compat_partial
         if partial is None or not partial.model_overrides:
             return self._resolved_compat
-        return resolve_openai_chat_compat(partial.for_model(model))
+        base = self.base_models.get(model) if self.base_models else None
+        return resolve_openai_chat_compat(partial.for_model(model, base))
 
     def _payload(self, request: Request, stream: bool) -> dict[str, Any]:
         check_message_media(request, dialect="openai_chat", provider=self.provider)
@@ -1492,7 +1515,15 @@ class OpenAIChatLM(BaseProviderLM):
         if request.config.tool_choice and request.config.tool_choice.parallel is not None:
             payload["parallel_tool_calls"] = request.config.tool_choice.parallel
         if request.config.response_format:
-            if compat.json_schema == "reject" and request.config.response_format["type"] != "json_object":
+            if compat.json_schema == "none":
+                # The server applies no response_format of either type and
+                # answers 200 with free text (Tinker, live 2026-11-09):
+                # sending it would be a silent no-op (MAP-8).
+                adapt("config.response_format", "dropped",
+                      f"this server accepts response_format type {request.config.response_format['type']!r} "
+                      "and applies no response_format at all; describe the shape in the prompt",
+                      asked=request.config.response_format, provider=self.provider)
+            elif compat.json_schema == "reject" and request.config.response_format["type"] != "json_object":
                 # The server accepts response_format.type=json_schema and
                 # ignores it (Z.AI, live 2026-09-03: HTTP 200, fenced JSON with
                 # keys the schema never named).  json_object is honoured.
@@ -1566,6 +1597,13 @@ class OpenAIChatLM(BaseProviderLM):
                     payload["reasoning_format"] = "parsed"
                 if compat.thinking_format == "reasoning_effort":
                     payload["reasoning_effort"] = effort
+                elif compat.thinking_format == "reasoning_effort_switch":
+                    # An on/off switch with no levels (Tinker's Qwen, Kimi
+                    # K2.6, Nemotron): a level's nearest value is "on".
+                    adapt("config.reasoning.effort", "substituted",
+                          "this model's reasoning is an on/off switch with no levels; reasoning was switched on",
+                          asked=effort, applied="on", provider=self.provider)
+                    payload["reasoning_effort"] = True
                 elif compat.thinking_format == "openrouter":
                     payload["reasoning"] = {"effort": effort}
                 elif compat.thinking_format == "deepseek":
@@ -1595,7 +1633,12 @@ class OpenAIChatLM(BaseProviderLM):
                 # reasoning tokens when the field was omitted).  Servers
                 # whose models cannot disable reasoning reject "none" with
                 # a clear 400 — loud failure over a silent paid no-op.
-                if compat.thinking_format == "reasoning_effort":
+                if compat.thinking_format == "reasoning_effort_switch" or (
+                    compat.thinking_format == "reasoning_effort" and compat.reasoning_off == "switch"
+                ):
+                    # The switch's off (Tinker: `false`; `none` is refused).
+                    payload["reasoning_effort"] = False
+                elif compat.thinking_format == "reasoning_effort":
                     payload["reasoning_effort"] = "none"
                 elif compat.thinking_format == "openrouter":
                     payload["reasoning"] = {"enabled": False}
@@ -1669,6 +1712,10 @@ class OpenAIChatLM(BaseProviderLM):
         return mapped
 
     def parse_response(self, request: Request, response: HttpResponse) -> Response:
+        # MAP-22: a server that returns the matched stop sequence is cut here.
+        return self._cut_returned_stop(request, self._parse_response(request, response))
+
+    def _parse_response(self, request: Request, response: HttpResponse) -> Response:
         request = self._wire_request(request)
         resp = _response_from_chat_body(
             self.provider, response.json(), model=request.model,

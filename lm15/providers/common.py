@@ -410,7 +410,9 @@ def model_infos_from_entries(
 
     ``id`` is the usable Request.model string (``id_of`` extracts it); the
     verbatim wire entry is preserved under ``origin.provider_data`` (opaque,
-    never cleaned).  Entries without a usable id are skipped.
+    never cleaned).  Entries without a usable id are skipped.  An entry with
+    a non-empty string ``base_model`` other than its own id is
+    ``origin.type="fine-tune"`` with that ``base_model`` (MAP-23).
     """
     if not isinstance(entries, list):
         return ()
@@ -421,14 +423,13 @@ def model_infos_from_entries(
         model_id = id_of(entry)
         if not isinstance(model_id, str) or not model_id:
             continue
-        out.append(
-            ModelInfo(
-                id=model_id,
-                provider=provider,
-                api_family=api_family,
-                origin=ModelOrigin(type="provider", provider_data=entry),
-            )
-        )
+        # MAP-23: an entry that names the model it was trained from (Tinker's
+        # checkpoints: "base_model": "Qwen/Qwen3.5-4B") is a fine-tune.
+        base = entry.get("base_model")
+        origin = (ModelOrigin(type="fine-tune", base_model=base, provider_data=entry)
+                  if isinstance(base, str) and base and base != model_id
+                  else ModelOrigin(type="provider", provider_data=entry))
+        out.append(ModelInfo(id=model_id, provider=provider, api_family=api_family, origin=origin))
     return tuple(out)
 
 

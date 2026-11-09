@@ -20,6 +20,7 @@ from ..errors import (
     UnsupportedFeatureError,
     UnsupportedModelError,
     is_pinned_auth_failure,
+    detail_message,
     is_pinned_model_not_found,
     canonical_error_code,
     map_http_error,
@@ -379,6 +380,10 @@ class AnthropicLM(BaseProviderLM):
         "timeout_error": TimeoutError,
     }
 
+    def _stop_in_text(self, request: Request) -> str:
+        compat = self._resolved_compat
+        return compat.stop_in_text if compat is not None else "excluded"
+
     @staticmethod
     def _is_context_length_message(msg: str) -> bool:
         lowered = msg.lower()
@@ -429,6 +434,10 @@ class AnthropicLM(BaseProviderLM):
             # reached (live 2026-09-04).  Keep both shapes on one wire.
             err = inner if isinstance(inner, (dict, str)) else data if isinstance(data, dict) else {}
             msg = err.get("message", "") if isinstance(err, dict) else str(err)
+            if not msg:
+                # MAP-21: FastAPI's {"detail": ...} (Tinker's Messages door
+                # answers its 401 and 404 so); the detail is the message.
+                msg = detail_message(data) or ""
             err_type = str(err.get("type") or err.get("code") or "") if isinstance(err, dict) else ""
             request_id = str(data.get("request_id") or "") if isinstance(data, dict) else ""
             if self.access is not None and self.access.backend == "claude-code":
@@ -951,6 +960,10 @@ class AnthropicLM(BaseProviderLM):
     # ─── Response parsing ───────────────────────────────────────────
 
     def parse_response(self, request: Request, response: HttpResponse) -> Response:
+        # MAP-22: a server that returns the matched stop sequence is cut here.
+        return self._cut_returned_stop(request, self._parse_response(request, response))
+
+    def _parse_response(self, request: Request, response: HttpResponse) -> Response:
         request = self._wire_request(request)
         data = response.json()
         parts: list[Any] = []

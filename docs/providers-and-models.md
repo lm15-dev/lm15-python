@@ -50,6 +50,8 @@ detail: the list of providers, the shortcuts, and the metadata.
 | Together AI | `together` | `TOGETHER_API_KEY` | — (see note) |
 | Fireworks AI | `fireworks` | `FIREWORKS_API_KEY` | — (see note) |
 | Parasail | `parasail` | `PARASAIL_API_KEY` | — (see note) |
+| Tinker (Thinking Machines): base models and your own checkpoints | `tinker` (also `thinkingmachines`) | `TINKER_API_KEY` | — (see note) |
+| Tinker, Anthropic wire | `tinker-anthropic` | `TINKER_API_KEY` | — (see note) |
 | ollama (local) | `ollama` | none | — |
 | vLLM (local) | `vllm` | none | — |
 | SGLang (local) | `sglang` | none | — |
@@ -204,6 +206,52 @@ is on [Authentication](authentication.md).
       `retention="long"` have no field in the form lm15 sends here; they
       are dropped and recorded. Together reports cached tokens on
       `usage.cached_tokens` for some models; lm15 reads both places.
+
+!!! note "Tinker: the models you trained, by their checkpoint path"
+    Tinker trains models; it also answers chat requests for its base
+    models (`tinker:Qwen/Qwen3.5-4B`, `tinker:thinkingmachines/Inkling`)
+    and for any **sampler checkpoint** you saved, by its path. The path is
+    a URI and is one name: `tinker://<run>:train:0/sampler_weights/<name>`
+    routes to Tinker as typed, colons and all. Measured live on
+    2026-11-09; both doors are beta at Tinker.
+
+    - **Thinking is on by default** on every model. How it is switched
+      depends on the model family, and lm15 sends each family's own
+      spelling: Inkling takes the effort words (`off` is `none`); Qwen
+      3/3.5/3.6, Kimi K2.6 and Nemotron are an on/off switch (`off` is
+      `false`; any effort word turns it on, recorded on
+      `response.adaptations`); Qwen 3.8 and DeepSeek V4.1 take some words
+      and `false`; gpt-oss, Kimi K3.1 and GLM 5.3 cannot stop reasoning,
+      and Tinker says so with a 400.
+    - **A checkpoint answers as the model it was trained from**, but its
+      path does not say which. Name it, and lm15 sends that family's
+      switch: `RouterConfig(base_models={"tinker://…": "Qwen/Qwen3.5-4B"})`.
+      Your checkpoints and their bases are one call away:
+      `{m.id: m.origin.base_model for m in router.lm("tinker:x").list_models()}`.
+      Unnamed, a checkpoint gets the setting most families take (`off`
+      sends `false`); an Inkling checkpoint then needs its base named to
+      turn thinking off.
+    - **This matters for a model you trained without thinking** (FunctAI
+      does, for Qwen): Tinker builds the "thinking" prompt unless asked
+      not to, so call it with `Reasoning(effort="off")` to give it the
+      prompt it was trained on (token counts match the published chat
+      template with `enable_thinking=False`, 2026-11-09).
+    - **No JSON mode.** Tinker accepts `response_format` and ignores it;
+      lm15 drops it and records that. Ask for the shape in the prompt.
+    - **Forcing a tool call** is checked after the model answers: a model
+      that did not call a tool comes back as an `InvalidRequestError`
+      ("model returned no tool call when tool_choice required one"); a new
+      try may succeed.
+    - **Stop sequences** stop the model; Tinker also returns the matched
+      sequence, which lm15 cuts off, so `stop` means what it means
+      elsewhere.
+    - **Cost** is exact: cached prompt tokens are counted on both doors.
+      A checkpoint is billed at its base model's rates.
+    - **`tinker-anthropic`** speaks the Anthropic Messages wire with the
+      same key (tools, images, thinking, streaming). On the Qwen, Kimi
+      K2.6 and Nemotron families it can neither turn thinking off nor take
+      an effort word (Tinker refuses both); use `tinker` for those. It
+      has no model list.
 
 !!! note "You may also see `openai-chat`"
     OpenAI has two wire dialects: its current **Responses API** (what

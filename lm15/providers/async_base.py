@@ -700,6 +700,7 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
     credential: str | None = field(default=None, kw_only=True)
     clock: "Callable[[], datetime] | None" = field(default=None, repr=False)
     adaptations: AdaptationPolicy = field(default="note", kw_only=True)
+    base_models: "Mapping[str, str] | None" = field(default=None, kw_only=True)
 
     provider: str = field(default="openai-chat", init=False)
     manifest: ClassVar[ProviderManifest] = OpenAIChatLM.manifest
@@ -718,6 +719,7 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
             settings=self.settings,
             credential=self.credential,
             clock=self.clock,
+            base_models=self.base_models,
         )
         self._mirror_binding()
         # The sync sibling's __post_init__ resolves compat presets (and may

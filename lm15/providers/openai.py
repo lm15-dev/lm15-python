@@ -25,6 +25,7 @@ from ..errors import (
     UnsupportedFeatureError,
     UnsupportedModelError,
     is_pinned_auth_failure,
+    detail_message,
     is_pinned_model_not_found,
     canonical_error_code,
     map_http_error,
@@ -828,6 +829,10 @@ class OpenAILM(BaseProviderLM):
             data = json.loads(body)
             err = data.get("error", {}) if isinstance(data, dict) else {}
             msg = err.get("message", "") if isinstance(err, dict) else str(err)
+            if not msg:
+                # MAP-21: FastAPI servers (Tinker) answer {"detail": ...}
+                # with no envelope; the detail is the message.
+                msg = detail_message(data) or ""
             code = str(err.get("code") or "") if isinstance(err, dict) else ""
             err_type = str(err.get("type") or "") if isinstance(err, dict) else ""
 

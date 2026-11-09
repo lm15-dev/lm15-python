@@ -58,18 +58,20 @@ CHAT_VALUES = (
 )
 COMPAT_CASES = [
     (AnthropicCompat, ANTHROPIC_NAMES, ANTHROPIC_VALUES,
-     {"thinking_replay": "unsigned", "sampling_params": "reject", "reasoning_efforts": ("low", "high"), "tool_result_media": "reject"}),
+     {"thinking_replay": "unsigned", "sampling_params": "reject", "reasoning_efforts": ("low", "high"), "tool_result_media": "reject",
+      "stop_in_text": "included"}),
     (ResolvedAnthropicCompat, ANTHROPIC_NAMES, ANTHROPIC_VALUES,
-     {"thinking_replay": "unsigned", "sampling_params": "reject", "reasoning_efforts": ("low", "high"), "tool_result_media": "reject"}),
+     {"thinking_replay": "unsigned", "sampling_params": "reject", "reasoning_efforts": ("low", "high"), "tool_result_media": "reject",
+      "stop_in_text": "included"}),
     (OpenAIResponsesCompat, RESPONSES_NAMES, RESPONSES_VALUES,
      {"commentary_phase": "tag", "edit_image_field": "indexed", "builtin_tools": "verbatim", "tool_result_media": "images"}),
     (ResolvedOpenAIResponsesCompat, RESPONSES_NAMES, RESPONSES_VALUES,
      {"commentary_phase": "tag", "edit_image_field": "indexed", "builtin_tools": "verbatim", "tool_result_media": "images"}),
     (OpenAIChatCompat, CHAT_NAMES, CHAT_VALUES,
      {"reasoning_efforts": ("low", "high"), "model_overrides": (("review-", {"json_schema": "send"}),), "tool_result_media": "native", "token_scoring": "none",
-      "reasoning_off": "lowest", "reasoning_usage": "separate"}),
+      "reasoning_off": "lowest", "reasoning_usage": "separate", "stop_in_text": "included"}),
     (ResolvedOpenAIChatCompat, CHAT_NAMES, CHAT_VALUES, {"reasoning_efforts": ("low", "high"), "tool_result_media": "native", "token_scoring": "none",
-                                                         "reasoning_off": "lowest", "reasoning_usage": "separate"}),
+                                                         "reasoning_off": "lowest", "reasoning_usage": "separate", "stop_in_text": "included"}),
 ]
 
 
@@ -234,7 +236,8 @@ def test_anthropic_new_keywords_and_replace_still_validate(kwargs, match):
 
 def test_compat_resolution_merge_and_model_copy_keep_new_fields():
     anthropic = AnthropicCompat(*ANTHROPIC_VALUES, thinking_replay="unsigned",
-                                sampling_params="reject", reasoning_efforts=("low", "high"), tool_result_media="reject")
+                                sampling_params="reject", reasoning_efforts=("low", "high"), tool_result_media="reject",
+                                stop_in_text="included")
     assert resolve_anthropic_compat(anthropic) == ResolvedAnthropicCompat(**dataclasses.asdict(anthropic))
     responses = OpenAIResponsesCompat(*RESPONSES_VALUES, commentary_phase="tag",
                                       edit_image_field="indexed", builtin_tools="verbatim", tool_result_media="images")
@@ -242,7 +245,7 @@ def test_compat_resolution_merge_and_model_copy_keep_new_fields():
     assert merged == dataclasses.replace(responses, extensions={"e": 2, "new": 3})
     assert resolve_openai_responses_compat(responses) == ResolvedOpenAIResponsesCompat(**dataclasses.asdict(responses))
     chat = OpenAIChatCompat(*CHAT_VALUES, reasoning_efforts=("low", "high"), tool_result_media="native", token_scoring="none",
-                            reasoning_off="lowest", reasoning_usage="separate")
+                            reasoning_off="lowest", reasoning_usage="separate", stop_in_text="included")
     merged_chat = merge_openai_chat_compat(chat, OpenAIChatCompat(extensions={"new": 3}))
     assert merged_chat == dataclasses.replace(chat, extensions={"e": 2, "new": 3})
     resolved_kwargs = dataclasses.asdict(chat)
@@ -251,6 +254,9 @@ def test_compat_resolution_merge_and_model_copy_keep_new_fields():
     overridden = dataclasses.replace(chat, model_overrides=(("review-", {"json_schema": "send"}),))
     assert overridden.for_model("review-model") == dataclasses.replace(chat, json_schema="send")
     assert overridden.for_model("other") is overridden
+    # A fine-tune follows its base model's entry when its own name matches none.
+    assert overridden.for_model("tinker://run/sampler_weights/x", "review-model") == dataclasses.replace(chat, json_schema="send")
+    assert overridden.for_model("review-own", "other") == dataclasses.replace(chat, json_schema="send")
 
 
 def test_endpoint_support_layout_is_unchanged():

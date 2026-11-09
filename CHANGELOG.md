@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+Tinker (Thinking Machines): base models and the models you trained there
+(lm15-contract `18b3788`; to ratify).
+
+- **Two new providers, one key (`TINKER_API_KEY`).** `tinker` speaks Chat
+  Completions (also spelled `thinkingmachines`); `tinker-anthropic` speaks
+  the Anthropic Messages wire. Both serve Tinker's base models
+  (`tinker:Qwen/Qwen3.5-4B`) and any sampler checkpoint by its path.
+- **A URI is one model name.** `tinker://<run>:train:0/sampler_weights/<n>`
+  routes to Tinker whole; before, any `name://…` string was read as provider
+  `name` with model `//…`.
+- **Reasoning is switched the way each model family takes it.** On
+  `tinker`, Qwen 3/3.5/3.6, Kimi K2.6 and Nemotron get
+  `reasoning_effort: false`/`true` (an effort word turns reasoning on and is
+  recorded); Inkling gets the words. A checkpoint follows the family of the
+  model it was trained from when you name it:
+  `RouterConfig(base_models={"tinker://…": "Qwen/Qwen3.5-4B"})`.
+  `list_models()` on `tinker` lists your checkpoints as fine-tunes with
+  `origin.base_model`.
+- **Error messages from FastAPI servers are kept.** An error body that is
+  `{"detail": "…"}` used to raise with an empty message on every
+  OpenAI-family and Anthropic-family adapter; the detail is now the message.
+- **`stop` means the same everywhere.** Tinker returns the stop sequence it
+  stopped at; lm15 cuts it off (compat `stop_in_text`).
+- New compat values: `thinking_format="reasoning_effort_switch"`,
+  `reasoning_off="switch"`, `json_schema="none"` (a server that applies no
+  `response_format`), `stop_in_text` on `OpenAIChatCompat` and
+  `AnthropicCompat`. Registry entries may carry aliases.
+
 ## 2.2.0 — 2026-11-07
 
 Claude shows its thinking when you ask for it (lm15-contract `9d8e1ce`,
