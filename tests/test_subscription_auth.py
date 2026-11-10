@@ -598,9 +598,16 @@ def test_live_claude_code_smoke() -> None:
 )
 def test_live_openai_codex_smoke() -> None:
     lm = OpenAICodexLM()
+    # The subscription's catalog moves (it stopped accepting gpt-5.5 in
+    # November 2026): ask it, and take the first model the Codex app shows.
+    shown = [
+        m.id for m in lm.list_models()
+        if m.origin is not None and (m.origin.provider_data or {}).get("visibility") == "list"
+    ]
+    assert shown, "the subscription lists no model"
     response = lm.complete(
         Request(
-            model="gpt-5.5",
+            model=shown[0],
             messages=(Message.user("Reply with the single word: ok"),),
         )
     )

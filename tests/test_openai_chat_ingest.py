@@ -91,6 +91,15 @@ def _chat_cases():
 @pytest.mark.parametrize("case", list(_chat_cases()), ids=lambda c: c["id"])
 def test_every_recorded_chat_body_reads_back_to_its_canonical_request(case) -> None:
     lm = adapter_for_provider(case["provider"], "k", case.get("base_url"), settings=case.get("settings"))
+    raises = (case.get("expect_lm15") or {}).get("raises")
+    if raises and raises.get("op") == "ingest_openai_chat":
+        # A pinned refusal on a recorded body: the build wrote something no
+        # canonical Request says back (Tinker's reasoning_effort true stands
+        # for every effort level), so reading it is refused, not guessed.
+        with pytest.raises(getattr(lm15.errors, raises["type"])) as exc:
+            lm.request_from_openai_chat(case["request"]["body"])
+        assert exc.value.code == raises["code"]
+        return
     got = serde.request_to_dict(lm.request_from_openai_chat(case["request"]["body"]))
     ingest = case.get("ingest")
     want = ingest["canonical_request"] if isinstance(ingest, dict) else case["canonical_request"]

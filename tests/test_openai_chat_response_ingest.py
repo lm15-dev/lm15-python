@@ -22,7 +22,8 @@ from lm15 import serde
 from lm15.errors import RateLimitError, UnsupportedFeatureError
 from lm15.providers import HttpResponse, OpenAIChatLM
 from lm15.providers.openai_chat import response_from_openai_chat
-from lm15.types import Message, TextPart, ToolCallPart
+from lm15.result import apply_client_side_stop
+from lm15.types import DataPart, Message, TextPart, ToolCallPart
 from lm15.vet import adapter_for_provider
 
 FIXTURES = json.loads((Path(__file__).parent / "fixtures" / "litellm_responses.json").read_text(encoding="utf-8"))
@@ -34,6 +35,15 @@ def test_exported_and_on_both_adapters() -> None:
     a = OpenAIChatLM(api_key="k").response_from_openai_chat(body)
     b = lm15.AsyncOpenAIChatLM(api_key="k").response_from_openai_chat(body)
     assert a == b == response_from_openai_chat(body)
+
+
+def test_the_async_adapter_folds_a_judgment_answer_like_the_sync_one() -> None:
+    fmt = lm15.judgments(ok=lm15.yes_no("Ok?"))
+    body = {"model": "m", "choices": [{"message": {"role": "assistant", "content": '{"ok": "yes"}'}, "finish_reason": "stop"}]}
+    a = OpenAIChatLM(api_key="k").response_from_openai_chat(body, response_format=fmt)
+    b = lm15.AsyncOpenAIChatLM(api_key="k").response_from_openai_chat(body, response_format=fmt)
+    assert a == b and isinstance(a.message.parts[0], DataPart)
+    assert isinstance(OpenAIChatLM(api_key="k").response_from_openai_chat(body).message.parts[0], TextPart)
 
 
 def test_litellm_gemini_dict_reads_as_a_response() -> None:
@@ -116,4 +126,12 @@ def test_door_and_parse_response_agree_on_every_recorded_chat_body(case, data) -
         return
     via_adapter = lm.parse_response(request, HttpResponse(status=200, reason="OK", headers={}, body=json.dumps(data).encode()))
     via_door = lm.response_from_openai_chat(data, model=request.model, response_format=request.config.response_format)
+    if lm._stop_returned_in_text(request):
+        # MAP-22: this server returns the stop sequence it stopped at, and
+        # parse_response cuts it with the request's Config.stop. The door is
+        # given a body and no request, so it reads the text as returned; the
+        # same cut on its reading is parse_response's answer, byte for byte.
+        assert via_door.text != via_adapter.text and via_door.text.startswith(via_adapter.text)
+        assert any(via_door.text[len(via_adapter.text):].startswith(s) for s in request.config.stop)
+        via_door = apply_client_side_stop(via_door, request.config.stop)
     assert serde.response_to_dict(via_door, include_provider_data=True) == serde.response_to_dict(via_adapter, include_provider_data=True)

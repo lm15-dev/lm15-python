@@ -2173,7 +2173,13 @@ class OpenAIChatLM(BaseProviderLM):
         """A Chat Completions response body → canonical :class:`Response`
         under this adapter's provider name and error mapping; see
         :func:`response_from_openai_chat`.  ``response_format`` (the
-        request's) folds a judgment answer into a DataPart (MAP-14)."""
+        request's) folds a judgment answer into a DataPart (MAP-14).
+
+        The body is read as the server returned it.  A server whose preset
+        says ``stop_in_text="included"`` (Tinker) ends the text with the
+        stop sequence it stopped at; :meth:`parse_response` cuts it with
+        the request's ``Config.stop`` (MAP-22), and this door, given no
+        request, does not."""
         compat = self._compat_for(model) if model is not None else self._resolved_compat
         resp = _response_from_chat_body(self.provider, body, model=model, choice=choice, on_error=self._response_error,
                                          reasoning_usage=compat.reasoning_usage)

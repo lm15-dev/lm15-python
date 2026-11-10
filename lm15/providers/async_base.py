@@ -731,9 +731,10 @@ class AsyncOpenAIChatLM(AsyncBaseProviderLM):
         """Pure; the sync sibling's, under this adapter's compat (MAP-12)."""
         return self._inner.request_from_openai_chat(body)
 
-    def response_from_openai_chat(self, body: "Mapping[str, Any]", *, model: str | None = None, choice: int | None = None) -> Response:
+    def response_from_openai_chat(self, body: "Mapping[str, Any]", *, model: str | None = None, choice: int | None = None,
+                                  response_format: "Mapping[str, Any] | None" = None) -> Response:
         """Pure; the sync sibling's reader under this adapter's provider name."""
-        return self._inner.response_from_openai_chat(body, model=model, choice=choice)
+        return self._inner.response_from_openai_chat(body, model=model, choice=choice, response_format=response_format)
 
     async def complete(self, request: Request) -> Response:
         """Mirror of OpenAIChatLM.complete: the judgment trie driver (MAP-14

@@ -30,7 +30,7 @@ Hierarchy:
 from __future__ import annotations
 
 import builtins
-from typing import TYPE_CHECKING, Mapping, Sequence
+from typing import TYPE_CHECKING, Mapping, Sequence, TypedDict
 
 from .rate_limits import diagnostics_text, freeze_rate_limits
 
@@ -629,7 +629,20 @@ def with_credential_hint(error: ProviderError, hint: str) -> ProviderError:
 # MAP-15: the pinned forms of a provider's "no such model" answer that carry no
 # model-specific code and no not-found class (lm15-contract
 # spec/model-not-found.json, carried verbatim; each form has a live receipt).
-MODEL_NOT_FOUND_FORMS: tuple[dict[str, str | None], ...] = (
+class _FormCode(TypedDict):
+    code: str | None
+
+
+class _ModelNotFoundForm(_FormCode, total=False):
+    """One pinned MAP-15 form: the provider code (None: the error carries
+    none) and the text tests the message must pass."""
+
+    prefix: str
+    contains: str
+    suffix: str
+
+
+MODEL_NOT_FOUND_FORMS: tuple[_ModelNotFoundForm, ...] = (
     {"code": "not_found_error", "prefix": "model: "},  # Anthropic, Claude Code
     {"code": "invalid_request_error", "contains": "The supported API model names are "},  # DeepSeek
     {"code": "1211"},  # Z.AI: Unknown Model
