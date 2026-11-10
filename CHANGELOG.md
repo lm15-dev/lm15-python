@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## 2.3.0 — 2026-11-10
 
 Tinker (Thinking Machines): base models and the models you trained there
-(lm15-contract `18b3788`; to ratify).
+(lm15-contract `18b3788`; to ratify; 2,266 of 2,266 checks).
 
 - **Two new providers, one key (`TINKER_API_KEY`).** `tinker` speaks Chat
   Completions (also spelled `thinkingmachines`); `tinker-anthropic` speaks
@@ -29,6 +29,12 @@ Tinker (Thinking Machines): base models and the models you trained there
   `reasoning_off="switch"`, `json_schema="none"` (a server that applies no
   `response_format`), `stop_in_text` on `OpenAIChatCompat` and
   `AnthropicCompat`. Registry entries may carry aliases.
+- `AsyncOpenAIChatLM.response_from_openai_chat` takes `response_format`,
+  as the sync adapter's does (a judgment answer becomes a `DataPart`).
+- Known, not changed: `response_from_openai_chat` reads a body as the
+  server returned it. It is given no request, so a Tinker body that
+  stopped at a stop sequence keeps the sequence at its end; `complete`,
+  `stream` and `parse_response` cut it.
 
 ## 2.2.0 — 2026-11-07
 
