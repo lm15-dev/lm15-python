@@ -182,6 +182,16 @@ def openai_file_readiness(status: object) -> FileReadiness:
 MEDIA_KINDS: frozenset[str] = frozenset({"image", "audio", "video", "document", "binary"})
 
 
+def is_empty_text_block(block: Any) -> bool:
+    """MAP-24: a wire block that is text with no characters, in the three
+    typed spellings (Messages and Chat Completions ``text``, Responses
+    ``input_text`` / ``output_text``).  No wire is sent one: a part whose
+    block is this writes nothing, and a message left with nothing is not
+    written.  (A Gemini part has no ``type``; its builder decides.)"""
+    return (isinstance(block, dict) and block.get("type") in ("text", "input_text", "output_text")
+            and block.get("text") == "")
+
+
 def parts_to_text(parts: tuple[Part, ...], *, provider: str | None = None,
                   where: str = "a text-only wire field") -> str:
     """Text rendering for wire fields that take text only.
@@ -204,7 +214,10 @@ def parts_to_text(parts: tuple[Part, ...], *, provider: str | None = None,
                 provider=provider, feature=f"messages[*].parts[{part.type}]",
             )
         if isinstance(part, TextPart):
-            out.append(part.text)
+            # MAP-24: an empty text part writes nothing, a joining newline
+            # included.
+            if part.text:
+                out.append(part.text)
         elif isinstance(part, DataPart):
             out.append(data_part_text(part))
         elif isinstance(part, ThinkingPart) and part.text:
@@ -501,6 +514,8 @@ def tool_result_output_openai(provider: str, part: ToolResultPart, policy: str) 
     blocks: list[dict[str, Any]] = []
     for p in part.content:
         block = part_to_openai_input(p, provider=provider)
+        if is_empty_text_block(block):
+            continue  # MAP-24: the result is written, its empty text block is not
         blocks.append(block)
     if part.is_error:
         first = next((b for b in blocks if b.get("type") == "input_text"), None)

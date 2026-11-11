@@ -81,6 +81,7 @@ from .common import (
     unnamed_tool_call_error,
     parts_to_text,
     data_part_text,
+    is_empty_text_block,
 )
 from .openai import (
     OpenAILM,
@@ -135,7 +136,10 @@ def _chat_content_parts(msg: Message, *, force_array: bool = False, provider: st
     A part the wire has no slot for RAISES (MAP-10); it is never rendered
     as text or dropped.
     """
-    parts = [p for p in msg.parts if not isinstance(p, (ToolCallPart, ToolResultPart))]
+    # MAP-24: an empty text part writes nothing, so it does not turn a lone
+    # text part's string into the array form either.
+    parts = [p for p in msg.parts if not isinstance(p, (ToolCallPart, ToolResultPart))
+             and not (isinstance(p, TextPart) and p.text == "")]
     if len(parts) == 1 and isinstance(parts[0], TextPart) and not force_array:
         return parts[0].text
     if len(parts) == 1 and isinstance(parts[0], DataPart) and not force_array:
@@ -155,7 +159,9 @@ def _chat_content_parts(msg: Message, *, force_array: bool = False, provider: st
                 provider=provider, feature=f"messages[*].parts[{part.type}]",
             )
         else:
-            out.append({"type": "text", "text": parts_to_text((part,), provider=provider)})
+            block = {"type": "text", "text": parts_to_text((part,), provider=provider)}
+            if not is_empty_text_block(block):  # MAP-24 (a citation with nothing to say)
+                out.append(block)
     return out
 
 
@@ -172,7 +178,9 @@ def _tool_row_content(provider: str, part: ToolResultPart, policy: str) -> str |
         if p.type == "image":
             blocks.append(_chat_image_block(p, provider))
         else:
-            blocks.append({"type": "text", "text": parts_to_text((p,), provider=provider)})
+            block = {"type": "text", "text": parts_to_text((p,), provider=provider)}
+            if not is_empty_text_block(block):  # MAP-24: the row is written, its empty text block is not
+                blocks.append(block)
     if part.is_error:
         first = next((b for b in blocks if b["type"] == "text"), None)
         if first is None:
@@ -1265,8 +1273,8 @@ class OpenAIChatLM(BaseProviderLM):
 
     def _build_messages(self, request: Request, compat: ResolvedOpenAIChatCompat, *, breakpoint_index: int | None = None) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = []
-        if request.system:
-            system_text = request.system if isinstance(request.system, str) else parts_to_text(request.system)
+        system_text = (request.system if isinstance(request.system, str) else parts_to_text(request.system)) if request.system else ""
+        if system_text:  # MAP-24: a system prompt with no characters writes nothing
             if _cache_stable_prefix(request, compat.cache_control):
                 # prefix="stable": the mark rides on the system message's
                 # text content part (array form; a bare string cannot carry it).
@@ -1296,7 +1304,13 @@ class OpenAIChatLM(BaseProviderLM):
                 text_bits: list[str] = []
                 for part in msg.parts:
                     if isinstance(part, TextPart):
-                        text_bits.append(part.text)
+                        if part.text:  # MAP-24: no empty text, and no newline joining one
+                            text_bits.append(part.text)
+                    elif isinstance(part, DataPart):
+                        # An assistant data part is its compact JSON on a text
+                        # slot, as on every wire (changes/2026-09-19-jev-state.md
+                        # D3). It was dropped here until 2026-11-11.
+                        text_bits.append(data_part_text(part))
                     elif isinstance(part, RefusalPart) and part.text:
                         text_bits.append(part.text)
                     elif isinstance(part, ThinkingPart) and compat.thinking_replay == "as_text" and part.text:
@@ -1320,6 +1334,12 @@ class OpenAIChatLM(BaseProviderLM):
                         item["reasoning_content"] = thinking
                 if tool_calls:
                     item["tool_calls"] = tool_calls
+                if item["content"] is None and not tool_calls and not item.get("reasoning_content"):
+                    # MAP-24: a row with no content, no call and no reasoning
+                    # has nothing to write and is refused where the server
+                    # checks ("content or tool_calls must be set", DeepSeek;
+                    # "must not be empty", Moonshot; live 2026-11-11).
+                    continue
                 messages.append(item)
                 continue
 
@@ -1334,7 +1354,7 @@ class OpenAIChatLM(BaseProviderLM):
                 if not isinstance(content, list) or not content or content[-1].get("type") != "text":
                     raise _breakpoint_unsupported(self.provider, msg_index, msg.role)
                 content[-1]["prompt_cache_breakpoint"] = {"mode": "explicit"}
-            if content or content == "":
+            if content:  # MAP-24: a message with nothing to write is not written
                 messages.append({"role": role, "content": content})
         return messages
 

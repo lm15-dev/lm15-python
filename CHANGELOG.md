@@ -1,5 +1,51 @@
 # Changelog
 
+## 2.3.1 — 2026-11-11
+
+A conversation that changes provider keeps working (lm15-contract
+`81b519f`, MAP-24, issue #3; to ratify; 4,269 of 4,269 checks).
+
+- **Fixed: a conversation answered by an OpenAI Responses model and
+  continued on Claude failed on every request** with `messages: text
+  content blocks must be non-empty`. OpenAI's hidden reasoning is kept in
+  the history as a `ThinkingPart` with empty text and OpenAI's own state;
+  the Anthropic adapter wrote it as an empty text block. A part with
+  nothing for the provider it is sent to now writes nothing there, and a
+  message left with nothing is not sent. Your `Message`s are not
+  changed: sent back to OpenAI, the reasoning goes with them.
+- The same on every wire and for every such part: an empty `TextPart`
+  (what lm15 reads for a reply with no parts, and for an assistant row
+  with null content), a citation that quotes nothing, an empty system
+  prompt given as parts. Anthropic, Gemini, OpenAI Responses and Chat
+  Completions requests no longer carry an empty text block or an empty
+  message. Moonshot refused them on all three of its endpoints; DeepSeek
+  and Moonshot refused an assistant row with no content and no call.
+- An empty thinking part that carries the provider's own state is still
+  sent: Claude's thinking with display omitted goes back as a thinking
+  block with its signature.
+- A tool result is always sent; an empty output is the empty string, as
+  before. An empty text part beside an image in a tool result is left
+  out.
+- Nothing is recorded in `Response.adaptations` for this: no word anyone
+  wrote is withheld.
+- **Fixed: a structured answer kept in the history was dropped on OpenAI.**
+  An assistant `DataPart` (a judgment or structured answer) reached
+  Anthropic and Gemini as its JSON, and the OpenAI Responses and Chat
+  Completions wires not at all; the model never saw its own earlier
+  answer. It is now sent as its compact JSON there too.
+- Small wire changes for requests that worked before: text joined into
+  one string has no blank line for an empty part; a user message that is
+  only an empty string is not sent (it was `content: ""` on Chat
+  Completions); on Gemini and OpenAI an empty text part is no longer a
+  block. One prompt-cache miss is possible for a stored conversation
+  that carried such parts.
+- Not changed, and still refused by the provider when it happens:
+  thinking signed by another server of the same API family (DeepSeek's
+  or Meta's Anthropic-compatible endpoint to Anthropic; Azure's reasoning
+  items to OpenAI), a tool loop moved to Gemini 3 or DeepSeek between a
+  call and its result, and a message whose only text is whitespace sent
+  to Anthropic.
+
 ## 2.3.0 — 2026-11-10
 
 Tinker (Thinking Machines): base models and the models you trained there

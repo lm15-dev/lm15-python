@@ -47,6 +47,29 @@ thinking budget — is the adapter's job and is never recorded.
 Each record carries `field` (the config path), `action`, `asked`,
 `applied`, and a one-sentence `reason` naming the provider fact.
 
+### A history that changes model
+
+You can send the same conversation to another provider: keep the
+messages as lm15 returned them and change the model string. Some parts
+in that history have nothing for the new provider: thinking the first
+provider kept to itself (a `ThinkingPart` with empty text and a blob only
+that provider can read), or a reply that ended before any word (one empty
+`TextPart`). lm15 leaves those off the wire, and a message left with
+nothing is not sent. That is translation, not an adaptation: no word
+anyone wrote is withheld, so nothing is recorded, under any policy. Your
+messages are not changed; send them back to the first provider and its
+blob goes with them.
+
+Before 2.3.1 such a part reached Anthropic as an empty text block, and
+every request in that conversation failed with `text content blocks must
+be non-empty`.
+
+What a change of model can still run into, because the provider refuses
+and lm15 does not guess for you: thinking signed by another server of the
+same API family (a block from DeepSeek's Anthropic-compatible endpoint
+sent to Anthropic), and a tool loop moved to Gemini 3 or DeepSeek between
+a tool call and its result. Change model between turns, not inside one.
+
 ## What is still refused
 
 lm15 refuses — `UnsupportedFeatureError` before anything is sent — only

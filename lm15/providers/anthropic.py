@@ -75,7 +75,7 @@ from .base import (
     batch_entry_request,
     default_transport,
 )
-from .common import settle_usage, wire_count, wire_sum, check_message_media, EFFORT_THINKING_BUDGETS, MEDIA_KINDS, anthropic_source, check_tool_result_media, data_part_text, iso_utc, model_infos_from_entries, multipart_form_body, parts_to_text, path_id, tool_description, unnamed_tool_call_error
+from .common import settle_usage, wire_count, wire_sum, check_message_media, EFFORT_THINKING_BUDGETS, MEDIA_KINDS, anthropic_source, check_tool_result_media, data_part_text, is_empty_text_block, iso_utc, model_infos_from_entries, multipart_form_body, parts_to_text, path_id, tool_description, unnamed_tool_call_error
 
 # Canonical builtin tool name → Anthropic tool format
 _ANTHROPIC_BUILTIN_MAP: dict[str, str] = {
@@ -531,15 +531,19 @@ class AnthropicLM(BaseProviderLM):
             return {"type": "tool_use", "id": part.id, "name": part.name, "input": part.input}
         if isinstance(part, ToolResultPart):
             check_tool_result_media(self.provider, part, self._resolved_compat.tool_result_media, wire="a tool_result block")
-            content_blocks = [self._tool_result_content(p) for p in part.content]
+            # MAP-24: an empty text block is never written, in a result
+            # either; the result itself always is, and one with no other
+            # block keeps its empty output as the string "" (INV-014).
+            content_blocks = [b for b in (self._tool_result_content(p) for p in part.content) if not is_empty_text_block(b)]
             out: dict[str, Any] = {"type": "tool_result", "tool_use_id": part.id}
-            if content_blocks:
+            if not content_blocks:
+                out["content"] = ""
+            elif len(content_blocks) == 1 and content_blocks[0].get("type") == "text":
                 # Anthropic accepts either a string or content blocks.  Blocks
                 # preserve image/document tool outputs when present.
-                if len(content_blocks) == 1 and content_blocks[0].get("type") == "text":
-                    out["content"] = content_blocks[0]["text"]
-                else:
-                    out["content"] = content_blocks
+                out["content"] = content_blocks[0]["text"]
+            else:
+                out["content"] = content_blocks
             if part.is_error:
                 out["is_error"] = True
             return out
@@ -559,6 +563,9 @@ class AnthropicLM(BaseProviderLM):
                 # block back unsigned (Moonshot, live 2026-09-03); a text
                 # replay would turn the reasoning into a spoken turn.
                 return {"type": "thinking", "thinking": part.text}
+            # No state this dialect consumes (none, or another dialect's:
+            # MAP-7 rule 8): the thinking is replayed as text.  With no
+            # text this is an empty block, which _message leaves out.
             return {"type": "text", "text": part.text}
         return {"type": "text", "text": getattr(part, "text", "") or ""}
 
@@ -579,12 +586,22 @@ class AnthropicLM(BaseProviderLM):
             )
         return {"type": "text", "text": parts_to_text((part,), provider=self.provider)}
 
-    def _message(self, msg: Message) -> dict[str, Any]:
+    def _message(self, msg: Message) -> dict[str, Any] | None:
+        """One message, or None when it has nothing to write (MAP-24): the
+        Messages API refuses a text block with no characters (`minLength:
+        1`; HTTP 400 "text content blocks must be non-empty", live
+        2026-11-11), so a part whose block is one writes nothing (a hidden
+        thinking part carrying another dialect's state, an empty text
+        part, a citation with no quoted text), and a message left with no
+        block is not written.  Consecutive turns of one role are combined
+        by the server (messages--create.md)."""
         role = "assistant" if msg.role == "assistant" else "user"
-        parts = [self._part(part) for part in msg.parts]
+        parts = [block for block in (self._part(part) for part in msg.parts) if not is_empty_text_block(block)]
         if msg.role == "developer":
             text = parts_to_text(msg.parts)
-            parts = [{"type": "text", "text": f"[developer]\n{text}"}]
+            parts = [{"type": "text", "text": f"[developer]\n{text}"}] if text else []
+        if not parts:
+            return None
         return {"role": role, "content": parts}
 
     def _allowed_subset(self, request: Request) -> tuple[str, ...] | None:
@@ -654,7 +671,12 @@ class AnthropicLM(BaseProviderLM):
         use_cache = cache_cfg is not None and cache_cfg.mode != "off" and compat.cache_control == "anthropic"
         long_cache = cache_cfg is not None and cache_cfg.retention == "long" and compat.cache_control == "anthropic"
 
-        messages = [self._message(m) for m in request.messages]
+        # MAP-24: a message with nothing to write is left out.  `written`
+        # keeps each wire message's place in the caller's list, so a cache
+        # mark asked for by message index lands on the message the caller
+        # meant (or the last one written before it).
+        written = [(i, wire) for i, wire in ((i, self._message(m)) for i, m in enumerate(request.messages)) if wire is not None]
+        messages = [wire for _, wire in written]
 
         # MAP-6 marks.  prefix_until_index=N and prefix="history" (N = last
         # message) put cache_control on the last block of message N; the
@@ -692,7 +714,8 @@ class AnthropicLM(BaseProviderLM):
                 )
             idx = None
             if cache_cfg.prefix_until_index is not None:
-                idx = min(cache_cfg.prefix_until_index, len(messages) - 1)
+                until = min(cache_cfg.prefix_until_index, len(request.messages) - 1)
+                idx = sum(1 for i, _ in written if i <= until) - 1
             elif cache_cfg.prefix == "history":
                 idx = len(messages) - 1
             if idx is not None and idx >= 0 and messages[idx].get("content"):
@@ -768,8 +791,8 @@ class AnthropicLM(BaseProviderLM):
             "max_tokens": _max_tokens_for_anthropic(request, thinking_budget, provider=self.provider),
         }
 
-        if request.system:
-            system_text = request.system if isinstance(request.system, str) else parts_to_text(request.system)
+        system_text = (request.system if isinstance(request.system, str) else parts_to_text(request.system)) if request.system else ""
+        if system_text:  # MAP-24: a system prompt with no characters writes nothing
             if use_cache:
                 cache_marker: dict[str, Any] = {"type": "ephemeral"}
                 if long_cache:
