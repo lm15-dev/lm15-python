@@ -1,5 +1,33 @@
 # Changelog
 
+## 2.4.0 — 2026-11-12
+
+Google Cloud from AWS, with no key (lm15-contract `f67699c`, AUTH-1 `gcp-chain`; to
+ratify; 4,271 of 4,271 checks).
+
+- **New: a Google `external_account` credential with an AWS source**, what
+  `gcloud iam workload-identity-pools create-cred-config … --aws` writes: Vertex
+  (`vertex`, `vertex-anthropic`) reached from AWS through workload identity
+  federation, for organizations that forbid API keys. It was refused as a
+  stated gap in every lm15 language. lm15 signs an AWS STS `GetCallerIdentity`
+  request with the AWS identity, Google's STS exchanges it, and the
+  configuration's service account is impersonated. The subject token is
+  google-auth's byte for byte (two contract vectors computed by google-auth
+  itself).
+- The AWS identity: `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (Lambda), then
+  **the container endpoint** (ECS and EKS Pod Identity: the task's role), then
+  EC2 metadata at the file's `url` (IMDSv2 when the file names its token URL,
+  one session token per acquisition). The container endpoint is an lm15
+  addition, stated: Google's own libraries skip it, so on ECS they sign as the
+  host's role or find nothing. The region: `AWS_REGION`, `AWS_DEFAULT_REGION`,
+  else the file's `region_url`.
+- A source that is not `aws1`, or lacks `regional_cred_verification_url`, is
+  refused before any request; no AWS identity found says what was looked for.
+- Checked live on 2026-11-12: Gemini on Vertex answered through a federated AWS
+  identity, from the environment's keys and from a container endpoint; a
+  service account allowed `aiplatform.endpoints.predict` and nothing else is
+  enough for Gemini.
+
 ## 2.3.1 — 2026-11-11
 
 A conversation that changes provider keeps working (lm15-contract
