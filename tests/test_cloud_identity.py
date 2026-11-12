@@ -440,3 +440,115 @@ def test_named_credentials_contract_case(case: dict, tmp_path: Path) -> None:
     if "settings" in expect:
         assert dict(report.settings) == {**dict(report.settings), **expect["settings"]}
     assert _FIXTURE["sentinel"] not in report.describe()
+
+
+# ─── Google external_account with an AWS source (AUTH-1 gcp-chain) ───────────
+#
+# The subject token is pinned byte for byte by lm15-contract auth/token-vectors.json
+# (gcp-external-account-aws*.build, computed by google-auth itself). These walk the
+# whole acquisition: where the AWS identity comes from, then STS, then impersonation.
+
+_AWS_WIF = {
+    "type": "external_account",
+    "audience": "//iam.googleapis.com/projects/1/locations/global/workloadIdentityPools/p/providers/aws",
+    "subject_token_type": "urn:ietf:params:aws:token-type:aws4_request",
+    "token_url": "https://sts.googleapis.com/v1/token",
+    "credential_source": {
+        "environment_id": "aws1",
+        "region_url": "http://169.254.169.254/latest/meta-data/placement/availability-zone",
+        "url": "http://169.254.169.254/latest/meta-data/iam/security-credentials",
+        "regional_cred_verification_url": "https://sts.{region}.amazonaws.com?Action=GetCallerIdentity&Version=2011-06-15",
+    },
+    "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/sa@p.iam.gserviceaccount.com:generateAccessToken",
+}
+
+
+def _aws_wif_http(calls, answers):
+    def http(method, url, headers, body, timeout):
+        calls.append((method, url, dict(headers), body))
+        for prefix, reply in answers:
+            if url.startswith(prefix):
+                status, data = reply
+                return status, {}, data if isinstance(data, bytes) else json.dumps(data).encode()
+        raise AssertionError(f"unexpected request {method} {url}")
+    return http
+
+
+_GOOGLE_ANSWERS = [
+    ("https://sts.googleapis.com/", (200, {"access_token": "federated", "expires_in": 3600, "token_type": "Bearer"})),
+    ("https://iamcredentials.googleapis.com/", (200, {"accessToken": "sa-token", "expireTime": "2026-09-03T13:00:00Z"})),
+]
+
+
+def _subject(calls):
+    import urllib.parse
+    sts = next(c for c in calls if c[1].startswith("https://sts.googleapis.com/"))
+    body = json.loads(sts[3])
+    assert body["subjectTokenType"] == "urn:ietf:params:aws:token-type:aws4_request"
+    return json.loads(urllib.parse.unquote(body["subjectToken"]))
+
+
+class TestGcpExternalAccountAws:
+    def test_ecs_container_credentials_sign_the_request(self):
+        """On ECS the AWS identity is the task role, served at the container endpoint (lm15's addition)."""
+        calls = []
+        http = _aws_wif_http(calls, [
+            ("http://169.254.170.2/v2/credentials/abc", (200, {"AccessKeyId": "ASIATASK", "SecretAccessKey": "s", "Token": "task-session", "Expiration": "2026-09-03T18:00:00Z"})),
+            *_GOOGLE_ANSWERS,
+        ])
+        ctx = ChainContext(env={"AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "/v2/credentials/abc", "AWS_REGION": "us-east-2"}, files={}, http=http, now=lambda: NOW)
+        token = chains._gcp_from_info(ctx, _AWS_WIF, "wif.json")
+        assert token.value == "sa-token"
+        assert [c[1].split("?")[0] for c in calls] == ["http://169.254.170.2/v2/credentials/abc", "https://sts.googleapis.com/v1/token",
+                                                       _AWS_WIF["service_account_impersonation_url"]]
+        signed = _subject(calls)
+        assert signed["url"] == "https://sts.us-east-2.amazonaws.com?Action=GetCallerIdentity&Version=2011-06-15"
+        headers = {h["key"]: h["value"] for h in signed["headers"]}
+        assert headers["Authorization"].startswith("AWS4-HMAC-SHA256 Credential=ASIATASK/20260919/us-east-2/sts/aws4_request")
+        assert headers["x-amz-security-token"] == "task-session"
+        assert headers["x-goog-cloud-target-resource"] == _AWS_WIF["audience"]
+        assert calls[2][2]["authorization"] == "Bearer federated"
+
+    def test_ec2_metadata_with_imdsv2_gives_region_and_role(self):
+        calls = []
+        source = dict(_AWS_WIF["credential_source"], imdsv2_session_token_url="http://169.254.169.254/latest/api/token")
+        http = _aws_wif_http(calls, [
+            ("http://169.254.169.254/latest/api/token", (200, b"imds-session")),
+            ("http://169.254.169.254/latest/meta-data/placement/availability-zone", (200, b"eu-west-1b")),
+            ("http://169.254.169.254/latest/meta-data/iam/security-credentials/web", (200, {"Code": "Success", "AccessKeyId": "ASIAEC2", "SecretAccessKey": "s", "Token": "t"})),
+            ("http://169.254.169.254/latest/meta-data/iam/security-credentials", (200, b"web\n")),
+            *_GOOGLE_ANSWERS,
+        ])
+        ctx = ChainContext(env={}, files={}, http=http, now=lambda: NOW)
+        assert chains._gcp_from_info(ctx, dict(_AWS_WIF, credential_source=source), "wif.json").value == "sa-token"
+        assert all(c[2].get("X-aws-ec2-metadata-token") == "imds-session" for c in calls[1:4])
+        assert sum(c[0] == "PUT" for c in calls) == 1
+        assert calls[0][2] == {"X-aws-ec2-metadata-token-ttl-seconds": "300"}
+        assert _subject(calls)["url"].startswith("https://sts.eu-west-1.amazonaws.com?")
+
+    def test_environment_keys_win_and_no_metadata_is_asked(self):
+        calls = []
+        http = _aws_wif_http(calls, _GOOGLE_ANSWERS)
+        env = {"AWS_ACCESS_KEY_ID": "AKIDENV", "AWS_SECRET_ACCESS_KEY": "s", "AWS_DEFAULT_REGION": "ca-central-1",
+               "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "/v2/credentials/abc"}
+        ctx = ChainContext(env=env, files={}, http=http, now=lambda: NOW)
+        assert chains._gcp_from_info(ctx, _AWS_WIF, "wif.json").value == "sa-token"
+        headers = {h["key"]: h["value"] for h in _subject(calls)["headers"]}
+        assert "x-amz-security-token" not in headers and "AKIDENV/20260919/ca-central-1/sts" in headers["Authorization"]
+
+    @pytest.mark.parametrize("source,match", [
+        ({"environment_id": "aws2", "regional_cred_verification_url": "https://sts.{region}.amazonaws.com"}, "only aws1"),
+        ({"environment_id": "aws1"}, "regional_cred_verification_url"),
+        ({"environment_id": "azure1", "regional_cred_verification_url": "https://x"}, "environment_id"),
+    ])
+    def test_malformed_aws_source_is_refused(self, source, match):
+        ctx = ChainContext(env={"AWS_REGION": "us-east-1", "AWS_ACCESS_KEY_ID": "a", "AWS_SECRET_ACCESS_KEY": "s"}, files={},
+                           http=lambda *a: pytest.fail("no request before the source is valid"), now=lambda: NOW)
+        with pytest.raises(NotConfiguredError, match=match):
+            chains._gcp_from_info(ctx, dict(_AWS_WIF, credential_source=source), "wif.json")
+
+    def test_no_aws_identity_says_what_was_looked_for(self):
+        source = {k: v for k, v in _AWS_WIF["credential_source"].items() if k != "url"}
+        ctx = ChainContext(env={"AWS_REGION": "us-east-1"}, files={}, http=lambda *a: pytest.fail("nothing to ask"), now=lambda: NOW)
+        with pytest.raises(NotConfiguredError, match="AWS_ACCESS_KEY_ID nor a container endpoint"):
+            chains._gcp_from_info(ctx, dict(_AWS_WIF, credential_source=source), "wif.json")

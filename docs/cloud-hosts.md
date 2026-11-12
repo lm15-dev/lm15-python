@@ -379,6 +379,18 @@ workload-identity-pools create-cred-config ...` writes a file; point
 the same way (`"environment"`), but it is a secret that never expires:
 prefer federation.
 
+**Deployed on AWS** (ECS, EC2, Lambda): federate the AWS role
+(`gcloud iam workload-identity-pools providers create-aws`, then
+`create-cred-config ... --aws`). lm15 signs an AWS STS
+`GetCallerIdentity` request with the role's credentials and Google
+exchanges it, as Google's own libraries do. The AWS credentials come
+from `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (Lambda), then the
+container endpoint (ECS and EKS Pod Identity: the task's role), then EC2
+metadata at the file's `url`. The container endpoint is an lm15
+addition: Google's libraries read only the other two, so on ECS they
+sign with nothing (or with the host's role). The region is `AWS_REGION`,
+`AWS_DEFAULT_REGION`, else the file's `region_url`.
+
 **With an API key.** Create a key restricted to the Vertex AI API (Cloud
 console > APIs & Services > Credentials; Google now issues keys bound to
 a service account, beginning `AQ.`). Two doors take it:
@@ -514,9 +526,8 @@ through silently.
   certificate, a secret, or another managed-identity host.
 - Encrypted PEM keys and PKCS#12 certificates — `openssl pkey` /
   `openssl pkcs12 -nodes` first.
-- Google `external_account` with an AWS credential source, and the
-  `external_account_authorized_user` / `gdch_service_account` types —
-  use a file, URL or executable source, or a service account.
+- Google's `external_account_authorized_user` / `gdch_service_account`
+  types — use workload identity federation or a service account.
 - Bedrock's native Converse wire and the binary event-stream framing
   (Nova, Llama, Mistral on Bedrock) — phase 2; `bedrock:` names nothing
   yet.
