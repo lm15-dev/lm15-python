@@ -123,14 +123,14 @@ GEMINI_PROVIDER_EXECUTED_PART_KEYS = {
 }
 
 def gemini_level_class(model: str) -> bool:
-    """True for the Gemini 3.x class: `thinkingLevel`, no full off (MAP-7 rule 10).
+    """True for the Gemini 3.x/4.x class: `thinkingLevel`, no full off (MAP-7 rule 10).
 
     Model-name table, receipted 2026-09-02: 2.5 models reject thinkingLevel,
     3.x models take it; 3.7 Flash accepts thinkingBudget: 0 and still spends
-    thinking tokens.  A table that rots; `extensions` overrides.
+    thinking tokens.  4.x (2026-11-20, Vertex): thinkingBudget is a 400.
+    A table that rots; `extensions` overrides.
     """
-    lowered = model.lower()
-    return lowered.startswith("models/gemini-3") or lowered.startswith("gemini-3")
+    return model.lower().removeprefix("models/").startswith(("gemini-3", "gemini-4"))
 
 
 

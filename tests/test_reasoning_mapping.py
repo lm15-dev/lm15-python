@@ -35,6 +35,7 @@ def test_model_class_tables() -> None:
     assert anthropic_adaptive_class("claude-sonnet-5") and anthropic_adaptive_class("claude-opus-4-8") and anthropic_adaptive_class("claude-fable-5-1")
     assert not anthropic_adaptive_class("claude-sonnet-4-5-20250929") and not anthropic_adaptive_class("claude-haiku-4-5-20251001")
     assert gemini_level_class("gemini-3.7-flash") and gemini_level_class("models/gemini-3.1-pro-preview")
+    assert gemini_level_class("gemini-4-neon") and gemini_level_class("models/gemini-4-carbon")
     assert not gemini_level_class("gemini-2.5-flash")
     assert EFFORT_THINKING_BUDGETS == {"minimal": 1024, "low": 2048, "medium": 8192, "high": 16384, "xhigh": 24576, "max": 32768}
 
@@ -148,6 +149,7 @@ def test_gemini_two_classes() -> None:
     assert tc("gemini-2.5-flash", Reasoning(effort="off")) == {"thinkingBudget": 0}
     assert tc("gemini-3.7-flash", Reasoning(effort="medium", summary="auto")) == {"includeThoughts": True, "thinkingLevel": "medium"}
     assert tc("gemini-3.7-flash", Reasoning(effort="medium", thinking_budget=512)) == {"thinkingBudget": 512}
+    assert tc("gemini-4-neon", Reasoning(effort="medium")) == {"thinkingLevel": "medium"}
     # MAP-13: above the ceiling clamps to "high"; off on the 3 class (no honoured
     # off switch) substitutes the lowest level — both recorded.
     for eff in ("xhigh", "max"):
