@@ -175,6 +175,9 @@ def _attach_unmapped(provider_data: dict[str, Any], unmapped: list[dict[str, str
 
 
 _GPT_VERSION_RE = re.compile(r"^gpt-(\d+)\.(\d+)")
+# gpt-6-luna, gpt-6-sol: a major with no minor reads as <major>.0. One
+# digit, so Azure's gpt-35-turbo deployment names stay out of the class.
+_GPT_MAJOR_RE = re.compile(r"^gpt-(\d)(?:-|$)")
 
 
 def openai_model_has_cache_options(model: str) -> bool:
@@ -183,13 +186,17 @@ def openai_model_has_cache_options(model: str) -> bool:
     The off switch for cache WRITES is ``prompt_cache_options`` and only
     that class accepts it (older models reject it with HTTP 400, and their
     writes are free anyway).  Deciding client-side needs a model check —
-    a table that rots.  Stated trade-off: a future family whose name does
-    not match ``gpt-<major>.<minor>`` keeps the provider's implicit writes
-    on ``mode="off"``; ``extensions={"prompt_cache_options": ...}`` is the
-    override.
+    a table that rots.  Stated trade-off: a future family whose name
+    matches neither ``gpt-<major>.<minor>`` nor ``gpt-<major>`` keeps the
+    provider's implicit writes on ``mode="off"``;
+    ``extensions={"prompt_cache_options": ...}`` is the override.
     """
-    m = _GPT_VERSION_RE.match(model.lower())
-    return bool(m) and (int(m.group(1)), int(m.group(2))) >= (5, 6)
+    name = model.lower()
+    m = _GPT_VERSION_RE.match(name)
+    if m:
+        return (int(m.group(1)), int(m.group(2))) >= (5, 6)
+    m = _GPT_MAJOR_RE.match(name)
+    return bool(m) and (int(m.group(1)), 0) >= (5, 6)
 
 
 def _cache_breakpoint_index(request: Request, cache_control: str) -> int | None:

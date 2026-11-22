@@ -37,8 +37,15 @@ def test_openai_model_class_for_cache_options() -> None:
     assert openai_model_has_cache_options("gpt-5.6-sol")
     assert openai_model_has_cache_options("gpt-6.0")
     assert openai_model_has_cache_options("GPT-5.10")
+    assert openai_model_has_cache_options("gpt-6")
+    assert openai_model_has_cache_options("gpt-6-luna")        # major only reads as 6.0
+    assert openai_model_has_cache_options("gpt-6-sol")
     assert not openai_model_has_cache_options("gpt-5.5")
     assert not openai_model_has_cache_options("gpt-4.1-mini")
+    assert not openai_model_has_cache_options("gpt-5")
+    assert not openai_model_has_cache_options("gpt-5-mini")
+    assert not openai_model_has_cache_options("gpt-4o")
+    assert not openai_model_has_cache_options("gpt-35-turbo")  # Azure's 3.5 deployment name, not 35
     assert not openai_model_has_cache_options("o3")            # unknown pattern -> no switch (stated trade-off)
     assert not openai_model_has_cache_options("chat-latest")
 
@@ -48,6 +55,7 @@ def test_openai_model_class_for_cache_options() -> None:
 def test_openai_off_sends_the_real_switch_only_on_5_6_class() -> None:
     lm = OpenAILM(api_key="k", transport=FakeTransport([]))
     assert _body(lm, _req("gpt-5.6-sol", CacheConfig(mode="off")))["prompt_cache_options"] == {"mode": "explicit"}
+    assert _body(lm, _req("gpt-6-luna", CacheConfig(mode="off")))["prompt_cache_options"] == {"mode": "explicit"}
     assert "prompt_cache_options" not in _body(lm, _req("gpt-5.4-mini", CacheConfig(mode="off")))
     assert "prompt_cache_breakpoint" not in json.dumps(_body(lm, _req("gpt-5.6-sol", CacheConfig(mode="off"))))
 
@@ -69,6 +77,8 @@ def test_openai_stable_renders_system_as_marked_developer_message() -> None:
     # Pre-5.6 has no prompt_cache_options; the mark alone.
     old = _body(lm, _req("gpt-5.4-mini", CacheConfig(prefix="stable")))
     assert "prompt_cache_options" not in old and "prompt_cache_breakpoint" in json.dumps(old)
+    # gpt-6 ids carry no minor; the mark still needs the mode (DSPy #10658).
+    assert _body(lm, _req("gpt-6-luna", CacheConfig(prefix="stable")))["prompt_cache_options"] == {"mode": "explicit"}
 
 
 def test_openai_history_sends_nothing_implicit_mode_already_trails() -> None:
@@ -102,6 +112,7 @@ def test_chat_dialect_off_stable_and_compat_gate() -> None:
     assert body["messages"][0] == {"role": "system", "content": [
         {"type": "text", "text": "SYS", "prompt_cache_breakpoint": {"mode": "explicit"}}]}
     assert body["prompt_cache_options"] == {"mode": "explicit"}
+    assert _body(lm, _req("gpt-6-luna", CacheConfig(prefix="stable")))["prompt_cache_options"] == {"mode": "explicit"}
     groq = OpenAIChatLM(api_key="k", transport=FakeTransport([]), compat="groq")
     body = _body(groq, _req("openai/gpt-oss-20b", CacheConfig(prefix="stable", key="k")))
     assert body["messages"][0]["content"] == "SYS" and "prompt_cache_key" not in body  # cache_control none -> nothing
