@@ -46,6 +46,7 @@ from ..transports import TransportRequest
 from .common import path_id
 from ..types import ImageGenerationRequest, ImageGenerationResponse, ImagePart, Request, Usage, VideoGenerationRequest, VideoJobInfo, VideoPart
 from .base import Credential, HttpResponse, SyncTransport, default_transport
+from .openai import _attach_unmapped, _record_unmapped
 from .openai_chat import OpenAIChatLM
 
 
@@ -157,8 +158,10 @@ class XaiLM(OpenAIChatLM):
     def _image_generation_from_response(self, request: ImageGenerationRequest, resp: HttpResponse) -> ImageGenerationResponse:
         data = resp.json()
         images: list[ImagePart] = []
-        for item in data.get("data", []) or []:
+        unmapped: list[dict[str, str]] = []
+        for idx, item in enumerate(data.get("data", []) or []):
             if not isinstance(item, dict):
+                _record_unmapped(unmapped, f"data[{idx}]", type(item).__name__)
                 continue
             mime = item.get("mime_type")
             media_type = mime if isinstance(mime, str) and mime else "application/octet-stream"
@@ -166,11 +169,13 @@ class XaiLM(OpenAIChatLM):
                 images.append(ImagePart(media_type=media_type, data=str(item["b64_json"])))
             elif item.get("url"):
                 images.append(ImagePart(media_type=media_type, url=str(item["url"])))
+            else:
+                _record_unmapped(unmapped, f"data[{idx}]", "+".join(sorted(item)) or "<empty>")
         if not images:
             raise ProviderError("xai: image response carries no images", provider=self.provider)
         # Captured: usage reports cost_in_usd_ticks only — no token counts
         # exist, so Usage stays empty and the figure lives in provider_data.
-        return ImageGenerationResponse(images=tuple(images), usage=Usage(), provider_data=data)
+        return ImageGenerationResponse(images=tuple(images), usage=Usage(), provider_data=_attach_unmapped(dict(data), unmapped))
 
     # ─── Video generation (grok-imagine; captured live 2026-09-01) ──────
     #

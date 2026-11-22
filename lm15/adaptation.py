@@ -45,9 +45,41 @@ from __future__ import annotations
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+import math as _math
 from typing import Any, Iterator, Literal, get_args
 
 from .errors import UnsupportedFeatureError
+
+
+def is_strict_json(value: Any) -> bool:
+    """Return True if ``value`` uses only strict finite JSON scalars, lists, and string-keyed dicts."""
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        kind = type(item)
+        if item is None or kind is bool or kind is int or kind is str:
+            continue
+        if kind is float:
+            if not _math.isfinite(item):
+                return False
+            continue
+        if kind is list:
+            stack.extend(item)
+            continue
+        if kind is dict:
+            for key, child in item.items():
+                if not isinstance(key, str):
+                    return False
+                stack.append(child)
+            continue
+        if isinstance(item, (int, str)):
+            continue
+        if isinstance(item, float):
+            if not _math.isfinite(item):
+                return False
+            continue
+        return False
+    return True
 
 AdaptationAction = Literal["dropped", "clamped", "substituted", "client_side", "satisfied", "defaulted"]
 ADAPTATION_ACTIONS: tuple[str, ...] = get_args(AdaptationAction)
@@ -89,6 +121,10 @@ class Adaptation:
             raise ValueError(f"unsupported adaptation action: {self.action!r}")
         if not isinstance(self.reason, str) or not self.reason:
             raise ValueError("Adaptation.reason must be a non-empty string")
+        if not is_strict_json(self.asked):
+            raise TypeError("Adaptation.asked must contain only JSON-compatible values")
+        if not is_strict_json(self.applied):
+            raise TypeError("Adaptation.applied must contain only JSON-compatible values")
 
 
 def check_policy(value: object) -> AdaptationPolicy:

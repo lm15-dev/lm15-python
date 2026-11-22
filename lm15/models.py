@@ -12,10 +12,11 @@ inference model. Fine-tune PROVENANCE stays describable through ModelOrigin
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import TYPE_CHECKING, Any, Iterable
 
 from .compat import CompatProfile
-from .types import JsonObject
+from .types import JsonObject, _check_json_object
 
 if TYPE_CHECKING:  # the generated __init__ signatures
     from collections.abc import Sequence
@@ -41,6 +42,8 @@ def _check_non_negative_or_none(value: float | None, field_name: str) -> None:
         return
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{field_name} must be a number or None")
+    if not math.isfinite(value):
+        raise ValueError(f"{field_name} must be a finite number")
     if value < 0:
         raise ValueError(f"{field_name} must be >= 0")
 
@@ -65,10 +68,7 @@ def _coerce_int_field(obj: object, field_name: str) -> None:
 
 
 def _check_json_object_or_none(value: object, field_name: str) -> None:
-    if value is None:
-        return
-    if not isinstance(value, dict):
-        raise TypeError(f"{field_name} must be a JSON object or None")
+    _check_json_object(value, field_name=field_name)
 
 
 # ─── Pricing ─────────────────────────────────────────────────────────

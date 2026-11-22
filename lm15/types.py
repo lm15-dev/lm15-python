@@ -51,7 +51,7 @@ from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar, get_args
 
-from .adaptation import Adaptation
+from .adaptation import Adaptation, is_strict_json as _is_json_value
 
 
 # ─── Literal vocabularies ────────────────────────────────────────────
@@ -151,44 +151,6 @@ JsonPrimitive: TypeAlias = None | bool | int | float | str
 JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
 JsonArray: TypeAlias = list[JsonValue]
 JsonObject: TypeAlias = dict[str, JsonValue]
-
-
-def _is_json_value(value: Any) -> bool:
-    """Return True if value is made only of strict JSON containers.
-
-    Complete JSON validation is necessarily proportional to payload size, so
-    keep it iterative and simple: no recursion, no copying, and no coercion of
-    tuples or non-string dict keys into something different on the wire.
-    """
-    stack = [value]
-    while stack:
-        item = stack.pop()
-        kind = type(item)
-        if item is None or kind is bool or kind is int or kind is str:
-            continue
-        if kind is float:
-            if not _math.isfinite(item):
-                return False
-            continue
-        if kind is list:
-            stack.extend(item)
-            continue
-        if kind is dict:
-            for key, child in item.items():
-                if not isinstance(key, str):
-                    return False
-                stack.append(child)
-            continue
-        # Keep compatibility with scalar subclasses without paying
-        # ``isinstance`` costs for the common exact built-in types above.
-        if isinstance(item, (int, str)):
-            continue
-        if isinstance(item, float):
-            if not _math.isfinite(item):
-                return False
-            continue
-        return False
-    return True
 
 
 def _check_json_object(value: Any, *, field_name: str, required: bool = False) -> None:
@@ -2281,6 +2243,8 @@ class TopLogprob:
         _coerce_float_field(self, "logprob")
         if not isinstance(self.logprob, float):
             raise TypeError("logprob must be a float")
+        if not _math.isfinite(self.logprob):
+            raise ValueError("logprob must be finite")
         _validate_logprob_bytes(self)
         _coerce_int_field(self, "token_id")
         _validate_int(self.token_id, field_name="token_id")
@@ -2321,6 +2285,8 @@ class TokenLogprob:
         _coerce_float_field(self, "logprob")
         if not isinstance(self.logprob, float):
             raise TypeError("logprob must be a float")
+        if not _math.isfinite(self.logprob):
+            raise ValueError("logprob must be finite")
         _validate_logprob_bytes(self)
         _coerce_int_field(self, "token_id")
         _validate_int(self.token_id, field_name="token_id")

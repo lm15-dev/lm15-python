@@ -1685,7 +1685,8 @@ class OpenAILM(BaseProviderLM):
                 arguments = copies.remainder(index, "arguments", arguments, json_value=True)
             return [StreamDeltaEvent(delta=ToolCallDelta(
                 input=arguments, part_index=index,
-                id=str(item.get("call_id") or item.get("id") or "") or None, name=str(item.get("name") or "") or None,
+                id=str(item.get("call_id") or item.get("id") or "") or None,
+                name=item["name"] if isinstance(item.get("name"), str) and item["name"] else None,
             ))]
         if et == "response.function_call_arguments.delta":
             index = int(payload.get("output_index", 0) or 0)
@@ -1835,6 +1836,12 @@ class OpenAILM(BaseProviderLM):
             ]
         return []
 
+    def _live_complete_tool_name(self, item: dict[str, Any]) -> str:
+        name = item.get("name")
+        if not isinstance(name, str) or not name:
+            raise unnamed_tool_call_error(self.provider, "live function call")
+        return name
+
     def _decode_live_server_event(self, raw: str | bytes):
         try:
             payload = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
@@ -1861,7 +1868,12 @@ class OpenAILM(BaseProviderLM):
         elif et == "response.function_call_arguments.delta":
             delta = str(payload.get("delta") or "")
             if delta:
-                events.append(LiveServerToolCallDeltaEvent(input_delta=delta, id=str(payload.get("call_id") or payload.get("id") or "") or None, name=str(payload.get("name") or "") or None))
+                raw_name = payload.get("name")
+                events.append(LiveServerToolCallDeltaEvent(
+                    input_delta=delta,
+                    id=str(payload.get("call_id") or payload.get("id") or "") or None,
+                    name=raw_name if isinstance(raw_name, str) and raw_name else None,
+                ))
         elif et == "response.output_item.done":
             # The ONLY tool-call emission point. `function_call_arguments.done`
             # also carries the full call, but mapping both double-fires the
@@ -1869,10 +1881,11 @@ class OpenAILM(BaseProviderLM):
             # both frames arrive for one call).
             item = payload.get("item", {}) if isinstance(payload.get("item"), dict) else {}
             if item.get("type") == "function_call":
+                name = self._live_complete_tool_name(item)
                 call_id = str(item.get("call_id") or item.get("id") or "")
                 if call_id:
                     events.append(LiveServerToolCallEvent(
-                        id=call_id, name=str(item.get("name") or "tool"),
+                        id=call_id, name=name,
                         input=parse_json_object(item.get("arguments"))))
         elif et in {"response.done", "response.completed"}:
             response = payload.get("response", {}) if isinstance(payload.get("response"), dict) else {}
@@ -2314,16 +2327,20 @@ class OpenAILM(BaseProviderLM):
         output_format = data.get("output_format")
         media_type = f"image/{output_format}" if isinstance(output_format, str) and output_format else None
         images: list[ImagePart] = []
-        for item in data.get("data", []) or []:
+        unmapped: list[dict[str, str]] = []
+        for idx, item in enumerate(data.get("data", []) or []):
             if not isinstance(item, dict):
+                _record_unmapped(unmapped, f"data[{idx}]", type(item).__name__)
                 continue
             if item.get("b64_json"):
                 images.append(ImagePart(media_type=media_type or "application/octet-stream", data=str(item["b64_json"])))
             elif item.get("url"):
                 images.append(ImagePart(media_type=media_type or "application/octet-stream", url=str(item["url"])))
+            else:
+                _record_unmapped(unmapped, f"data[{idx}]", "+".join(sorted(item)) or "<empty>")
         usage = usage_from_responses(data.get("usage"))
         # Captured: the images response carries no id and no model echo.
-        return ImageGenerationResponse(images=tuple(images), usage=usage, provider_data=data)
+        return ImageGenerationResponse(images=tuple(images), usage=usage, provider_data=_attach_unmapped(dict(data), unmapped))
 
     def _speech_generate_request(self, request: SpeechGenerationRequest) -> TransportRequest:
         payload: dict[str, Any] = {"model": request.model, "input": request.prompt, **(request.extensions or {})}

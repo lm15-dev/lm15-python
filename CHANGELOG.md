@@ -2,10 +2,14 @@
 
 ## Unreleased — audit hardening
 
-- Gemini Live never invents a missing tool name. Malformed completed live calls
-  raise `ProviderError`; live-completion streams preserve missing names for
-  `StreamAssemblyError`, with partial text and usage retained. Valid calls stay
-  unchanged. Contract adds eight synthetic malformed-name checks.
+- OpenAI Realtime and Gemini Live never invent a missing tool name. Malformed
+  completed live calls raise `ProviderError`; live-completion streams preserve
+  missing names for `StreamAssemblyError`, with partial text and usage retained.
+  Valid calls stay unchanged. Contract adds twelve synthetic malformed-name checks.
+- Reject `NaN`, `Infinity`, and non-JSON values in `InferencePricing`, `PricingTier`,
+  `ModelInfo` metadata, `TopLogprob` / `TokenLogprob`, and `Adaptation` records;
+  record unmapped items on image-generation responses and enforce `_lm15_unmapped`
+  across non-chat surfaces.
 - Hide proxy credentials and router environment secrets from ordinary diagnostics.
 - Record dropped/boolean-only reasoning controls, preserve Gemini stream finish
   reasons after usage trailers, and enforce required Anthropic probabilities.
