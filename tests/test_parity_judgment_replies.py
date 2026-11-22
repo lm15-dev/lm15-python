@@ -144,6 +144,21 @@ def test_usage_missing_null_and_explicit_zero_are_distinct(usage, expected):
     assert parse(BODY).usage.input_tokens is None
 
 
+@pytest.mark.parametrize("cost", [0.0, 0.000009])
+def test_reported_usage_survives_response_serialization(cost):
+    from lm15.serde import response_from_dict, response_to_dict
+
+    body = deepcopy(BODY)
+    body["usage"] = {"input_tokens": 100, "output_tokens": 0, "cost": cost,
+                     "cost_details": {"upstream_inference_cost": cost}}
+    result = parse(body)
+    assert result.usage.input_tokens == 100 and result.usage.output_tokens == 0
+    assert result.provider_data["usage"] == body["usage"]
+    assert result.provider_data["typesafe"]["answers"] == body["answers"]
+    restored = response_from_dict(response_to_dict(result, include_provider_data=True))
+    assert restored.provider_data["usage"] == body["usage"]
+
+
 @pytest.mark.parametrize("usage", [[], "x", {"input_tokens": True}, {"output_tokens": "0"}, {"input_tokens": -1}, {"output_tokens": 1.2}])
 def test_malformed_usage_is_a_provider_fault(usage):
     body = deepcopy(BODY)

@@ -355,7 +355,7 @@ class TypeSafeLM(BaseProviderLM):
         model = data.get("model")
         if model is not None and (not isinstance(model, str) or not model):
             raise invalid("model", "expected a non-empty string")
-        provider_data: dict[str, Any] = {"typesafe": {"answers": answers}}
+        provider_data: dict[str, Any] = {**data, "typesafe": {"answers": answers}}
         try:
             return Response(
                 id=self._request_id(response),
