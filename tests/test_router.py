@@ -555,6 +555,15 @@ def test_router_surface_placement() -> None:
         assert hasattr(router_mod, name), name
 
 
+def test_router_module_all_resolves() -> None:
+    # Every name in lm15.router.__all__ must exist: a stale entry crashes
+    # `from lm15.router import *` with AttributeError.
+    import lm15.router as router_mod
+
+    for name in router_mod.__all__:
+        assert hasattr(router_mod, name), name
+
+
 def test_router_error_codes_are_bare_nouns() -> None:
     # Taxonomy convention: codes are bare nouns ('transport', 'provider',
     # ...), never suffixed with '_error'.
