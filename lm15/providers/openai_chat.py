@@ -1640,8 +1640,14 @@ class OpenAIChatLM(BaseProviderLM):
                     # names, so the docs say: do not set effort on K2.x.
                     payload["reasoning_effort"] = effort
                 elif compat.thinking_format == "qwen":
+                    adapt("config.reasoning.effort", "substituted",
+                          "this wire's reasoning is an on/off switch with no levels; reasoning was switched on",
+                          asked=effort, applied="on", provider=self.provider)
                     payload["enable_thinking"] = True
                 elif compat.thinking_format == "qwen_chat_template":
+                    adapt("config.reasoning.effort", "substituted",
+                          "this wire's reasoning is an on/off switch with no levels; reasoning was switched on",
+                          asked=effort, applied="on", provider=self.provider)
                     payload["chat_template_kwargs"] = {
                         "enable_thinking": True,
                         "preserve_thinking": True,

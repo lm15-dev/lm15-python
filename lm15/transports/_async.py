@@ -334,33 +334,22 @@ class StdlibAsyncTransport:
 
         conn: _AsyncConnection | None = None
         try:
-            attempt = 0
-            while True:
-                conn = (
-                    await self._pool.checkout(origin) if attempt == 0 else None
+            # Discard stale connections before writing, never replay after a
+            # write failure: buffered writes may already have reached the peer.
+            conn = await self._pool.checkout(origin)
+            if conn is None:
+                conn = await self._open(
+                    parsed, proxy=proxy, origin=origin, connect_timeout=connect_timeout
                 )
-                reused = conn is not None
-                if conn is None:
-                    conn = await self._open(
-                        parsed, proxy=proxy, origin=origin, connect_timeout=connect_timeout
-                    )
-                    await self._pool.register_new(conn)
-
-                try:
-                    await self._send_request(
-                        conn, request, parsed, proxy=proxy, write_timeout=write_timeout
-                    )
-                    break
-                except (WriteError, ConnectionResetError, BrokenPipeError, OSError) as exc:
-                    if not reused or attempt > 0:
-                        await self._pool.discard(conn)
-                        if isinstance(exc, WriteError):
-                            raise
-                        raise WriteError(str(exc)) from exc
-                    await self._pool.discard(conn)
-                    conn = None
-                    attempt += 1
-                    continue
+                await self._pool.register_new(conn)
+            try:
+                await self._send_request(
+                    conn, request, parsed, proxy=proxy, write_timeout=write_timeout
+                )
+            except WriteError:
+                raise
+            except OSError as exc:
+                raise WriteError(str(exc)) from exc
 
             head = await self._read_head(conn, read_timeout=read_timeout)
             decoder = head.body_decoder(request.method)

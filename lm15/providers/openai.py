@@ -1156,7 +1156,15 @@ class OpenAILM(BaseProviderLM):
             payload["text"] = _response_format_to_openai_text(request.config.response_format)
         if request.config.reasoning:
             reasoning = request.config.reasoning
-            if not reasoning.is_off:
+            if compat.reasoning_format == "none":
+                # No reasoning dial on this server (MAP-13): drop and record
+                # before any sub-field checks (matches OpenAIChatLM thinking_format="none").
+                adapt("config.reasoning", "dropped",
+                      "this server has no reasoning dial on its wire (compat reasoning_format='none'); "
+                      "the model reasons at its own default; pass the server's own knob through extensions",
+                      asked={"effort": reasoning.effort}, provider=self.provider)
+                reasoning = None
+            if reasoning is not None and not reasoning.is_off:
                 # MAP-7: the word goes verbatim; models reject unsupported
                 # levels with a 400 that lists the supported set (live
                 # 2026-09-02: gpt-5.6-sol rejects minimal, gpt-5.4-mini
@@ -1186,13 +1194,19 @@ class OpenAILM(BaseProviderLM):
                     payload["thinking"] = {"type": "enabled"}
                     payload["reasoning_effort"] = effort
                 elif compat.reasoning_format in {"qwen", "zai"}:
+                    adapt("config.reasoning.effort", "substituted",
+                          "this wire's reasoning is an on/off switch with no levels; reasoning was switched on",
+                          asked=effort, applied="on", provider=self.provider)
                     payload["enable_thinking"] = True
                 elif compat.reasoning_format == "qwen_chat_template":
+                    adapt("config.reasoning.effort", "substituted",
+                          "this wire's reasoning is an on/off switch with no levels; reasoning was switched on",
+                          asked=effort, applied="on", provider=self.provider)
                     payload["chat_template_kwargs"] = {
                         "enable_thinking": True,
                         "preserve_thinking": True,
                     }
-            else:
+            elif reasoning is not None:
                 # Explicit off must reach the wire.  Sending nothing lets
                 # reasoning-by-default models (gpt-5 family, o-series) burn
                 # hidden reasoning tokens the caller asked to disable —

@@ -325,35 +325,23 @@ class StdlibTransport:
 
         conn: _SyncConnection | None = None
         try:
-            # Try to reuse an idle connection.  If the write fails because the
-            # connection went stale between stale-check and write, open fresh
-            # and retry once.
-            attempt = 0
-            while True:
-                conn = self._pool.checkout(origin) if attempt == 0 else None
-                reused = conn is not None
-                if conn is None:
-                    conn = self._open(
-                        parsed, proxy=proxy, origin=origin, connect_timeout=connect_timeout
-                    )
-                    self._pool.register_new(conn)
-
-                try:
-                    self._send_request(
-                        conn, request, parsed, proxy=proxy, write_timeout=write_timeout
-                    )
-                    break
-                except (WriteError, ConnectionResetError, BrokenPipeError, OSError) as exc:
-                    if not reused or attempt > 0:
-                        self._pool.discard(conn)
-                        if isinstance(exc, WriteError):
-                            raise
-                        raise WriteError(str(exc)) from exc
-                    # Reused connection was stale — close it and retry fresh
-                    self._pool.discard(conn)
-                    conn = None
-                    attempt += 1
-                    continue
+            # Checkout discards connections already known to be stale. Once a
+            # write starts, even a broken pipe cannot prove the peer received
+            # nothing: sendall may have sent a prefix. Never replay the request.
+            conn = self._pool.checkout(origin)
+            if conn is None:
+                conn = self._open(
+                    parsed, proxy=proxy, origin=origin, connect_timeout=connect_timeout
+                )
+                self._pool.register_new(conn)
+            try:
+                self._send_request(
+                    conn, request, parsed, proxy=proxy, write_timeout=write_timeout
+                )
+            except WriteError:
+                raise
+            except OSError as exc:
+                raise WriteError(str(exc)) from exc
 
             # Receive response head
             head = self._read_head(conn, read_timeout=read_timeout)
@@ -503,7 +491,7 @@ class StdlibTransport:
         except socket.timeout as exc:
             raise WriteTimeout(f"write timed out: {exc}") from exc
         except (BrokenPipeError, ConnectionResetError):
-            raise  # caller retries reused-but-stale connections
+            raise  # caller normalizes the error without replaying the request
         except OSError as exc:
             raise WriteError(f"write failed: {exc}") from exc
 

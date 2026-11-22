@@ -528,7 +528,7 @@ class RouterConfig:
 
     registry: ModelRegistry | None = None
     rules: tuple[RouteRule, ...] = DEFAULT_RULES
-    env: Mapping[str, str] | None = None
+    env: Mapping[str, str] | None = field(default=None, repr=False)
     api_keys: Mapping[str, Credential] | None = field(default=None, repr=False)
     base_urls: Mapping[str, str] | None = field(default=None, kw_only=True)
     # Cloud-host settings per provider (AUTH-10): {"bedrock-anthropic":

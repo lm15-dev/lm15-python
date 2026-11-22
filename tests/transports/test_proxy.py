@@ -305,3 +305,19 @@ def test_async_env_proxy_is_honored(proxy, monkeypatch) -> None:
             await t.aclose()
 
     assert asyncio.run(run()) == b"via-proxy"
+
+
+def test_proxy_auth_secrecy() -> None:
+    """AUTH-5: ProxyRoute repr hides basic_auth and parse_proxy_url redacts userinfo on error."""
+    from lm15.transports._proxy import parse_proxy_url
+
+    secret = "SECRET-PROXY-PASS-999"
+    route = parse_proxy_url(f"http://alice:{secret}@proxy.example.com:8080")
+    assert route.basic_auth is not None
+    assert secret not in repr(route)
+    assert route.basic_auth not in repr(route)
+
+    with pytest.raises(ValueError) as excinfo:
+        parse_proxy_url(f"https://alice:{secret}@proxy.example.com:8443/path")
+    assert secret not in str(excinfo.value)
+    assert "<redacted>@proxy.example.com:8443" in str(excinfo.value)

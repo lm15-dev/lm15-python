@@ -238,6 +238,7 @@ class AsyncBaseProviderLM:
 
     async def list_models(self):
         """Async mirror of BaseProviderLM.list_models (canonical ModelInfo)."""
+        self._inner._require("models")
         resp = await self._send(await self._build(self._inner._models_request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
@@ -245,17 +246,22 @@ class AsyncBaseProviderLM:
 
     # ── Batch: async drivers over the sync adapter's pure hooks ──────
 
+    def _build_with_adaptations(self, fn: Callable[..., Any], *args: Any) -> Any:
+        with collecting(check_policy(self.adaptations), provider=self.provider):
+            return fn(*args)
+
     async def batch_submit(self, request: "BatchRequest"):
+        self._inner._require("batches")
         self._inner._batch_preflight(request)
         upload_body = None
-        upload_req = await self._build(self._inner._batch_upload_request, request)
+        upload_req = await self._build(self._build_with_adaptations, self._inner._batch_upload_request, request)
         if upload_req is not None:
             resp = await self._send(upload_req)
             if resp.status >= 400:
                 raise self._inner._http_error(resp)
             upload_body = _parse_reply(resp, _reply_object)
         try:
-            submit_req = await self._build(self._inner._batch_submit_request, request, upload_body)
+            submit_req = await self._build(self._build_with_adaptations, self._inner._batch_submit_request, request, upload_body)
         except ProviderError as error:
             if upload_req is not None:
                 _reply_error_metadata(error, resp)
@@ -266,6 +272,7 @@ class AsyncBaseProviderLM:
         return _parse_reply(resp, lambda reply: self._inner._batch_job_from_body(reply.text()))
 
     async def batch_status(self, batch_id: str):
+        self._inner._require("batches")
         resp = await self._send(await self._build(self._inner._batch_status_request, batch_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
@@ -274,6 +281,7 @@ class AsyncBaseProviderLM:
     async def batch_results(self, batch_id: str):
         from ..types import BATCH_TERMINAL_STATUSES
 
+        self._inner._require("batches")
         resp = await self._send(await self._build(self._inner._batch_status_request, batch_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
@@ -298,12 +306,14 @@ class AsyncBaseProviderLM:
         return _parse_reply(resp, lambda reply: self._inner._batch_entries(status_body, tuple(texts)), json_body=False)
 
     async def batch_cancel(self, batch_id: str):
+        self._inner._require("batches")
         resp = await self._send(await self._build(self._inner._batch_cancel_request, batch_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
         return _parse_reply(resp, lambda reply: self._inner._batch_job_from_body(reply.text()))
 
     async def batch_list(self, limit: int = 20):
+        self._inner._require("batches")
         resp = await self._send(await self._build(self._inner._batch_list_request, limit))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
@@ -333,6 +343,7 @@ class AsyncBaseProviderLM:
     # ── Cache resources: async drivers over the sync adapter's pure hooks ──
 
     async def cache_create(self, prefix: Request, *, ttl_seconds: int | None = None, label: str | None = None):
+        self._inner._require("caches")
         self._inner._check_cache_prefix(prefix, ttl_seconds)
         resp = await self._send(await self._build(self._inner._cache_create_request, prefix, ttl_seconds, label))
         if resp.status >= 400:
@@ -340,23 +351,27 @@ class AsyncBaseProviderLM:
         return _parse_reply(resp, lambda reply: self._inner._cache_info_from_body(reply.text()))
 
     async def cache_get(self, cache_id: str):
+        self._inner._require("caches")
         resp = await self._send(await self._build(self._inner._cache_get_request, cache_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
         return _parse_reply(resp, lambda reply: self._inner._cache_info_from_body(reply.text()))
 
     async def cache_list(self, limit: int = 20, cursor: str | None = None):
+        self._inner._require("caches")
         resp = await self._send(await self._build(self._inner._cache_list_request, limit, cursor))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
         return _parse_reply(resp, lambda reply: self._inner._cache_page_from_list_body(reply.text()))
 
     async def cache_delete(self, cache_id: str) -> None:
+        self._inner._require("caches")
         resp = await self._send(await self._build(self._inner._cache_delete_request, cache_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
 
     async def cache_update(self, cache_id: str, *, ttl_seconds: int):
+        self._inner._require("caches")
         if isinstance(ttl_seconds, bool) or not isinstance(ttl_seconds, int) or ttl_seconds <= 0:
             raise ValueError("ttl_seconds must be a positive int")
         resp = await self._send(await self._build(self._inner._cache_update_request, cache_id, ttl_seconds))
@@ -377,29 +392,34 @@ class AsyncBaseProviderLM:
     # ── Files: async drivers over the sync adapter's pure hooks ──────
 
     async def file_upload(self, request: "FileUploadRequest"):
+        self._inner._require("files")
         resp = await self._send(await self._build(self._inner._file_upload_request, request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
         return _parse_reply(resp, lambda reply: self._inner._file_info_from_body(reply.text()))
 
     async def file_get(self, file_id: str):
+        self._inner._require("files")
         resp = await self._send(await self._build(self._inner._file_get_request, file_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
         return _parse_reply(resp, lambda reply: self._inner._file_info_from_body(reply.text()))
 
     async def file_list(self, limit: int = 20, cursor: str | None = None):
+        self._inner._require("files")
         resp = await self._send(await self._build(self._inner._file_list_request, limit, cursor))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
         return _parse_reply(resp, lambda reply: self._inner._file_page_from_list_body(reply.text()))
 
     async def file_delete(self, file_id: str) -> None:
+        self._inner._require("files")
         resp = await self._send(await self._build(self._inner._file_delete_request, file_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
 
     async def file_download(self, file_id: str) -> bytes:
+        self._inner._require("files")
         resp = await self._send(await self._build(self._inner._file_download_request, file_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
@@ -444,12 +464,14 @@ class AsyncBaseProviderLM:
     # ── Video generation: async drivers over the sync adapter's pure hooks ──
 
     async def video_submit(self, request: "VideoGenerationRequest"):
+        self._inner._require("video")
         resp = await self._send(await self._build(self._inner._video_submit_request, request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
         return _parse_reply(resp, lambda reply: self._inner._video_job_from_body(reply.text()))
 
     async def video_status(self, video_id: str):
+        self._inner._require("video")
         resp = await self._send(await self._build(self._inner._video_status_request, video_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
@@ -458,6 +480,7 @@ class AsyncBaseProviderLM:
     async def video_result(self, video_id: str):
         from ..types import VIDEO_TERMINAL_STATUSES
 
+        self._inner._require("video")
         resp = await self._send(await self._build(self._inner._video_status_request, video_id))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
@@ -481,6 +504,7 @@ class AsyncBaseProviderLM:
         return _parse_reply(fetched or resp, lambda reply: self._inner._video_part(status_body, fetched), json_body=False)
 
     async def video_list(self, limit: int = 20, model: str | None = None):
+        self._inner._require("video")
         resp = await self._send(await self._build(self._inner._video_list_request, limit, model))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
@@ -504,12 +528,14 @@ class AsyncBaseProviderLM:
     # ── Media generation: async drivers over the sync adapter's pure hooks ──
 
     async def image_generate(self, request: ImageGenerationRequest):
+        self._inner._require("images")
         resp = await self._send(await self._build(self._inner._image_generate_request, request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)
         return _parse_reply(resp, lambda reply: self._inner._image_generation_from_response(request, reply))
 
     async def speech_generate(self, request: SpeechGenerationRequest):
+        self._inner._require("speech")
         resp = await self._send(await self._build(self._inner._speech_generate_request, request))
         if resp.status >= 400:
             raise self._inner._http_error(resp)

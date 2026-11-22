@@ -16,7 +16,7 @@ origin — the proxy never sees inside the tunnel.
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import unquote
 from urllib.request import getproxies, proxy_bypass
 
@@ -29,12 +29,34 @@ class ProxyRoute:
 
     host: str
     port: int
-    basic_auth: str | None = None  # full header value, e.g. "Basic dXNlcjpwdw=="
+    basic_auth: str | None = field(default=None, repr=False)  # full header value, e.g. "Basic dXNlcjpwdw=="
 
     def authority(self, parsed: ParsedURL) -> str:
         """The target's host:port authority-form, as CONNECT wants it."""
         host = f"[{parsed.host}]" if ":" in parsed.host else parsed.host
         return f"{host}:{parsed.port}"
+
+
+def _authority_end(rest: str) -> int:
+    end = len(rest)
+    for ch in ("/", "?", "#"):
+        idx = rest.find(ch)
+        if idx != -1 and idx < end:
+            end = idx
+    return end
+
+
+def _redact_proxy_url(url: str) -> str:
+    """Strip userinfo from a proxy URL before placing it in any diagnostic (AUTH-5)."""
+    scheme, sep, rest = url.partition("://")
+    if not sep:
+        return url
+    end = _authority_end(rest)
+    authority = rest[:end]
+    if "@" in authority:
+        _, _, hostpart = authority.rpartition("@")
+        rest = "<redacted>@" + hostpart + rest[end:]
+    return f"{scheme}://{rest}"
 
 
 def parse_proxy_url(url: str) -> ProxyRoute:
@@ -44,13 +66,15 @@ def parse_proxy_url(url: str) -> ProxyRoute:
     scheme, _, rest = url.partition("://")
     if scheme.lower() != "http":
         raise ValueError(
-            f"unsupported proxy scheme {scheme!r} in {url!r}: lm15 speaks to plain-HTTP proxies only"
+            f"unsupported proxy scheme {scheme!r} in {_redact_proxy_url(url)!r}: "
+            f"lm15 speaks to plain-HTTP proxies only"
         )
     auth: str | None = None
-    authority = rest.split("/", 1)[0]
+    end = _authority_end(rest)
+    authority = rest[:end]
     if "@" in authority:
         userinfo, _, hostpart = authority.rpartition("@")
-        rest = hostpart + rest[len(authority):]
+        rest = hostpart + rest[end:]
         auth = "Basic " + base64.b64encode(unquote(userinfo).encode("utf-8")).decode("ascii")
     parsed = parse_url("http://" + rest)
     return ProxyRoute(host=parsed.host, port=parsed.port, basic_auth=auth)

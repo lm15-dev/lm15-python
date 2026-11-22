@@ -905,6 +905,10 @@ class AnthropicLM(BaseProviderLM):
             # accepts "summarized" (live 2026-11-07, 14 models).
             payload["thinking"]["display"] = "summarized"
         if request.config.response_format:
+            # MAP-14: check probabilities before structured_output rejection so
+            # probabilities="required" is refused (and "if_available" recorded)
+            # even on servers where output_config.format itself is dropped.
+            note_unmeasurable_probabilities(request, self.provider)
             if compat.structured_output == "reject":
                 # The server accepts output_config.format and ignores the
                 # schema (DeepSeek, live 2026-09-03: 200 with keys the schema
@@ -917,8 +921,7 @@ class AnthropicLM(BaseProviderLM):
             else:
                 # MAP-14 §2: a judgment property carrying type+anyOf has its
                 # type moved into every branch (the wire 400s otherwise,
-                # receipted 2026-09-17); probabilities cannot be measured here.
-                note_unmeasurable_probabilities(request, self.provider)
+                # receipted 2026-09-17).
                 found = request_judgments(request)
                 fmt = request.config.response_format
                 if found:

@@ -1243,7 +1243,10 @@ class GeminiLM(BaseProviderLM):
         if finish:
             yield StreamEndEvent(finish_reason=_finish_reason(finish, has_tool_call=saw_tool), usage=self._usage_from_payload(payload), provider_data=payload)
         elif not yielded_delta and "usageMetadata" in payload:
-            yield StreamEndEvent(finish_reason="stop", usage=self._usage_from_payload(payload), provider_data=payload)
+            # Never fabricate "stop" on a trailing usage-only frame: coalescing
+            # preserves an earlier non-None finish_reason (e.g. "length" or "tool_call"),
+            # and StreamAccumulator defaults to "stop"/"tool_call" when no frame sent one.
+            yield StreamEndEvent(finish_reason=None, usage=self._usage_from_payload(payload), provider_data=payload)
 
     def _usage_from_payload(self, payload: dict[str, Any]) -> Usage:
         return _gemini_usage(payload.get("usageMetadata"), output_keys=("candidatesTokenCount", "responseTokenCount"))

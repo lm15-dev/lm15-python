@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — audit hardening
+
+- Hide proxy credentials and router environment secrets from ordinary diagnostics.
+- Record dropped/boolean-only reasoning controls, preserve Gemini stream finish
+  reasons after usage trailers, and enforce required Anthropic probabilities.
+- Async resource methods enforce the same feature gates and batch adaptation
+  policy as sync methods.
+- Never replay a failed transport write, including broken pipes and timeouts.
+  Stale sockets are still replaced before writing. A socket that closes during
+  the write can now produce a visible error rather than an unsafe automatic retry.
+- Pin the strengthened contract: valid and invalid input checks, named-cloud
+  credential checks, full pinned error fields, and Gemini usage-trailer variants.
+
 ## 2.4.0 — 2026-11-12
 
 Google Cloud from AWS, with no key (lm15-contract `f67699c`, AUTH-1 `gcp-chain`; to

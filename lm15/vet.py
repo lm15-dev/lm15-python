@@ -327,7 +327,10 @@ def op_normalize_error(msg: JsonObject) -> JsonObject:
     return {
         "class": type(err).__name__,
         "code": err.code or canonical_error_code(err),
+        "provider": err.provider,
         "provider_code": err.provider_code,
+        "status": err.status,
+        "request_id": err.request_id,
         "message": err.message,
     }
 
@@ -667,6 +670,10 @@ def op_explain_auth(msg: JsonObject) -> JsonObject:
         kwargs["home"] = kwargs["env"]["HOME"]
     if isinstance(msg.get("settings"), dict):
         kwargs["settings"] = {str(k): str(v) for k, v in msg["settings"].items()}
+    if msg.get("credential") is not None:
+        kwargs["credential"] = str(msg["credential"])
+    if msg.get("base_url") is not None:
+        kwargs["base_url"] = str(msg["base_url"])
     credentials_path = msg.get("credentials_path")
     if credentials_path is not None:
         if provider == "claude-code":
@@ -677,7 +684,7 @@ def op_explain_auth(msg: JsonObject) -> JsonObject:
             kwargs["codex_auth_path"] = str(credentials_path)
 
     report = explain_auth(provider, **kwargs)
-    return {
+    out: JsonObject = {
         "configured": report.configured,
         "steps": [{"kind": step.kind, "state": step.state} for step in report.steps],
         # PROTOCOL.md explain_auth ``settings`` (additive, 2026-09-26): each
@@ -685,6 +692,12 @@ def op_explain_auth(msg: JsonObject) -> JsonObject:
         "settings": _explained_settings(report),
         "report_text": "\n".join((report.describe(), repr(report), str(report))),
     }
+    if report.base_url is not None:
+        out["base_url"] = report.base_url
+    settings_err = next((value for name, value in report.settings if name == "error"), None)
+    if settings_err is not None:
+        out["settings_error"] = settings_err
+    return out
 
 
 def op_token_exchange_build(msg: JsonObject) -> JsonObject:

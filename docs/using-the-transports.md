@@ -191,6 +191,11 @@ or warn under `python -W error`.
 
 Idle connections are checked for staleness before reuse. If a server closes a
 keep-alive connection while idle, the transport drops it and opens a fresh one.
+Once writing starts, a timeout, broken pipe, or other write failure is returned
+without resending the request. The server may already have received bytes;
+retrying could run a paid request twice. A connection that closes between the
+staleness check and the write can therefore produce a visible error. Retry
+policy belongs to the caller.
 
 ## Proxies
 
