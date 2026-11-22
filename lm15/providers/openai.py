@@ -87,6 +87,7 @@ from ..types import (
     LiveServerTurnEndEvent,
     LiveServerUsageEvent,
     Message,
+    Reasoning,
     RefusalPart,
     Request,
     Response,
@@ -1154,8 +1155,8 @@ class OpenAILM(BaseProviderLM):
             # be measured here.
             note_unmeasurable_probabilities(request, self.provider)
             payload["text"] = _response_format_to_openai_text(request.config.response_format)
-        if request.config.reasoning:
-            reasoning = request.config.reasoning
+        reasoning: Reasoning | None = request.config.reasoning
+        if reasoning is not None:
             if compat.reasoning_format == "none":
                 # No reasoning dial on this server (MAP-13): drop and record
                 # before any sub-field checks (matches OpenAIChatLM thinking_format="none").
