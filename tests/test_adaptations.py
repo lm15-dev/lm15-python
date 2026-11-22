@@ -336,9 +336,9 @@ def test_plan_reads_no_stored_login_and_walks_no_chain(monkeypatch) -> None:
     router = LMRouter(RouterConfig(env={}))
     for pid in PROVIDERS:
         model = {"deepseek-anthropic": "deepseek-v4-flash", "moonshotai-anthropic": "kimi-k3"}.get(pid, "m")
-        # typesafe answers declared judgments only (MAP-14): a plain text
+        # Native decision providers answer declared judgments only: a plain text
         # request is a refusal there, not a credential question.
-        config = Config(response_format=judgments(ok=yes_no("Is it fine?"))) if pid == "typesafe" else Config()
+        config = Config(response_format=judgments(ok=yes_no("Is it fine?"))) if pid in {"typesafe", "openai-decisions"} else Config()
         router.plan(Request(model=f"{pid}:{model}", messages=(Message.user("hi"),), config=config))
     assert router._lms == {}  # planning LMs are never cached
 

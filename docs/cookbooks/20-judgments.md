@@ -99,3 +99,35 @@ df["quality"] = pd.Categorical(df.quality, categories=range(5), ordered=True)
 - Pictures: `Message.user(image(path="door.jpg"))` makes the image Jev's state; `Message.user(["Listing: a red mug.", image(path="a.png"), image(path="b.jpg")])` sends the parts in order, as an array (a question can say "the second image" or point at `` `[2]` ``). PNG and JPEG bytes only: a URL, a file id, another format, audio or video is refused before the wire. lm15 sends TypeSafe's `TypeSafe-Danger-Zone-Images: true` header for you; TypeSafe calls images beta, so check answers on pictures you know. `lm15-contract/changes/2026-10-14-jev-images.md`.
 - Bounding boxes: `lm15-contract/changes/2026-10-15-bounding-box.md`.
 - Contract: `lm15-contract/changes/2026-09-17-judgments.md`, MAP-14.
+
+
+## OpenAI Decisions
+
+Select `openai-decisions:gpt-6-luna` to send judgments to `/v1/decisions`
+using `OPENAI_API_KEY`. The ordinary `openai:` route still uses Responses.
+Boolean judgments become predicates; choices and ordered levels retain their
+probability distributions. `response.expected(name)` reads an ordered score's
+expected value; `response.data[name]` is its most likely level.
+
+```python
+from lm15 import LMRouter, Request, Message, Config, judgments, yes_no
+
+with LMRouter() as router:
+    result = router.complete(Request(
+        model="openai-decisions:gpt-6-luna",
+        messages=(Message.user("The package arrived damaged."),),
+        config=Config(response_format=judgments(damaged=yes_no("Does the message report damage?"))),
+    ))
+print(result.probabilities["damaged"])
+```
+
+`AsyncLMRouter` uses the same codec. Text, JSON data, and image user inputs are
+supported, together with text conversation history. Streaming, tool-call
+history, bounding boxes, free-form outputs, generation controls, and explicit
+`Config.cache` controls are rejected. The endpoint's implicit prompt caching
+still applies; native cache options can be supplied through `Config.extensions`.
+Refusals retain other answers and usage, set `finish_reason="content_filter"`,
+and name refused questions in `provider_data["decisions"]["refusals"]`.
+The original reply is retained under `provider_data["openai-decisions"]`.
+
+See the [OpenAI Decisions guide](https://developers.openai.com/api/docs/guides/decisions).
