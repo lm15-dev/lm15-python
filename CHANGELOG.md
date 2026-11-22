@@ -2,6 +2,10 @@
 
 ## Unreleased — audit hardening
 
+- Gemini Live never invents a missing tool name. Malformed completed live calls
+  raise `ProviderError`; live-completion streams preserve missing names for
+  `StreamAssemblyError`, with partial text and usage retained. Valid calls stay
+  unchanged. Contract adds eight synthetic malformed-name checks.
 - Hide proxy credentials and router environment secrets from ordinary diagnostics.
 - Record dropped/boolean-only reasoning controls, preserve Gemini stream finish
   reasons after usage trailers, and enforce required Anthropic probabilities.

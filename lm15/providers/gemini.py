@@ -1411,7 +1411,7 @@ class GeminiLM(BaseProviderLM):
         if isinstance(tool_call, dict):
             for idx, fc in enumerate(tool_call.get("functionCalls") or []):
                 if isinstance(fc, dict):
-                    events.append(StreamDeltaEvent(delta=ToolCallDelta(input=json.dumps(fc.get("args", {})), part_index=idx, id=str(fc.get("id") or f"fc_{idx}"), name=str(fc.get("name") or "tool"))))
+                    events.append(StreamDeltaEvent(delta=ToolCallDelta(input=json.dumps(fc.get("args", {})), part_index=idx, id=str(fc.get("id") or f"fc_{idx}"), name=fc.get("name") if isinstance(fc.get("name"), str) and fc["name"] else None)))
         server = payload.get("serverContent")
         if not isinstance(server, dict):
             return events, False, self._live_usage(payload, None)
@@ -1422,7 +1422,7 @@ class GeminiLM(BaseProviderLM):
                     events.append(StreamDeltaEvent(delta=TextDelta(text=str(part.get("text") or ""), part_index=idx)))
                 elif "functionCall" in part and isinstance(part["functionCall"], dict):
                     fc = part["functionCall"]
-                    events.append(StreamDeltaEvent(delta=ToolCallDelta(input=json.dumps(fc.get("args", {})), part_index=idx, id=str(fc.get("id") or "fc_0"), name=str(fc.get("name") or "tool"))))
+                    events.append(StreamDeltaEvent(delta=ToolCallDelta(input=json.dumps(fc.get("args", {})), part_index=idx, id=str(fc.get("id") or "fc_0"), name=fc.get("name") if isinstance(fc.get("name"), str) and fc["name"] else None)))
                 elif "inlineData" in part and isinstance(part["inlineData"], dict):
                     inline = part["inlineData"]
                     mime = str(inline.get("mimeType") or "")
@@ -1556,6 +1556,12 @@ class GeminiLM(BaseProviderLM):
             return [{"toolResponse": {"functionResponses": [{"id": event.id, "response": {"output": response_parts}}]}}]
         return []
 
+    def _live_complete_tool_name(self, call: dict[str, Any]) -> str:
+        name = call.get("name")
+        if not isinstance(name, str) or not name:
+            raise unnamed_tool_call_error(self.provider, "live function call")
+        return name
+
     def _decode_live_server_event(self, raw: str | bytes):
         try:
             payload = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
@@ -1573,7 +1579,7 @@ class GeminiLM(BaseProviderLM):
         if isinstance(tool_call, dict):
             for fc in tool_call.get("functionCalls") or []:
                 if isinstance(fc, dict):
-                    events.append(LiveServerToolCallEvent(id=str(fc.get("id") or "fc_0"), name=str(fc.get("name") or "tool"), input=fc.get("args") if isinstance(fc.get("args"), dict) else {}))
+                    events.append(LiveServerToolCallEvent(id=str(fc.get("id") or "fc_0"), name=self._live_complete_tool_name(fc), input=fc.get("args") if isinstance(fc.get("args"), dict) else {}))
         server = payload.get("serverContent")
         if not isinstance(server, dict):
             return events
@@ -1589,7 +1595,7 @@ class GeminiLM(BaseProviderLM):
                         events.append(LiveServerAudioEvent(data=str(inline.get("data") or ""), media_type=mime or None))
                 elif "functionCall" in part and isinstance(part["functionCall"], dict):
                     fc = part["functionCall"]
-                    events.append(LiveServerToolCallEvent(id=str(fc.get("id") or "fc_0"), name=str(fc.get("name") or "tool"), input=fc.get("args") if isinstance(fc.get("args"), dict) else {}))
+                    events.append(LiveServerToolCallEvent(id=str(fc.get("id") or "fc_0"), name=self._live_complete_tool_name(fc), input=fc.get("args") if isinstance(fc.get("args"), dict) else {}))
         out_tx = server.get("outputTranscription")
         if isinstance(out_tx, dict) and out_tx.get("text"):
             events.append(LiveServerTextEvent(text=str(out_tx["text"])))
